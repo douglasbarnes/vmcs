@@ -30,7 +30,7 @@ namespace debugger
 
         public static MemorySpace Memory = new MemorySpace();
 
-
+        public static RegisterCapacity CurrentCapacity;
         public static ulong BytePointer;
         public static List<PrefixBytes> Prefixes = new List<PrefixBytes>();
         private static byte _opbytes = 1;
@@ -58,7 +58,7 @@ namespace debugger
 
             RIP = BytePointer;
         }
-        public static byte[] Fetch(ulong _addr, byte _length=1)
+        public static byte[] Fetch(ulong _addr, int _length=1)
         {
             byte[] baOutput = new byte[_length];
             for (byte i = 0; i < _length; i++)
@@ -80,6 +80,10 @@ namespace debugger
             return Fetch(_addr, (byte)((int)_regcap / 8));
         }
 
+        public static byte[] FetchRegister(ByteCode bcByteCode)
+        {
+            return FetchRegister(bcByteCode, CurrentCapacity);
+        }
         public static byte[] FetchRegister(ByteCode bcByteCode, RegisterCapacity WorkingBits)
         {
             switch (WorkingBits)
@@ -175,8 +179,17 @@ namespace debugger
             throw new Exception();
         }
 
+        public static void SetRegister(ByteCode bcByteCode, byte[] baData)
+        {
+            SetRegister(bcByteCode, baData, CurrentCapacity);
+        }
         public static void SetRegister(ByteCode bcByteCode, byte[] baData, RegisterCapacity WorkingBits)
         {
+            if (WorkingBits == RegisterCapacity.E)
+            {
+                baData = Util.Bitwise.ZeroExtend(baData, 64); // weird 86_64 thing, partial register stalls, doesnt matter for us but still emulate it}
+                WorkingBits = RegisterCapacity.R;
+            }
             switch (WorkingBits)
             {
                 case RegisterCapacity.X:
@@ -194,26 +207,21 @@ namespace debugger
                         case ByteCode.D:
                             DX = BitConverter.ToUInt16(baData, 0);
                             break;
-                    }
-                    break;
-                case RegisterCapacity.E:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            EAX = BitConverter.ToUInt32(baData, 0);
+                        case ByteCode.AH:
+                            SP = BitConverter.ToUInt16(baData, 0);
                             break;
-                        case ByteCode.B:
-                            EBX = BitConverter.ToUInt32(baData, 0);
+                        case ByteCode.BH:
+                            BP = BitConverter.ToUInt16(baData, 0);
                             break;
-                        case ByteCode.C:
-                            ECX = BitConverter.ToUInt32(baData, 0);
+                        case ByteCode.CH:
+                            SI = BitConverter.ToUInt16(baData, 0);
                             break;
-                        case ByteCode.D:
-                            EDX = BitConverter.ToUInt32(baData, 0);
+                        case ByteCode.DH:
+                            DI = BitConverter.ToUInt16(baData, 0);
                             break;
                     }
                     break;
-                case RegisterCapacity.R:
+                case RegisterCapacity.R:                   
                     switch (bcByteCode)
                     {
                         case ByteCode.A:
@@ -227,6 +235,18 @@ namespace debugger
                             break;
                         case ByteCode.D:
                             RDX = BitConverter.ToUInt64(baData, 0);
+                            break;
+                        case ByteCode.AH:
+                            RSP = BitConverter.ToUInt64(baData, 0);
+                            break;
+                        case ByteCode.BH:
+                            RBP = BitConverter.ToUInt64(baData, 0);
+                            break;
+                        case ByteCode.CH:
+                            RSI = BitConverter.ToUInt64(baData, 0);
+                            break;
+                        case ByteCode.DH:
+                            RDI = BitConverter.ToUInt64(baData, 0);
                             break;
                     }
                     break;
@@ -283,6 +303,7 @@ namespace debugger
         {
             SetRegister(bcByteCode, BitConverter.GetBytes(sData), RegisterCapacity.X);
         }
+
 
         public static void SetMemory(ulong lAddress, byte[] baData)
         {
@@ -616,6 +637,7 @@ namespace debugger
         public ulong Size;
         public ulong EntryPoint;
         public ulong LastAddr;
+        
 
         public class Segment
         {
