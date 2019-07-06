@@ -10,17 +10,69 @@ namespace debugger
 {
     public class VM
     {
-        public VM()
+        public VM(MemorySpace InputMemory)
         {
-        }
-        public void Run(MemorySpace InputMemory)
-        {
-            
-
             OpcodeLookup.Refresh();
-            Thread t = new Thread(() => ControlUnit.ClockStart(InputMemory));
-            t.Start();
+            ControlUnit.Initialise(InputMemory);
         }
+        public void Run()
+        {
+            ControlUnit.ClockStart();
+        }
+
+        public void Step()
+        {
+            ControlUnit.ClockStart(Step: true);
+        }
+
+        public List<Dictionary<string, ulong>> GetRegisters()
+        {
+            return new List<Dictionary<string, ulong>>() {
+                 new Dictionary<string, ulong>()
+                {
+                { "RIP", Registers.RIP},
+                { "RSP", Registers.RSP},
+                { "RBP", Registers.RBP},
+                { "RSI", Registers.RSI},
+                { "RDI", Registers.RDI}
+                },
+
+                new Dictionary<string, ulong>()
+                {
+                { "RAX", Registers.RAX},
+                { "RBX", Registers.RBX},
+                { "RCX", Registers.RCX},
+                { "RDX", Registers.RDX}
+                }
+           };
+        }
+
+        /*  public Dictionary<ulong, byte> GetMemory(string Segment, ulong lEntries)
+          {
+              ulong segoffset = ControlUnit.Memory.SegmentMap[Segment].StartAddr;
+              Dictionary<ulong, byte> OutputDict = new Dictionary<ulong, byte>();
+              for (ulong i = 0; i < lEntries; i++)
+              {
+                  OutputDict.Add(segoffset + i, ControlUnit.Fetch(segoffset + i)[0]);
+              }
+              return OutputDict;
+          }
+
+          public Dictionary<ulong, byte> GetMemory(ulong lOffset, ulong lEntries)
+          {
+              Dictionary<ulong, byte> OutputDict = new Dictionary<ulong, byte>();
+              for (ulong i = 0; i < lEntries; i++)
+              {
+                  OutputDict.Add(lOffset + i, ControlUnit.Fetch(lOffset + i)[0]);
+              }
+              return OutputDict;
+          }*/
+
+        public Dictionary<ulong, byte> GetMemory()
+        {
+            return ControlUnit.Memory;
+        }
+
 
 
     }
@@ -34,17 +86,34 @@ namespace debugger
         public static ulong BytePointer;
         public static List<PrefixBytes> Prefixes = new List<PrefixBytes>();
         private static byte _opbytes = 1;
-        public static void ClockStart(MemorySpace _memory)
+
+        public static void Initialise(MemorySpace _memory)
         {
             BytePointer = _memory.EntryPoint;
             Memory = _memory;
             RSP = _memory.SegmentMap[".stack"].StartAddr;
             RBP = RSP;
             RIP = Memory.SegmentMap[".main"].StartAddr;
-            while (true)
+        }
+        public static void ClockStart(bool Step=false)
+        {
+            Thread t = new Thread(() => _step());
+            
+            if (Step)
             {
-                _step();
+                t.Start();
+                t.Join();
             }
+            else
+            {
+                while (true)
+                {
+
+                    t.Start();
+                    t.Join();
+                }
+            }
+            
         }
         private static void _step()
         {
@@ -63,11 +132,10 @@ namespace debugger
             byte[] baOutput = new byte[_length];
             for (byte i = 0; i < _length; i++)
             {
-                try
+                if (Memory.ContainsAddr(_addr+i))
                 {
-                    baOutput[i] = Memory[_addr+i];
-                }
-                catch
+                    baOutput[i] = Memory[_addr + i];
+                } else
                 {
                     baOutput[i] = 0x00;
                 }
@@ -372,6 +440,9 @@ namespace debugger
             else if (Enum.IsDefined(typeof(PrefixBytes), (int)bFetched)) {
                 Prefixes.Add((PrefixBytes)bFetched);
                 return true;
+            } else if(bFetched == 0x90) // FIX STACk
+            {
+                return true;
             }
             return false;
         }
@@ -646,6 +717,11 @@ namespace debugger
             public byte[] baData = null;
         }
 
+        public static implicit operator Dictionary<ulong, byte>(MemorySpace m)
+        {
+            return m._memory;
+        }
+
         public MemorySpace() { }
         public MemorySpace(Dictionary<ulong, byte> _inputmemory)
         {
@@ -746,7 +822,7 @@ namespace debugger
         public enum PrefixBytes
         {
             ADDR32 = 0x67,
-            SIZEOVR=0x66,
+            SIZEOVR = 0x66,
             REXW = 0x48
         }
         public enum RegisterCapacity
@@ -769,7 +845,18 @@ namespace debugger
             BH = 0xC7
         }
 
-        
+        public static class Eflags {
+            public static bool Carry = false;
+            public static bool Parity = false;
+            public static bool CarryAux = false;
+            public static bool Adjust = false;
+            public static bool Zero = false; // zero = false
+            public static bool Sign = false; // false = positive
+            public static bool Trap = false;
+            public static bool Interrupt = true; // interrupt enable = true
+            public static bool Direction = false; // false = up
+            public static bool Overflow = false; // true = overflow
+        }
 
         public static Register64 RIP = 0x0000000000000000;
 

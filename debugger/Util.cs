@@ -8,8 +8,20 @@ namespace debugger
 {
     public static class Util
     {
+        public static bool IsPositive(this byte[] baInput)
+        {
+            if(Convert.ToString(baInput[0],2).Length != 8) //                          -128 64 32 16 8 4 2 1
+            { // twos compliment: negative number always has a greatest set bit of 1 .eg, 1  0  0  0 0 0 0 1 = -128+1 = -127
+                return true; // this way is much faster than using GetBits() because padleft iterates the whole string multiple times
+            }  // this method is just for performance because its used alot
+            else
+            {
+                return false;
+            }
+        }
         public static class Bitwise
         {
+            public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
             private static void _padequal(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
@@ -39,7 +51,6 @@ namespace debugger
                 }
                 return sResult;
             }
-
             public static string LogicalAnd(string sBits1, string sBits2)
             {
                 _padequal(ref sBits1, ref sBits2);
@@ -58,7 +69,6 @@ namespace debugger
                 }
                 return sResult;
             }
-
             public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
             {
                 /*int iSum; //LITTLE ENDIAN ONLY /// revist this
@@ -75,83 +85,183 @@ namespace debugger
                         baResult[i] += (byte)iSum;
                     }
                 }*/
-                switch(_regcap)
+                byte[] baResult;
+                switch (_regcap)
                 {
                     case RegisterCapacity.R:
-                        return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1,0) + BitConverter.ToUInt64(baInput2,0)));
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) + BitConverter.ToUInt64(baInput2, 0)));
+                        break;
                     case RegisterCapacity.E:
-                        return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0)));
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0))); // touint64 because we dont handle overflows ourself
+                        break;
                     case RegisterCapacity.X:
-                        return BitConverter.GetBytes(Convert.ToUInt16(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0)));
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0)));
+                        break;
                     case RegisterCapacity.B:
-                        return new byte[] { (byte)(baInput1[0] + baInput2[0])};
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(baInput1[0] + baInput2[0]));
+                        break;
                     default:
                         throw new Exception();
                 }
-                
+                baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
+                //flags
+                // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
+                // negative + negative should never be positive, vice versa
+                if (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive())
+                {
+                    Eflags.Overflow = true;
+                } 
+
+                if (baResult.Length > (int)_regcap)
+                {
+                    Eflags.Carry = true;
+                    return baResult.Skip(1).ToArray(); // always 1 maybe?? baResult.Length - (int)_regcap
+                } else
+                {
+                    return baResult;
+                }
             }
             public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
             {
+                byte[] baResult;
                 switch (_regcap)
                 {
                     case RegisterCapacity.R:
-                        return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) - BitConverter.ToUInt64(baInput2, 0)));
-                    case RegisterCapacity.E:                                                             
-                        return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.X:                                                             
-                        return BitConverter.GetBytes(Convert.ToUInt16(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0)));
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) - BitConverter.ToUInt64(baInput2, 0)));
+                        break;
+                    case RegisterCapacity.E:
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0))); // touint64 because we dont handle overflows ourself
+                        break;
+                    case RegisterCapacity.X:
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0)));
+                        break;
                     case RegisterCapacity.B:
-                        return new byte[] { (byte)(baInput1[0] - baInput2[0]) };
+                        baResult = BitConverter.GetBytes(Convert.ToUInt64(baInput1[0] + baInput2[0]));
+                        break;
                     default:
                         throw new Exception();
                 }
-            }
-            public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
-            {
-                switch (_regcap)
+                baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
+                //flags
+                // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
+                // negative + negative should never be positive, vice versa
+                if (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive())
                 {
-                    case RegisterCapacity.R:
-                        return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) / BitConverter.ToUInt64(baInput2, 0)));
-                    case RegisterCapacity.E:
-                        return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.X:
-                        return BitConverter.GetBytes(Convert.ToUInt16(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.B:
-                        return new byte[] { (byte)(baInput1[0] / baInput2[0]) };
-                    default:
-                        throw new Exception();
+                    Eflags.Overflow = true;
+                }
+
+                if (baResult.Length > (int)_regcap)
+                {
+                    Eflags.Carry = true;
+                    return baResult.Skip(1).ToArray(); // always 1 maybe?? baResult.Length - (int)_regcap
+                }
+                else
+                {
+                    return baResult;
                 }
             }
-            public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
+            public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
-                switch (_regcap)
+                if (Signed)
                 {
-                    case RegisterCapacity.R:
-                        return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
-                    case RegisterCapacity.E:
-                        return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.X:
-                        return BitConverter.GetBytes(Convert.ToUInt16(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.B:
-                        return new byte[] { (byte)(baInput1[0] * baInput2[0]) };
-                    default:
-                        throw new Exception();
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) / BitConverter.ToInt64(baInput2, 0))));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0))));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt16(baInput1[0] * baInput2[0])));
+                        default:
+                            throw new Exception();
+                    }
+                }
+                else
+                {
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) / BitConverter.ToUInt64(baInput2, 0))));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0))));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt16(baInput1[0] / baInput2[0])));
+                        default:
+                            throw new Exception();
+                    }
                 }
             }
-            public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
+            public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
-                switch (_regcap)
+                if(Signed)
                 {
-                    case RegisterCapacity.R:
-                        return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) % BitConverter.ToUInt64(baInput2, 0)));
-                    case RegisterCapacity.E:
-                        return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.X:
-                        return BitConverter.GetBytes(Convert.ToUInt16(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0)));
-                    case RegisterCapacity.B:
-                        return new byte[] { (byte)(baInput1[0] % baInput2[0]) };
-                    default:
-                        throw new Exception();
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
+                        default:
+                            throw new Exception();
+                    }
+                } else
+                {
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
+                        default:
+                            throw new Exception();
+                    }
+                }               
+            }
+            public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
+            {
+                if (Signed)
+                {
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) % BitConverter.ToInt64(baInput2, 0)));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) % BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) % BitConverter.ToInt32(baInput2, 0)));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
+                        default:
+                            throw new Exception();
+                    }
+                }
+                else
+                {
+                    switch (_regcap)
+                    {
+                        case RegisterCapacity.R:
+                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) % BitConverter.ToUInt64(baInput2, 0)));
+                        case RegisterCapacity.E:
+                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                        case RegisterCapacity.X:
+                            return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0)));
+                        case RegisterCapacity.B:
+                            return BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
+                        default:
+                            throw new Exception();
+                    }
                 }
             }
             public static string GetBits(byte[] bInput)
@@ -167,22 +277,18 @@ namespace debugger
             {
                 return Convert.ToString(bInput, 2).PadLeft(8, '0');
             }
-
             public static string GetBits(ushort sInput)
             {
                 return Convert.ToString(sInput, 2).PadLeft(16, '0');
             }
-
             public static string GetBits(uint iInput)
             {
                 return Convert.ToString(iInput, 2).PadLeft(32, '0');
             }
-
             public static string GetBits(ulong lInput)
             {
                 return Convert.ToString((long)lInput, 2).PadLeft(64, '0');
             }
-
             public static byte[] GetBytes(string sInput)
             {
                 byte[] baOutput = new byte[sInput.Length/8];
@@ -203,7 +309,6 @@ namespace debugger
                  
                 return blBuffer.ToArray();
             }
-
             public static string SignExtend(string sInput, int bLength)
             {
                 string sBuffer = "";
@@ -214,8 +319,6 @@ namespace debugger
                 }
                 return sBuffer;
             }
-
-
             public static byte[] ZeroExtend(byte[] baInput, byte bLength)
             {
                 List<byte> blBuffer = baInput.ToList();
