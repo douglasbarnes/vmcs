@@ -33,7 +33,7 @@ namespace debugger
                     s1 = SignExtend(s1, s2.Length);
                 }
             }
-            public static string LogicalOr(string sBits1, string sBits2)
+            public static string Or(string sBits1, string sBits2)
             {
                 _padequal(ref sBits1, ref sBits2);
 
@@ -50,6 +50,11 @@ namespace debugger
                     }
                 }
                 return sResult;
+            }
+
+            public static byte[] Or(byte[] baData1, byte[] baData2)
+            {
+                return GetBytes(Or(GetBits(baData1), GetBits(baData2)));
             }
             public static string LogicalAnd(string sBits1, string sBits2)
             {

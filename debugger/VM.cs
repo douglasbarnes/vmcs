@@ -108,7 +108,6 @@ namespace debugger
             {
                 while (true)
                 {
-
                     t.Start();
                     t.Join();
                 }
