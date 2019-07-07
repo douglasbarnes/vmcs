@@ -172,13 +172,13 @@ namespace debugger
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) / BitConverter.ToInt64(baInput2, 0))));
+                            return BitConverter.GetBytes((ulong)Math.Floor((double)Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) / BitConverter.ToInt64(baInput2, 0))));
                         case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
+                            return BitConverter.GetBytes((uint)Math.Floor((double)Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
                         case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0))));
+                            return BitConverter.GetBytes((ushort)Math.Floor((double)Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0))));
                         case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToInt16(baInput1[0] * baInput2[0])));
+                            return BitConverter.GetBytes((byte)Math.Floor((double)Convert.ToInt16(baInput1[0] * baInput2[0])));
                         default:
                             throw new Exception();
                     }
@@ -188,13 +188,13 @@ namespace debugger
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) / BitConverter.ToUInt64(baInput2, 0))));
+                            return BitConverter.GetBytes((ulong)Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) / BitConverter.ToUInt64(baInput2, 0))));
                         case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
+                            return BitConverter.GetBytes((uint)Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
                         case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0))));
+                            return BitConverter.GetBytes((ushort)Math.Floor((double)Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0))));
                         case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Math.Floor((double)Convert.ToUInt16(baInput1[0] / baInput2[0])));
+                            return BitConverter.GetBytes((byte)Math.Floor((double)Convert.ToUInt16(baInput1[0] / baInput2[0])));
                         default:
                             throw new Exception();
                     }
@@ -274,7 +274,7 @@ namespace debugger
                 string sOutput = "";
                 for (int i = 0; i < bInput.Length; i++)
                 {
-                    sOutput += Convert.ToString(bInput[i],2).PadLeft(8);
+                    sOutput += Convert.ToString(bInput[i],2).PadLeft(8, '0');
                 }
                 return sOutput;
             }
@@ -296,10 +296,10 @@ namespace debugger
             }
             public static byte[] GetBytes(string sInput)
             {
-                byte[] baOutput = new byte[sInput.Length/8];
-                for (int i = 0; i < sInput.Length; i += 8)
+                byte[] baOutput = new byte[sInput.Length/8]; 
+                for (int i = 0; i < baOutput.Length; i++) 
                 {
-                    baOutput[i] = Convert.ToByte(sInput.Substring(i,8));
+                    baOutput[i] = Convert.ToByte(sInput.Substring(8*i,8), 2);
                 }
                 return baOutput;
             }
@@ -314,6 +314,11 @@ namespace debugger
                  
                 return blBuffer.ToArray();
             }
+            public static byte[] SignExtend(byte[] baInput, RegisterCapacity _regcap)
+            {
+                return SignExtend(baInput, (byte)((byte)_regcap / 8));
+            }
+
             public static string SignExtend(string sInput, int bLength)
             {
                 string sBuffer = "";
@@ -355,9 +360,121 @@ namespace debugger
 
 
 
-            public static void MoveReg(ByteCode bcDestCode, ByteCode bcSrcCode, RegisterCapacity WorkingBits)
+            public static byte[] ImmediateFetch32(bool _signextend)
             {
-                ControlUnit.SetRegister(bcDestCode, ControlUnit.FetchRegister(bcSrcCode, WorkingBits), WorkingBits);
+                if (_signextend)
+                {
+                    return Bitwise.SignExtend(ControlUnit.FetchNext(1), (byte)((byte)ControlUnit.CurrentCapacity / 8));
+                }
+                else if (ControlUnit.CurrentCapacity == RegisterCapacity.R)
+                {
+                    //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
+                    return Bitwise.SignExtend(ControlUnit.FetchNext(4), 8);
+                }
+               else
+               {
+                   return ControlUnit.FetchNext((byte)((ControlUnit.CurrentCapacity == RegisterCapacity.R) ? 4 : (byte)ControlUnit.CurrentCapacity / 8));
+               }
+                
+            }
+
+
+
+            /*Dynamic functions turn..
+             *  byte[] baResult;
+                byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
+                byte[] baDestData;
+                
+                if (DestSrc.IsAddress)
+                {
+                    ulong lDestAddr = DestSrc.lDest;
+                    baDestData = ControlUnit.Fetch(lDestAddr, ControlUnit.CurrentCapacity);
+                    baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
+                    if (IsSwap)
+                    {
+                        ControlUnit.SetRegister(bcSrcReg, baResult);
+                    }
+                    else
+                    {
+                        ControlUnit.SetMemory(lDestAddr, baResult);
+                    }
+                }
+                else
+                {
+                    ByteCode bcDestReg = (ByteCode)DestSrc.lDest;
+                    baDestData = ControlUnit.FetchRegister(bcDestReg);
+                    baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
+                    if (IsSwap)
+                    {
+                        ControlUnit.SetRegister(bcSrcReg, baResult);
+                    }
+                    else
+                    {
+                        ControlUnit.SetRegister(bcDestReg, baResult);
+                    }
+                }
+             * ...into
+             * byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
+               byte[] baDestData = FetchDynamic(DestSrc);
+               SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity), IsSwap);
+             * 
+             * allows operations on modrm bytes directly at the cost of more arguments in constructors
+             * 
+             * 
+             */
+            public static void SetDynamic(ModRM ModRMByte, byte[] baData, bool Swap=false)
+            {
+                if (ModRMByte.IsAddress)
+                {
+                    if(Swap)
+                    {
+                        ControlUnit.SetRegister((ByteCode)ModRMByte.lSource, baData, ControlUnit.CurrentCapacity);
+                    }
+                    else
+                    {
+                        ControlUnit.SetMemory(ModRMByte.lDest, baData);
+                    }                    
+                } else
+                {
+                    if(Swap)
+                    {
+                        ControlUnit.SetRegister((ByteCode)ModRMByte.lSource, baData);
+                    } else
+                    {
+                        ControlUnit.SetRegister((ByteCode)ModRMByte.lDest, baData);
+                    }                   
+                }
+            }
+
+            public static byte[] FetchDynamic(ModRM ModRMByte, bool Swap=false)
+            {
+                if(Swap)
+                {
+                    if (ModRMByte.IsAddress)
+                    {
+                        return ControlUnit.Fetch(ModRMByte.lDest, ControlUnit.CurrentCapacity);
+                    }
+                    else
+                    {
+                        return ControlUnit.FetchRegister((ByteCode)ModRMByte.lDest);
+                    }
+                } else
+                {
+                    if (ModRMByte.IsAddress)
+                    {
+                        return ControlUnit.Fetch(ModRMByte.lSource, ControlUnit.CurrentCapacity);
+                    }
+                    else
+                    {
+                        return ControlUnit.FetchRegister((ByteCode)ModRMByte.lSource);
+                    }
+                }
+                          
+            }
+
+            public static ModRM FromDest(ByteCode Dest)
+            {
+                return new ModRM { lDest = (ulong)Dest };
             }
         }
 

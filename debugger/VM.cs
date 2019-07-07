@@ -118,13 +118,16 @@ namespace debugger
         {
             BytePointer = RIP;
             byte bFetched = FetchNext();
-            if (!_decode(bFetched)) // no op
+            if (!_decode(bFetched)) // true = no op
             {
                 _execute(bFetched);
                 Prefixes = new List<PrefixBytes>();
-            }
-
-            RIP = BytePointer;
+                RIP = BytePointer;
+            } else
+            {
+                RIP++;
+                _step();
+            }           
         }
         public static byte[] Fetch(ulong _addr, int _length=1)
         {
@@ -256,7 +259,9 @@ namespace debugger
             {
                 baData = Util.Bitwise.ZeroExtend(baData, 64); // weird 86_64 thing, partial register stalls, doesnt matter for us but still emulate it}
                 WorkingBits = RegisterCapacity.R;
-            }
+            } 
+
+            
             switch (WorkingBits)
             {
                 case RegisterCapacity.X:
@@ -449,6 +454,11 @@ namespace debugger
         {
             OpcodeLookup.OpcodeTable[_opbytes][bFetched].Invoke();                   
         }
+
+        public static ModRM ModRMDecode()
+        {
+            return ModRMDecode(FetchNext());
+        }
         public static ModRM ModRMDecode(byte bModRM, bool MultiDef=false)
         {
             ModRM Output = new ModRM();
@@ -462,28 +472,28 @@ namespace debugger
                 switch (sReg)
                 {
                     case "000":
-                        Output.lReg = 0;
+                        Output.lSource = 0;
                         break;
                     case "001":
-                        Output.lReg = 1;
+                        Output.lSource = 1;
                         break;
                     case "010":
-                        Output.lReg = 2;
+                        Output.lSource = 2;
                         break;
                     case "011":
-                        Output.lReg = 3;
+                        Output.lSource = 3;
                         break;
                     case "100":
-                        Output.lReg = 4;
+                        Output.lSource = 4;
                         break;
                     case "101":
-                        Output.lReg = 5;
+                        Output.lSource = 5;
                         break;
                     case "110":
-                        Output.lReg = 6;
+                        Output.lSource = 6;
                         break;
                     case "111":
-                        Output.lReg = 7;
+                        Output.lSource = 7;
                         break;
                 }
             } else
@@ -491,28 +501,28 @@ namespace debugger
                 switch (sReg)
                 {
                     case "000":
-                        Output.lReg = (ulong)ByteCode.A;
+                        Output.lSource = (ulong)ByteCode.A;
                         break;
                     case "001":
-                        Output.lReg = (ulong)ByteCode.C;
+                        Output.lSource = (ulong)ByteCode.C;
                         break;
                     case "010":
-                        Output.lReg = (ulong)ByteCode.D;
+                        Output.lSource = (ulong)ByteCode.D;
                         break;
                     case "011":
-                        Output.lReg = (ulong)ByteCode.B;
+                        Output.lSource = (ulong)ByteCode.B;
                         break;
                     case "100":
-                        Output.lReg = (ulong)ByteCode.AH;
+                        Output.lSource = (ulong)ByteCode.AH;
                         break;
                     case "101":
-                        Output.lReg = (ulong)ByteCode.CH;
+                        Output.lSource = (ulong)ByteCode.CH;
                         break;
                     case "110":
-                        Output.lReg = (ulong)ByteCode.DH;
+                        Output.lSource = (ulong)ByteCode.DH;
                         break;
                     case "111":
-                        Output.lReg = (ulong)ByteCode.BH;
+                        Output.lSource = (ulong)ByteCode.BH;
                         break;
                 }
             }
@@ -525,28 +535,28 @@ namespace debugger
                 switch (sRM)
                 {
                     case "000":
-                        Output.lMod = (ulong)ByteCode.A;
+                        Output.lDest = (ulong)ByteCode.A;
                         break;
                     case "001":
-                        Output.lMod = (ulong)ByteCode.C;
+                        Output.lDest = (ulong)ByteCode.C;
                         break;
                     case "010":
-                        Output.lMod = (ulong)ByteCode.D;
+                        Output.lDest = (ulong)ByteCode.D;
                         break;
                     case "011":
-                        Output.lMod = (ulong)ByteCode.B;
+                        Output.lDest = (ulong)ByteCode.B;
                         break;
                     case "100":
-                        Output.lMod = (ulong)ByteCode.AH;
+                        Output.lDest = (ulong)ByteCode.AH;
                         break;
                     case "101":
-                        Output.lMod = (ulong)ByteCode.CH;
+                        Output.lDest = (ulong)ByteCode.CH;
                         break;
                     case "110":
-                        Output.lMod = (ulong)ByteCode.DH;
+                        Output.lDest = (ulong)ByteCode.DH;
                         break;
                     case "111":
-                        Output.lMod = (ulong)ByteCode.BH;
+                        Output.lDest = (ulong)ByteCode.BH;
                         break;
 
                 }
@@ -567,42 +577,40 @@ namespace debugger
                 switch (sRM)
                 {
                     case "000":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R), 0) + iOffset;
                         break;
                     case "001":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R), 0) + iOffset;
                         break;
                     case "010":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R), 0) + iOffset;
                         break;
                     case "011":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R), 0) + iOffset;
                         break;
                     case "100":
                         //SIB! //if (sRM == "100" && sMod != "11") { Output.bSIB = FetchNext(); BytePointer++; }
-                        Output.lMod = SIBDecode();
+                        Output.lDest = SIBDecode();
                         break;
                     case "110":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.DH, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.DH, RegisterCapacity.R), 0) + iOffset;
                         break;
                     case "111":
-                        Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
+                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
                         break;
                     default:
                         if (sMod == "00") // either displacement32 if it is just a pointer(mod=00)
                         {
-                            Output.lMod = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
+                            Output.lDest = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
                         }
                         else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
                         {
-                            Output.lMod = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
+                            Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
                         }
                         break;
                 }
             }
-            
             return Output;
-
         }
 
         public static ulong SIBDecode()
@@ -811,8 +819,8 @@ namespace debugger
 
     public struct ModRM
     {
-        public ulong lMod;
-        public ulong lReg;
+        public ulong lDest;
+        public ulong lSource;
         public bool IsAddress;
     }
 

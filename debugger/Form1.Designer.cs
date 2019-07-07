@@ -129,7 +129,7 @@
             this.gotoMemSrc.Location = new System.Drawing.Point(131, 464);
             this.gotoMemSrc.MaxLength = 18;
             this.gotoMemSrc.Name = "gotoMemSrc";
-            this.gotoMemSrc.Size = new System.Drawing.Size(100, 20);
+            this.gotoMemSrc.Size = new System.Drawing.Size(140, 20);
             this.gotoMemSrc.TabIndex = 10;
             this.gotoMemSrc.WordWrap = false;
             this.gotoMemSrc.TextChanged += new System.EventHandler(this.SetMemviewPos);
@@ -144,6 +144,7 @@
             this.memviewer.HideSelection = false;
             this.memviewer.Location = new System.Drawing.Point(92, 490);
             this.memviewer.Name = "memviewer";
+            this.memviewer.Scrollable = false;
             this.memviewer.Size = new System.Drawing.Size(571, 365);
             this.memviewer.TabIndex = 14;
             this.memviewer.UseCompatibleStateImageBehavior = false;
