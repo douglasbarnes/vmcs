@@ -43,6 +43,18 @@ namespace debugger
                 { "RBX", Registers.RBX},
                 { "RCX", Registers.RCX},
                 { "RDX", Registers.RDX}
+                },
+                new Dictionary<string, ulong>()
+                {
+                {"CF", (ulong)(Eflags.Carry ? 1 : 0) },
+                {"PF", (ulong)(Eflags.Parity ? 1 : 0) },
+                {"AF", (ulong)(Eflags.Adjust ? 1 : 0) },
+                {"ZF", (ulong)(Eflags.Zero ? 1 : 0) },
+                {"SF", (ulong)(Eflags.Sign ? 1 : 0) },
+                {"TF", (ulong)(Eflags.Trap ? 1 : 0) },
+                {"IF", (ulong)(Eflags.Interrupt ? 1 : 0) },
+                {"DF", (ulong)(Eflags.Direction ? 1 : 0) },
+                {"OF", (ulong)(Eflags.Overflow ? 1 : 0) },
                 }
            };
         }
@@ -440,6 +452,7 @@ namespace debugger
             if (bFetched == 0x0F)
             {
                 _opbytes = 2;
+                return true;
             }
             else if (Enum.IsDefined(typeof(PrefixBytes), (int)bFetched)) {
                 Prefixes.Add((PrefixBytes)bFetched);
@@ -452,7 +465,8 @@ namespace debugger
         }
         private static void _execute(byte bFetched)
         {
-            OpcodeLookup.OpcodeTable[_opbytes][bFetched].Invoke();                   
+            OpcodeLookup.OpcodeTable[_opbytes][bFetched].Invoke();
+            _opbytes = 1;
         }
 
         public static ModRM ModRMDecode()
@@ -855,12 +869,11 @@ namespace debugger
         public static class Eflags {
             public static bool Carry = false;
             public static bool Parity = false;
-            public static bool CarryAux = false;
             public static bool Adjust = false;
             public static bool Zero = false; // zero = false
             public static bool Sign = false; // false = positive
             public static bool Trap = false;
-            public static bool Interrupt = true; // interrupt enable = true
+            public static bool Interrupt = false; // interrupt enable = true
             public static bool Direction = false; // false = up
             public static bool Overflow = false; // true = overflow
         }

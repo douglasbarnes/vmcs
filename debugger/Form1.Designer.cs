@@ -41,6 +41,7 @@
             this.Address = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.Bytes = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.label1 = new System.Windows.Forms.Label();
+            this.eflags = new System.Windows.Forms.ListBox();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -63,7 +64,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(777, 356);
+            this.button1.Location = new System.Drawing.Point(777, 395);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 2;
@@ -116,7 +117,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(858, 356);
+            this.button2.Location = new System.Drawing.Point(861, 395);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 9;
@@ -169,11 +170,21 @@
             this.label1.TabIndex = 15;
             this.label1.Text = "Goto:";
             // 
+            // eflags
+            // 
+            this.eflags.FormattingEnabled = true;
+            this.eflags.Location = new System.Drawing.Point(777, 307);
+            this.eflags.Name = "eflags";
+            this.eflags.SelectionMode = System.Windows.Forms.SelectionMode.None;
+            this.eflags.Size = new System.Drawing.Size(341, 82);
+            this.eflags.TabIndex = 16;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1685, 867);
+            this.Controls.Add(this.eflags);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.memviewer);
             this.Controls.Add(this.gotoMemSrc);
@@ -208,6 +219,7 @@
         private System.Windows.Forms.ColumnHeader Address;
         private System.Windows.Forms.ColumnHeader Bytes;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.ListBox eflags;
     }
 }
 

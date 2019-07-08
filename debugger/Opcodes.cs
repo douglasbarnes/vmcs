@@ -60,16 +60,18 @@ namespace debugger
             //0xf6
             Dictionary<int, Action> _F6 = new Dictionary<int, Action>
             {
-                { 4, () => new Mul() { Is8Bit=true }.Execute() },
-                { 6, () => new Div() { Is8Bit=true }.Execute() }
+                { 4, () => new Mul(Oprands:1) { Is8Bit=true }.Execute() },
+                { 5, () => new Mul(Oprands:1) { IsSigned=true }.Execute() },
+                { 6, () => new Div(MultiDefOutput) { Is8Bit=true }.Execute() }
             };
             MasterDecodeDict.Add(0xF6, _F6);
 
             //0xf7
             Dictionary<int, Action> _F7 = new Dictionary<int, Action>
             {
-                { 4, () => new Mul().Execute() },
-                { 6, () => new Div().Execute() }
+                { 4, () => new Mul(Oprands:1).Execute() },
+                { 5, () => new Mul(Oprands:1) { IsSigned=true }.Execute() },
+                { 6, () => new Div(MultiDefOutput).Execute() }
             };
 
             MasterDecodeDict.Add(0xF7, _F7);
@@ -124,8 +126,10 @@ namespace debugger
                 { 0x5F, () => new Pop(ByteCode.BH ).Execute() },
 
                 //67 prefix
-                { 0x68, () => new PushImm(32) }, // its always 32, weird
-                { 0x6A, () => new PushImm(8) },
+                { 0x68, () => new PushImm(32).Execute() }, // its always 32, weird
+                { 0x69, () => new Mul(Oprands:3) { IsSigned=true}.Execute() },
+                { 0x6A, () => new PushImm(8).Execute() },
+                { 0x6B, () => new Mul(Oprands:3, SignExtendedByte:true) {Is8Bit=true, IsSigned=true }.Execute() },
 
                 { 0x80, () => Decode(0x80) },
                 { 0x81, () => Decode(0x81) },
@@ -162,7 +166,7 @@ namespace debugger
             });
             OpcodeTable.Add(2, new Dictionary<byte, Action>()
             {
-
+                { 0xAF, () => new Mul(Oprands:2) { IsSigned=true }.Execute() },
             });
 
             //OpcodeTable.Add(opcode, ExecuteAction);
@@ -237,7 +241,7 @@ namespace debugger
             public override void Execute()
             {
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch32(_signextend);
+                byte[] baImmediate = ImmediateFetch(_signextend);
                 byte[] baDestBytes = FetchDynamic(_input, true);
                 SetDynamic(_input, Bitwise.Add(baDestBytes, baImmediate, ControlUnit.CurrentCapacity));
             }
@@ -280,7 +284,7 @@ namespace debugger
             {
                 // If no ModRM was decoded in the MultiDefDecoder, it means that we came from the 0x0D instruction, which always has a dest of EAX 
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch32(_signextend);
+                byte[] baImmediate = ImmediateFetch(_signextend);
                 byte[] baDestBytes = FetchDynamic(_input, true); // weird at first, but since there is no 2nd byte in single oprand opcodes, actual source is shifted to lDest
                 SetDynamic(_input, Bitwise.Or(baDestBytes, baImmediate));
             }
@@ -343,20 +347,46 @@ namespace debugger
             //Data [Dest, Src]
             // or [eax, src]
             //Prefixes REXW SIZEOVR
-            public Mul() { _string = "MUL"; }
+            readonly byte _oprands;
+            readonly byte[] baDestData;
+            public Mul(byte Oprands, bool SignExtendedByte=false)
+            {
+                _string = "MUL";
+                _oprands = Oprands;              
+                switch (Oprands)
+                {
+                    case 1:
+                        _input = MultiDefOutput; //lsource is the modrm offset here!
+                        baDestData = ControlUnit.FetchRegister(ByteCode.A);
+                        break;
+                    case 2:
+                        _input = ControlUnit.ModRMDecode();
+                        baDestData = FetchDynamic(_input);
+                        break;
+                    case 3:
+                        _input = ControlUnit.ModRMDecode();
+                        baDestData = ImmediateFetch(SignExtendedByte);                        
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            }
             public override void Execute()
             {
-                ModRM DestSrc = MultiDefOutput;
-                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();             
-                byte[] baSrcData = FetchDynamic(DestSrc, true); 
-                byte[] baDestData = ControlUnit.FetchRegister(ByteCode.A); // always a
-                byte[] baResult = Bitwise.SignExtend(Bitwise.Multiply(baSrcData, baDestData, ControlUnit.CurrentCapacity, Signed:IsSigned), ControlUnit.CurrentCapacity);
-
-                int iHalfCapLen = (int)ControlUnit.CurrentCapacity / 8 /  2;
-                if (baResult.Take(iHalfCapLen) == Bitwise.Zero.Take(iHalfCapLen)){ Eflags.Carry = false; Eflags.Overflow = false; } // if highest x == 00000 set flags(little endian)
-                                                                            else { Eflags.Carry = true; Eflags.Overflow = true; } // edit not sure about this
-                ControlUnit.SetRegister(ByteCode.D, baResult.Take(iHalfCapLen).ToArray()); // higher bytes to d
-                ControlUnit.SetRegister(ByteCode.A, baResult.Skip(iHalfCapLen).ToArray()); // lower to a
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                byte[] baSrcData = FetchDynamic(_input, true);
+                byte[] baResult = Bitwise.Multiply(baSrcData, baDestData, ControlUnit.CurrentCapacity, Signed: IsSigned);
+                //careful refactoring this it gets messy, dont think there is a way without losing performance when it isn't needed
+                //e.g having to use take,skip with both
+                if (_oprands == 1) 
+                {                               
+                    //little endian smallest first
+                    ControlUnit.SetRegister(ByteCode.A, baResult.Take((int)ControlUnit.CurrentCapacity / 8).ToArray()); // higher bytes to d
+                    ControlUnit.SetRegister(ByteCode.D, baResult.Skip((int)ControlUnit.CurrentCapacity / 8).ToArray()); // lower to a=
+                } else 
+                {
+                    ControlUnit.SetRegister((ByteCode)_input.lSource, baResult); // higher bytes to d, never a ptr dont use dynamic
+                } //copy into source, source isnt source here. choppy workaround in x86_64, because ptr is never dest of imul 2+oprand op, so source and dest are swapped here
             }
         }
         public class Sub : MyOpcode // 29 32bit, 28 8bit,
@@ -384,7 +414,7 @@ namespace debugger
             public override void Execute()
             {
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch32(_signextend);
+                byte[] baImmediate = ImmediateFetch(_signextend);
                 byte[] baDestBytes = FetchDynamic(_input, true);
                 SetDynamic(_input, Bitwise.Subtract(baDestBytes, baImmediate, ControlUnit.CurrentCapacity));
             }
@@ -394,12 +424,11 @@ namespace debugger
             //Data [Dest, Src]
             // or [eax, src]
             //Prefixes REXW SIZEOVR
-            public Div() { _string = "DIV"; }
+            public Div(ModRM Input) { _input = Input; _string = "DIV"; }
             public override void Execute()
             {
-                ModRM DestSrc = MultiDefOutput;
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baSrcData = FetchDynamic(DestSrc, true);
+                byte[] baSrcData = FetchDynamic(_input, true);
                 byte[] baDestData = ControlUnit.FetchRegister(ByteCode.A); // always a, atleast for this opcode
 
                 byte[] baDivided = Bitwise.Divide(baDestData, baSrcData, ControlUnit.CurrentCapacity, Signed: IsSigned);
@@ -408,6 +437,16 @@ namespace debugger
                 ControlUnit.SetRegister(ByteCode.A, baDivided); // lower to a              
                 ControlUnit.SetRegister(ByteCode.D, baRemainder); // higher bytes to d
                 
+            }
+        }
+
+        public class Cmp : MyOpcode
+        {
+            public Cmp() { _string = "CMP"; }
+
+            public override void Execute()
+            {
+
             }
         }
     }

@@ -109,20 +109,19 @@ namespace debugger
                         throw new Exception();
                 }
                 baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
+
                 //flags
                 // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                 // negative + negative should never be positive, vice versa
-                if (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive())
-                {
-                    Eflags.Overflow = true;
-                } 
-
+                Eflags.Overflow = (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive());
+                Eflags.Sign = (!baResult.IsPositive()); //+=false -=true
                 if (baResult.Length > (int)_regcap)
                 {
                     Eflags.Carry = true;
                     return baResult.Skip(1).ToArray(); // always 1 maybe?? baResult.Length - (int)_regcap
                 } else
                 {
+                    Eflags.Carry = false;
                     return baResult;
                 }
             }
@@ -150,11 +149,8 @@ namespace debugger
                 //flags
                 // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                 // negative + negative should never be positive, vice versa
-                if (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive())
-                {
-                    Eflags.Overflow = true;
-                }
-
+                Eflags.Overflow = (baInput1.IsPositive() != baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive());
+                Eflags.Sign = (!baResult.IsPositive()); //+=false -=true
                 if (baResult.Length > (int)_regcap)
                 {
                     Eflags.Carry = true;
@@ -162,6 +158,7 @@ namespace debugger
                 }
                 else
                 {
+                    Eflags.Carry = false;
                     return baResult;
                 }
             }
@@ -202,37 +199,66 @@ namespace debugger
             }
             public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
+                byte[] baOutput;
                 if(Signed)
                 {
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
-                        case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            baOutput = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
+                            break;
+                        case RegisterCapacity.E:// this is making it too long fix it
+                            baOutput = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            break;
                         case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
+                            baOutput = BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
+                            break;
                         case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
+                            baOutput = BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
+                            break;
                         default:
                             throw new Exception();
                     }
+                    
+                    Eflags.Sign = (baOutput.IsPositive()) ? false : true;
                 } else
                 {
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
+                            baOutput = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
+                            break;
                         case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            baOutput = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            break;
                         case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
+                            baOutput = BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
+                            break;
                         case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
+                            baOutput = BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
+                            break;
                         default:
                             throw new Exception();
                     }
-                }               
+                }
+                //more flags
+                if(GetBits(baOutput[0]).Count(x=> x==1) % 2 == 0) //parity: even no of 1 bits
+                {
+                    Eflags.Parity = true;
+                }
+                else
+                {
+                    Eflags.Parity = false;
+                }
+                if (!CheckSize(ref baOutput, _regcap, IsSigned: Signed))
+                { //if this^^ is true, EDX = sign extension of EAX, we didn't overflow into the EDX register
+                    Eflags.Carry = false; Eflags.Overflow = false;
+                }
+                else
+                {
+                    Eflags.Carry = true; Eflags.Overflow = true;
+                }
+                return baOutput;
             }
             public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
@@ -303,6 +329,27 @@ namespace debugger
                 }
                 return baOutput;
             }
+
+            public static bool CheckSize(ref byte[] baInput, RegisterCapacity _regcap, bool IsSigned) // true = size okay
+            {         
+                if(baInput.Length > (int)_regcap / 8)
+                {//crop something thats bigger than it should be                    
+                    if (baInput[baInput.Length-1] == 0)
+                    {
+                        baInput = baInput.Take((int)_regcap / 8).ToArray();
+                        return false;
+                    } else
+                    {
+                        baInput = baInput.Take((int)_regcap / 8).ToArray();
+                        return false;
+                    }                   
+                }
+                else
+                {
+                    baInput = (IsSigned) ? SignExtend(baInput, _regcap) : ZeroExtend(baInput,_regcap);
+                    return true;
+                }
+            }
             public static byte[] SignExtend(byte[] baInput, byte bLength)
             {
                 List<byte> blBuffer = baInput.ToList();
@@ -339,6 +386,11 @@ namespace debugger
                 return blBuffer.ToArray();
             }
 
+            public static byte[] ZeroExtend(byte[] baInput, RegisterCapacity _regcap)
+            {
+                return ZeroExtend(baInput, (byte)((byte)_regcap / 8));
+            }
+
         }
 
         public class Opcode
@@ -353,16 +405,9 @@ namespace debugger
                 return _regcap;
             }
 
-            public static uint QWORDCrop(ulong lAddress)
+            public static byte[] ImmediateFetch(bool SignExtendedByte)
             {
-                return BitConverter.ToUInt32(BitConverter.GetBytes(lAddress).Take(4).ToArray(), 0);
-            }
-
-
-
-            public static byte[] ImmediateFetch32(bool _signextend)
-            {
-                if (_signextend)
+                if (SignExtendedByte)
                 {
                     return Bitwise.SignExtend(ControlUnit.FetchNext(1), (byte)((byte)ControlUnit.CurrentCapacity / 8));
                 }
@@ -460,14 +505,15 @@ namespace debugger
                     }
                 } else
                 {
-                    if (ModRMByte.IsAddress)
+                    return ControlUnit.FetchRegister((ByteCode)ModRMByte.lSource);
+                    /*(if (ModRMByte.IsAddress)
                     {
                         return ControlUnit.Fetch(ModRMByte.lSource, ControlUnit.CurrentCapacity);
                     }
                     else
                     {
                         return ControlUnit.FetchRegister((ByteCode)ModRMByte.lSource);
-                    }
+                    }*/
                 }
                           
             }
