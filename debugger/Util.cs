@@ -8,21 +8,47 @@ namespace debugger
 {
     public static class Util
     {
-        public static bool IsPositive(this byte[] baInput)
-        {
-            if(Convert.ToString(baInput[0],2).Length != 8) //                          -128 64 32 16 8 4 2 1
-            { // twos compliment: negative number always has a greatest set bit of 1 .eg, 1  0  0  0 0 0 0 1 = -128+1 = -127
-                return true; // this way is much faster than using GetBits() because padleft iterates the whole string multiple times
-            }  // this method is just for performance because its used alot
-            else
-            {
-                return false;
-            }
+        public static bool IsNegative(this byte[] baInput)
+        { // convert.tostring returns the smallest # bits it can, not to the closest 8, if it evenly divides into 8 it is negative
+            return Convert.ToString(baInput[0], 2).Length % 8 == 0; //                     -128 64 32 16 8  4  2  1
+             // twos compliment: negative number always has a greatest set bit of 1 .eg, 1  0  0  0  0  0  0  1 = -128+1 = -127
+                // this way is much faster than using GetBits() because padleft iterates the whole string multiple times
+              // this method is just for performance because its used alot
         }
+        public static bool IsZero(this byte[] baInput)
+        {
+            for (int i = 0; i < baInput.Length; i++)
+            {
+                if (baInput[i] != 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        public static bool IsGreater(this byte[] baInput1, byte[] baInput2)
+        {
+            baInput1 = Bitwise.Trim(baInput1);
+            baInput2 = Bitwise.Trim(baInput2);
+            Bitwise.PadEqual(ref baInput1, ref baInput2); //  V check for signs
+            return ((sbyte)baInput1[baInput1.Length - 1] > (sbyte)baInput2[baInput2.Length - 1]);
+        }
+
         public static class Bitwise
         {
             public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
-            private static void _padequal(ref string s1, ref string s2)
+            public static byte[] Trim(byte[] baInput)
+            {
+                for (int i = 0; i < baInput.Length; i++)
+                {
+                    if(baInput[baInput.Length-i-1] != 0)
+                    {
+                        return baInput.Take(baInput.Length - i).ToArray(); // cut after first non zero
+                    }
+                }
+                return baInput;
+            }
+            public static void PadEqual(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
                 {
@@ -33,9 +59,20 @@ namespace debugger
                     s1 = SignExtend(s1, s2.Length);
                 }
             }
+            public static void PadEqual(ref byte[] b1, ref byte[] b2)
+            {
+                if (b1.Length > b2.Length)
+                {
+                    b2 = SignExtend(b2, (byte)b1.Length);
+                }
+                else if (b2.Length > b1.Length)
+                {
+                    b1 = SignExtend(b1, (byte)b2.Length);
+                }
+            }
             public static string Or(string sBits1, string sBits2)
             {
-                _padequal(ref sBits1, ref sBits2);
+                PadEqual(ref sBits1, ref sBits2);
 
                 string sResult = "";
                 for (int i = 0; i < sBits1.Length; i++)
@@ -51,14 +88,13 @@ namespace debugger
                 }
                 return sResult;
             }
-
             public static byte[] Or(byte[] baData1, byte[] baData2)
             {
                 return GetBytes(Or(GetBits(baData1), GetBits(baData2)));
             }
-            public static string LogicalAnd(string sBits1, string sBits2)
+            public static string And(string sBits1, string sBits2)
             {
-                _padequal(ref sBits1, ref sBits2);
+                PadEqual(ref sBits1, ref sBits2);
 
                 string sResult = "";
                 for (int i = 0; i < sBits1.Length; i++)
@@ -76,7 +112,7 @@ namespace debugger
             }
             public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
             {
-                /*int iSum; //LITTLE ENDIAN ONLY /// revist this
+                /*int iSum;  /// revist this
                 byte[] baResult = new byte[baInput1.Length];
                 for (int i = baInput1.Length-1; i >= 0; i--)
                 {
@@ -108,22 +144,15 @@ namespace debugger
                     default:
                         throw new Exception();
                 }
+                Eflags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
                 baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
-
                 //flags
                 // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                 // negative + negative should never be positive, vice versa
-                Eflags.Overflow = (baInput1.IsPositive() == baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive());
-                Eflags.Sign = (!baResult.IsPositive()); //+=false -=true
-                if (baResult.Length > (int)_regcap)
-                {
-                    Eflags.Carry = true;
-                    return baResult.Skip(1).ToArray(); // always 1 maybe?? baResult.Length - (int)_regcap
-                } else
-                {
-                    Eflags.Carry = false;
-                    return baResult;
-                }
+                Eflags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
+                Eflags.Zero = baResult.IsZero();
+                return baResult;
             }
             public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
             {
@@ -145,22 +174,16 @@ namespace debugger
                     default:
                         throw new Exception();
                 }
+
+                Eflags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
                 baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
                 //flags
                 // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                 // negative + negative should never be positive, vice versa
-                Eflags.Overflow = (baInput1.IsPositive() != baInput2.IsPositive() && baResult.IsPositive() != baInput1.IsPositive());
-                Eflags.Sign = (!baResult.IsPositive()); //+=false -=true
-                if (baResult.Length > (int)_regcap)
-                {
-                    Eflags.Carry = true;
-                    return baResult.Skip(1).ToArray(); // always 1 maybe?? baResult.Length - (int)_regcap
-                }
-                else
-                {
-                    Eflags.Carry = false;
-                    return baResult;
-                }
+                Eflags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
+                Eflags.Zero = baResult.IsZero();
+                return baResult;
             }
             public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
@@ -196,6 +219,7 @@ namespace debugger
                             throw new Exception();
                     }
                 }
+                //divide dont set flags
             }
             public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
@@ -220,7 +244,7 @@ namespace debugger
                             throw new Exception();
                     }
                     
-                    Eflags.Sign = (baOutput.IsPositive()) ? false : true;
+                    
                 } else
                 {
                     switch (_regcap)
@@ -241,23 +265,15 @@ namespace debugger
                             throw new Exception();
                     }
                 }
-                //more flags
-                if(GetBits(baOutput[0]).Count(x=> x==1) % 2 == 0) //parity: even no of 1 bits
-                {
-                    Eflags.Parity = true;
-                }
-                else
-                {
-                    Eflags.Parity = false;
-                }
-                if (!CheckSize(ref baOutput, _regcap, IsSigned: Signed))
-                { //if this^^ is true, EDX = sign extension of EAX, we didn't overflow into the EDX register
-                    Eflags.Carry = false; Eflags.Overflow = false;
-                }
-                else
-                {
-                    Eflags.Carry = true; Eflags.Overflow = true;
-                }
+                //set flags
+                Eflags.Sign = baOutput.IsNegative();
+                Eflags.Zero = baOutput.IsZero();
+                Eflags.Parity = GetBits(baOutput[0]).Count(x => x == 1) % 2 == 0; //parity: even no of 1 bits
+                Eflags.Carry = (baOutput != ZeroExtend(baOutput.Take((int)_regcap / 8 / 2).ToArray(), _regcap));
+                Eflags.Overflow = (baOutput != SignExtend(baOutput.Take((int)_regcap / 8 / 2).ToArray(), _regcap));
+                //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
+                // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
+                // dont know how this plays out with 64bit regs
                 return baOutput;
             }
             public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
@@ -328,27 +344,6 @@ namespace debugger
                     baOutput[i] = Convert.ToByte(sInput.Substring(8*i,8), 2);
                 }
                 return baOutput;
-            }
-
-            public static bool CheckSize(ref byte[] baInput, RegisterCapacity _regcap, bool IsSigned) // true = size okay
-            {         
-                if(baInput.Length > (int)_regcap / 8)
-                {//crop something thats bigger than it should be                    
-                    if (baInput[baInput.Length-1] == 0)
-                    {
-                        baInput = baInput.Take((int)_regcap / 8).ToArray();
-                        return false;
-                    } else
-                    {
-                        baInput = baInput.Take((int)_regcap / 8).ToArray();
-                        return false;
-                    }                   
-                }
-                else
-                {
-                    baInput = (IsSigned) ? SignExtend(baInput, _regcap) : ZeroExtend(baInput,_regcap);
-                    return true;
-                }
             }
             public static byte[] SignExtend(byte[] baInput, byte bLength)
             {

@@ -145,8 +145,7 @@
             this.memviewer.HideSelection = false;
             this.memviewer.Location = new System.Drawing.Point(92, 490);
             this.memviewer.Name = "memviewer";
-            this.memviewer.Scrollable = false;
-            this.memviewer.Size = new System.Drawing.Size(571, 365);
+            this.memviewer.Size = new System.Drawing.Size(586, 365);
             this.memviewer.TabIndex = 14;
             this.memviewer.UseCompatibleStateImageBehavior = false;
             this.memviewer.View = System.Windows.Forms.View.Details;
@@ -159,7 +158,7 @@
             // Bytes
             // 
             this.Bytes.Text = "0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F ";
-            this.Bytes.Width = 3000;
+            this.Bytes.Width = 400;
             // 
             // label1
             // 
