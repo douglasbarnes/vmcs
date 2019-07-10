@@ -48,6 +48,17 @@ namespace debugger
                 }
                 return baInput;
             }
+
+            public static byte[] Trim(byte[] baInput, RegisterCapacity _regcap) // time difference between this and linq.trim is huge, 
+            {                                                           // http://prntscr.com/od20o4 // linq: http://prntscr.com/od20vw  //my way: http://prntscr.com/od21br
+                byte[] baBuffer = new byte[(byte)_regcap/8];       
+                for (int i = 0; i < baBuffer.Length; i++)
+                {
+                    baBuffer[i] = baInput[i];
+                }
+                return baInput;
+            }
+
             public static void PadEqual(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
@@ -110,7 +121,7 @@ namespace debugger
                 }
                 return sResult;
             }
-            public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
+            public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
             {
                 /*int iSum;  /// revist this
                 byte[] baResult = new byte[baInput1.Length];
@@ -126,63 +137,24 @@ namespace debugger
                         baResult[i] += (byte)iSum;
                     }
                 }*/
-                byte[] baResult;
-                switch (_regcap)
-                {
-                    case RegisterCapacity.R:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) + BitConverter.ToUInt64(baInput2, 0)));
-                        break;
-                    case RegisterCapacity.E:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0))); // touint64 because we dont handle overflows ourself
-                        break;
-                    case RegisterCapacity.X:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) + BitConverter.ToUInt32(baInput2, 0)));
-                        break;
-                    case RegisterCapacity.B:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(baInput1[0] + baInput2[0]));
-                        break;
-                    default:
-                        throw new Exception();
-                }
-                Eflags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
-                baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
-                //flags
-                // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
-                // negative + negative should never be positive, vice versa
-                Eflags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
-                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
-                Eflags.Zero = baResult.IsZero();
+                byte[] baResult = BitConverter.GetBytes(
+                        Convert.ToUInt64(
+                         BitConverter.ToUInt64(baInput1, 0)
+                       + BitConverter.ToUInt64(baInput2, 0)
+                       + (ulong)(bCarry && Eflags.Carry ? 1 : 0)
+                    ));
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Add, _regcap, baInput1, baInput2);
                 return baResult;
             }
-            public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap)
+            public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
             {
-                byte[] baResult;
-                switch (_regcap)
-                {
-                    case RegisterCapacity.R:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) - BitConverter.ToUInt64(baInput2, 0)));
-                        break;
-                    case RegisterCapacity.E:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0))); // touint64 because we dont handle overflows ourself
-                        break;
-                    case RegisterCapacity.X:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) - BitConverter.ToUInt32(baInput2, 0)));
-                        break;
-                    case RegisterCapacity.B:
-                        baResult = BitConverter.GetBytes(Convert.ToUInt64(baInput1[0] + baInput2[0]));
-                        break;
-                    default:
-                        throw new Exception();
-                }
-
-                Eflags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
-                baResult = ZeroExtend(baResult, (byte)_regcap); // this works with the carry flag check
-                //flags
-                // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
-                // negative + negative should never be positive, vice versa
-                Eflags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
-                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
-                Eflags.Zero = baResult.IsZero();
+                byte[] baResult = BitConverter.GetBytes(
+                        Convert.ToUInt64(
+                         BitConverter.ToUInt64(baInput1, 0)
+                       - BitConverter.ToUInt64(baInput2, 0)
+                       + (ulong)(bCarry && Eflags.Carry ? 1 : 0) //add borrow
+                    ));
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Sub, _regcap, baInput1, baInput2);         
                 return baResult;
             }
             public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
@@ -223,22 +195,22 @@ namespace debugger
             }
             public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
-                byte[] baOutput;
+                byte[] baResult;
                 if(Signed)
                 {
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            baOutput = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
+                            baResult = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
                             break;
                         case RegisterCapacity.E:// this is making it too long fix it
-                            baOutput = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            baResult = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
                             break;
                         case RegisterCapacity.X:
-                            baOutput = BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
+                            baResult = BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
                             break;
                         case RegisterCapacity.B:
-                            baOutput = BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
+                            baResult = BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
                             break;
                         default:
                             throw new Exception();
@@ -250,31 +222,24 @@ namespace debugger
                     switch (_regcap)
                     {
                         case RegisterCapacity.R:
-                            baOutput = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
+                            baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
                             break;
                         case RegisterCapacity.E:
-                            baOutput = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
+                            baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
                             break;
                         case RegisterCapacity.X:
-                            baOutput = BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
+                            baResult = BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
                             break;
                         case RegisterCapacity.B:
-                            baOutput = BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
+                            baResult = BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
                             break;
                         default:
                             throw new Exception();
                     }
                 }
-                //set flags
-                Eflags.Sign = baOutput.IsNegative();
-                Eflags.Zero = baOutput.IsZero();
-                Eflags.Parity = GetBits(baOutput[0]).Count(x => x == 1) % 2 == 0; //parity: even no of 1 bits
-                Eflags.Carry = (baOutput != ZeroExtend(baOutput.Take((int)_regcap / 8 / 2).ToArray(), _regcap));
-                Eflags.Overflow = (baOutput != SignExtend(baOutput.Take((int)_regcap / 8 / 2).ToArray(), _regcap));
-                //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
-                // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
-                // dont know how this plays out with 64bit regs
-                return baOutput;
+                //set flags             
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Mul, _regcap);
+                return baResult;
             }
             public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
@@ -390,6 +355,43 @@ namespace debugger
 
         public class Opcode
         {
+            public enum FlagMode
+            {
+                Add=0x0,
+                Sub=0x1,
+                Mul=0x2
+            }
+            public static void SetFlags(byte[] baResult, FlagMode fm, RegisterCapacity _regcap, byte[] baInput1=null, byte[] baInput2=null)
+            {
+                switch (fm)
+                {
+                    case FlagMode.Add:
+                        Eflags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
+                        baResult = Bitwise.Trim(baResult, _regcap); // must be after carry                                                            
+                        Eflags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
+                        // negative + negative should never be positive, vice versa
+                        break;
+                    case FlagMode.Sub:
+                        Eflags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
+                        baResult = Bitwise.Trim(baResult, _regcap); // must be after carry
+                        Eflags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
+                        // negative + negative should never be positive, vice versa
+                        break;
+                    case FlagMode.Mul:
+                        Eflags.Carry = (baResult != Bitwise.ZeroExtend(Bitwise.Trim(baResult, _regcap), _regcap));
+                        Eflags.Overflow = (baResult != Bitwise.SignExtend(Bitwise.Trim(baResult, _regcap), _regcap));
+                        //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
+                        // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
+                        // dont know how this plays out with 64bit regs
+                        break;
+                }
+                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
+                Eflags.Zero = baResult.IsZero();
+                Eflags.Parity = Bitwise.GetBits(baResult[0]).Count(x => x == 1) % 2 == 0; //parity: even no of 1 bits              
+            }
+
             public static RegisterCapacity GetRegCap(RegisterCapacity defaultreg = RegisterCapacity.E)
             {
                 PrefixBytes[] _prefixes = ControlUnit.Prefixes.ToArray();

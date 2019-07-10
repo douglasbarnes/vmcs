@@ -28,6 +28,8 @@ namespace debugger
             {
                 { 0, () => new AddImm(MultiDefOutput) { Is8Bit=true }.Execute() },
                 { 1, () => new OrImm(MultiDefOutput) { Is8Bit=true }.Execute() },
+                { 2, () => new AddImm(MultiDefOutput, UseCarry:true) { Is8Bit=true }.Execute() },
+                { 3, () => new SubImm(MultiDefOutput, UseBorrow:true) { Is8Bit=true }.Execute() },
                 { 5, () => new SubImm(MultiDefOutput) { Is8Bit=true }.Execute() },
                 { 7, () => new Cmp(IsImmediate:true) { Is8Bit=true }.Execute() },
             };
@@ -44,6 +46,8 @@ namespace debugger
             {
                 { 0, () => new AddImm(MultiDefOutput).Execute() },
                 { 1, () => new OrImm(MultiDefOutput).Execute() },
+                { 2, () => new AddImm(MultiDefOutput, UseCarry:true).Execute() },
+                { 3, () => new SubImm(MultiDefOutput, UseBorrow:true).Execute() },
                 { 5, () => new SubImm(MultiDefOutput).Execute() },
                 { 7, () => new Cmp(IsImmediate:true).Execute() },
             };
@@ -55,6 +59,8 @@ namespace debugger
             Dictionary<int, Action> _83 = new Dictionary<int, Action>
             {
                 { 0, () => new AddImm(MultiDefOutput, SignExtend:true).Execute() },
+                { 2, () => new AddImm(MultiDefOutput, SignExtend:true, UseCarry:true).Execute() },
+                { 3, () => new SubImm(MultiDefOutput, SignExtend:true, UseBorrow:true).Execute() },
                 { 5, () => new SubImm(MultiDefOutput, SignExtend:true).Execute() },
                 { 7, () => new Cmp(IsImmediate:true, SignExtendedByte:true).Execute() },
             };
@@ -92,7 +98,7 @@ namespace debugger
             _addMultiDefinitionDecoders();
             OpcodeTable.Add(1, new Dictionary<byte, Action>()
             {
-                { 0x00, () => new Add() { IsSigned=true, Is8Bit=true}.Execute() },
+                { 0x00, () => new Add() { Is8Bit=true}.Execute() },
                 { 0x01, () => new Add().Execute() },
                 { 0x02, () => new Add() { IsSwap=true, Is8Bit=true }.Execute() },
                 { 0x03, () => new Add() { IsSwap=true }.Execute() },
@@ -104,6 +110,19 @@ namespace debugger
                 { 0x0B, () => new Or() { IsSwap=true }.Execute() },
                 { 0x0C, () => new OrImm(Input:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
                 { 0x0D, () => new OrImm(Input:FromDest(ByteCode.A)).Execute() },
+                { 0x10, () => new Add(UseCarry:true) {Is8Bit=true }.Execute() },
+                { 0x11, () => new Add(UseCarry:true).Execute() },
+                { 0x12, () => new Add(UseCarry:true) { Is8Bit=true, IsSwap=true}.Execute() },
+                { 0x13, () => new Add(UseCarry:true) { IsSwap=true }.Execute() },
+                { 0x14, () => new AddImm(Input:FromDest(ByteCode.A), UseCarry:true) { Is8Bit=true }.Execute() },
+                { 0x15, () => new AddImm(Input:FromDest(ByteCode.A), UseCarry:true).Execute() },
+
+                { 0x18, () => new Sub(UseBorrow:true) { Is8Bit=true }.Execute() },
+                { 0x19, () => new Sub(UseBorrow:true).Execute() },
+                { 0x1A, () => new Sub(UseBorrow:true) { Is8Bit=true, IsSwap=true }.Execute() },
+                { 0x1B, () => new Sub(UseBorrow:true) { IsSwap=true }.Execute() },
+                { 0x1C, () => new Sub(UseBorrow:true) { Is8Bit=true }.Execute() },
+                { 0x1D, () => new Sub(UseBorrow:true).Execute() },
 
                 { 0x28, () => new Sub().Execute() },
                 { 0x29, () => new Sub().Execute() },
@@ -121,8 +140,8 @@ namespace debugger
 
                 { 0x50, () => new Push(ByteCode.A).Execute() },
                 { 0x51, () => new Push(ByteCode.C).Execute() },
-                { 0x52, () => new Push(ByteCode.D ).Execute() },
-                { 0x53, () => new Push(ByteCode.B ).Execute() },
+                { 0x52, () => new Push(ByteCode.D).Execute() },
+                { 0x53, () => new Push(ByteCode.B).Execute() },
                 { 0x54, () => new Push(ByteCode.AH).Execute() },
                 { 0x55, () => new Push(ByteCode.CH).Execute() },
                 { 0x56, () => new Push(ByteCode.DH).Execute() },
@@ -286,22 +305,22 @@ namespace debugger
         public class AddImm : MyOpcode // 05=EAX, 81=any  04=al, 80=8bit
         {
             bool _signextend;
-            
-            public AddImm(ModRM Input, bool SignExtend=false) { _string = "ADD";_signextend = SignExtend; _input = Input; }
+            bool _usecarry;
+            public AddImm(ModRM Input, bool SignExtend=false, bool UseCarry=false) { _usecarry = UseCarry; _string = "ADD";_signextend = SignExtend; _input = Input; }
             public override void Execute()
             {
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
                 byte[] baImmediate = ImmediateFetch(_signextend);
                 byte[] baDestBytes = FetchDynamic(_input, true);
-                SetDynamic(_input, Bitwise.Add(baDestBytes, baImmediate, ControlUnit.CurrentCapacity));
+                SetDynamic(_input, Bitwise.Add(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, _usecarry));
             }
         }
         public class Add : MyOpcode // 01 32bit, 00 8bit,
         {
             //Data [Dest, Src]
             //Prefixes REXW SIZEOVR
-
-            public Add() { _string = "ADD"; }
+            bool _usecarry;
+            public Add(bool UseCarry=false) { _string = "ADD"; _usecarry = UseCarry; }
             public override void Execute()
             {
                 ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
@@ -311,7 +330,7 @@ namespace debugger
 
                 byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
                 byte[] baDestData = FetchDynamic(DestSrc, IsSwap);
-                SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity), IsSwap);
+                SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity, _usecarry), IsSwap);
             }
         }
         public class Or : MyOpcode
@@ -443,8 +462,8 @@ namespace debugger
         {
             //Data [Dest, Src]
             //Prefixes REXW SIZEOVR
-
-            public Sub() { _string = "SUB"; }
+            bool _borrow;
+            public Sub(bool UseBorrow=false) { _string = "SUB"; _borrow = UseBorrow; }
             public override void Execute()
             {
                 ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
@@ -454,19 +473,20 @@ namespace debugger
 
                 byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
                 byte[] baDestData = FetchDynamic(DestSrc, IsSwap);
-                SetDynamic(DestSrc, Bitwise.Subtract(baSrcData, baDestData, ControlUnit.CurrentCapacity), IsSwap);
+                SetDynamic(DestSrc, Bitwise.Subtract(baSrcData, baDestData, ControlUnit.CurrentCapacity, _borrow), IsSwap);
             }
         }
         public class SubImm : MyOpcode // 2c,2d=A ; 80 8bit 81 32bit modrm ; 28, 29 sign extend; 2a 2b swap
         {
             bool _signextend;
-            public SubImm(ModRM Input, bool SignExtend = false){  _string = "SUB";_signextend = SignExtend; _input = Input; }
+            bool _borrow;
+            public SubImm(ModRM Input, bool SignExtend = false, bool UseBorrow=false){ _borrow = UseBorrow; _string = "SUB";_signextend = SignExtend; _input = Input; }
             public override void Execute()
             {
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
                 byte[] baImmediate = ImmediateFetch(_signextend);
                 byte[] baDestBytes = FetchDynamic(_input, true);
-                SetDynamic(_input, Bitwise.Subtract(baDestBytes, baImmediate, ControlUnit.CurrentCapacity));
+                SetDynamic(_input, Bitwise.Subtract(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, _borrow));
             }
         }
         public class Div : MyOpcode // f6,f7
@@ -512,7 +532,7 @@ namespace debugger
             public override void Execute()
             {
                 //basically all cmp does flags-wise is subtract, but doesn't care about the result
-                Bitwise.Subtract(baInput1, baInput2, ControlUnit.CurrentCapacity);
+                Bitwise.Subtract(baInput1, baInput2, ControlUnit.CurrentCapacity, bCarry:false);
             }
         }
 
