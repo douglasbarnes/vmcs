@@ -48,8 +48,7 @@ namespace debugger
                 }
                 return baInput;
             }
-
-            public static byte[] Trim(byte[] baInput, RegisterCapacity _regcap) // time difference between this and linq.trim is huge, 
+            public static byte[] Trim(byte[] baInput, RegisterCapacity _regcap) // time difference between this and linq.take is huge, 
             {                                                           // http://prntscr.com/od20o4 // linq: http://prntscr.com/od20vw  //my way: http://prntscr.com/od21br
                 byte[] baBuffer = new byte[(byte)_regcap/8];       
                 for (int i = 0; i < baBuffer.Length; i++)
@@ -58,7 +57,6 @@ namespace debugger
                 }
                 return baInput;
             }
-
             public static void PadEqual(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
@@ -81,45 +79,71 @@ namespace debugger
                     b1 = SignExtend(b1, (byte)b2.Length);
                 }
             }
-            public static string Or(string sBits1, string sBits2)
+            public static byte[] Or(byte[] baData1, byte[] baData2)
             {
+                string sBits1 = GetBits(baData1);
+                string sBits2 = GetBits(baData2);
                 PadEqual(ref sBits1, ref sBits2);
 
-                string sResult = "";
+                string sOutput = "";
                 for (int i = 0; i < sBits1.Length; i++)
                 {
                     if (sBits1[i] == '1' || sBits2[i] == '1')
                     {
-                        sResult += "1";
+                        sOutput += "1";
                     }
                     else
                     {
-                        sResult += "0";
+                        sOutput += "0";
                     }
                 }
-                return sResult;
+                byte[] baResult = GetBytes(sOutput);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                return baResult;
             }
-            public static byte[] Or(byte[] baData1, byte[] baData2)
+            public static byte[] And(byte[] baData1, byte[] baData2)
             {
-                return GetBytes(Or(GetBits(baData1), GetBits(baData2)));
-            }
-            public static string And(string sBits1, string sBits2)
-            {
+                string sBits1 = GetBits(baData1);
+                string sBits2 = GetBits(baData2);
                 PadEqual(ref sBits1, ref sBits2);
 
-                string sResult = "";
+                string sOutput = "";
                 for (int i = 0; i < sBits1.Length; i++)
                 {
                     if (sBits1[i] == '1' && sBits2[i] == '1')
                     {
-                        sResult += "1";
+                        sOutput += "1";
                     }
                     else
                     {
-                        sResult += "0";
+                        sOutput += "0";
                     }
                 }
-                return sResult;
+                byte[] baResult = GetBytes(sOutput);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                return baResult;
+            }
+            public static byte[] Xor(byte[] baData1, byte[] baData2)
+            {
+                string sBits1 = GetBits(baData1);
+                string sBits2 = GetBits(baData2);
+                PadEqual(ref sBits1, ref sBits2);
+
+                string sOutput = "";
+                for (int i = 0; i < sBits1.Length; i++)
+                {
+                    if (sBits1[i] == '1' ^ sBits2[i] == '1')
+                    {
+                        sOutput += "1";
+                    }
+                    else
+                    {
+                        sOutput += "0";
+                    }
+                }
+                byte[] baResult = GetBytes(sOutput);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                return baResult;
             }
             public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
             {
@@ -143,8 +167,8 @@ namespace debugger
                        + BitConverter.ToUInt64(baInput2, 0)
                        + (ulong)(bCarry && Eflags.Carry ? 1 : 0)
                     ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Add, _regcap, baInput1, baInput2);
-                return baResult;
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Add, baInput1, baInput2);
+                return Trim(baResult, _regcap);
             }
             public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
             {
@@ -154,8 +178,8 @@ namespace debugger
                        - BitConverter.ToUInt64(baInput2, 0)
                        + (ulong)(bCarry && Eflags.Carry ? 1 : 0) //add borrow
                     ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Sub, _regcap, baInput1, baInput2);         
-                return baResult;
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Sub, baInput1, baInput2);
+                return Trim(baResult, _regcap);
             }
             public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
             {
@@ -238,7 +262,7 @@ namespace debugger
                     }
                 }
                 //set flags             
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Mul, _regcap);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Mul);
                 return baResult;
             }
             public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
@@ -275,6 +299,26 @@ namespace debugger
                             throw new Exception();
                     }
                 }
+            }
+            public static byte[] Increment(byte[] baInput1, RegisterCapacity _regcap) // inc is twice as fast as add http://prntscr.com/od5rr9 (without flags)
+            {
+                byte[] baResult = BitConverter.GetBytes(
+                       Convert.ToUInt64(
+                       BitConverter.ToUInt64(baInput1, 0)
+                       + 1
+                    ));
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Inc, baInput1);
+                return Trim(baResult, _regcap);
+            }
+            public static byte[] Decrement(byte[] baInput1, RegisterCapacity _regcap)
+            {
+                byte[] baResult = BitConverter.GetBytes(
+                       Convert.ToUInt64(
+                       BitConverter.ToUInt64(baInput1, 0)
+                       + 1
+                    ));
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Dec, baInput1);
+                return Trim(baResult, _regcap);
             }
             public static string GetBits(byte[] bInput)
             {
@@ -357,12 +401,16 @@ namespace debugger
         {
             public enum FlagMode
             {
-                Add=0x0,
-                Sub=0x1,
-                Mul=0x2
+                Add,
+                Sub,
+                Mul,
+                Logic,
+                Inc,
+                Dec,
             }
-            public static void SetFlags(byte[] baResult, FlagMode fm, RegisterCapacity _regcap, byte[] baInput1=null, byte[] baInput2=null)
+            public static void SetFlags(byte[] baResult, FlagMode fm, byte[] baInput1=null, byte[] baInput2=null)
             {
+                RegisterCapacity _regcap = ControlUnit.CurrentCapacity;
                 switch (fm)
                 {
                     case FlagMode.Add:
@@ -385,6 +433,16 @@ namespace debugger
                         //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
                         // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
                         // dont know how this plays out with 64bit regs
+                        break;
+                    case FlagMode.Logic:
+                        Eflags.Carry = false;
+                        Eflags.Overflow = false;
+                        break;
+                    case FlagMode.Inc:
+                        Eflags.Overflow = (!baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        break;
+                    case FlagMode.Dec:
+                        Eflags.Overflow = (baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         break;
                 }
                 Eflags.Sign = (baResult.IsNegative()); //+=false -=true

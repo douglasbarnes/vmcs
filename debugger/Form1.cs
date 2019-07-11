@@ -29,6 +29,7 @@ namespace debugger
 
 
             );
+            
             Emulator = new VM(ins);
             _refresh();
         }
@@ -90,6 +91,11 @@ namespace debugger
             }
             if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
             memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
+        }
+        
+        private void _refreshDisas()
+        {
+            Disassembler da = new Disassembler(Emulator.GetMemory());
         }
         private void _refresh(object sender = null, EventArgs e = null)
         {

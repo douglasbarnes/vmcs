@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 using static debugger.Registers;
 namespace debugger
 {
-    static class Disassembler
-    {/*
-        public static ulong DisassemblerPointer = 0;
-        public static string DisasRegister(ByteCode bcByteCode, RegisterCapacity _regcap)
+    class Disassembler
+    {
+        public ulong DisassemblerPointer = 0;
+        public string DisasRegister(ByteCode bcByteCode, RegisterCapacity _regcap)
         {
             switch (_regcap)
             {
@@ -100,36 +100,23 @@ namespace debugger
             }
             throw new Exception();
         }
-        public static string[] DisassembleMemory(MemorySpace msToDisassemble)
+
+        private Dictionary<ulong, byte> Memory;
+        public Disassembler(Dictionary<ulong, byte> _memory)
         {
-            DisassemblerPointer = msToDisassemble.EntryPoint;
-            for (ulong IP = msToDisassemble.EntryPoint; IP < msToDisassemble.LastAddr; IP++)
-            {
-                
-                
-
-
-            }
+            Memory = _memory;
+            DisassemblerPointer = 0x100000;
         }
 
-        public static string DisassembleLine(byte[] baInputBytes)
+        public string[] Step(int Count)
         {
-
-            StringBuilder sbLine = new StringBuilder();
-            int i = 0;
-            while(OpcodeLookup.PrefixTable.ContainsKey(baInputBytes[i]))
+            for (int i = 0; i < Count; i++)
             {
-                sbLine.Append(OpcodeLookup.DisasTable[baInputBytes[i]] + " ");
-                i++;
+
             }
-            sbLine.Append(OpcodeLookup.DisasTable[baInputBytes[i]] + " ");
-            
-            
+            return new string[3]; //commit
         }
 
-        private static string _disasByte(byte bInputByte)
-        {
-            
-        }*/
     }
+
 }

@@ -30,7 +30,9 @@ namespace debugger
                 { 1, () => new OrImm(MultiDefOutput) { Is8Bit=true }.Execute() },
                 { 2, () => new AddImm(MultiDefOutput, UseCarry:true) { Is8Bit=true }.Execute() },
                 { 3, () => new SubImm(MultiDefOutput, UseBorrow:true) { Is8Bit=true }.Execute() },
+                { 4, () => new AndImm(MultiDefOutput) { Is8Bit=true }.Execute() },
                 { 5, () => new SubImm(MultiDefOutput) { Is8Bit=true }.Execute() },
+                { 6, () => new XorImm(MultiDefOutput) { Is8Bit=true }.Execute() },
                 { 7, () => new Cmp(IsImmediate:true) { Is8Bit=true }.Execute() },
             };
             MasterDecodeDict.Add(0x80, _80);
@@ -48,7 +50,9 @@ namespace debugger
                 { 1, () => new OrImm(MultiDefOutput).Execute() },
                 { 2, () => new AddImm(MultiDefOutput, UseCarry:true).Execute() },
                 { 3, () => new SubImm(MultiDefOutput, UseBorrow:true).Execute() },
+                { 4, () => new AndImm(MultiDefOutput).Execute() },
                 { 5, () => new SubImm(MultiDefOutput).Execute() },
+                { 6, () => new XorImm(MultiDefOutput).Execute() },
                 { 7, () => new Cmp(IsImmediate:true).Execute() },
             };
             MasterDecodeDict.Add(0x81, _81);
@@ -59,9 +63,12 @@ namespace debugger
             Dictionary<int, Action> _83 = new Dictionary<int, Action>
             {
                 { 0, () => new AddImm(MultiDefOutput, SignExtend:true).Execute() },
+                { 1, () => new OrImm(MultiDefOutput, SignExtend:true).Execute() },
                 { 2, () => new AddImm(MultiDefOutput, SignExtend:true, UseCarry:true).Execute() },
                 { 3, () => new SubImm(MultiDefOutput, SignExtend:true, UseBorrow:true).Execute() },
+                { 4, () => new AndImm(MultiDefOutput) { IsSwap=true }.Execute() },
                 { 5, () => new SubImm(MultiDefOutput, SignExtend:true).Execute() },
+                { 6, () => new XorImm(MultiDefOutput, SignExtend:true).Execute() },
                 { 7, () => new Cmp(IsImmediate:true, SignExtendedByte:true).Execute() },
             };
             MasterDecodeDict.Add(0x83, _83);
@@ -71,7 +78,8 @@ namespace debugger
             {
                 { 4, () => new Mul(Oprands:1) { Is8Bit=true }.Execute() },
                 { 5, () => new Mul(Oprands:1) { IsSigned=true }.Execute() },
-                { 6, () => new Div(MultiDefOutput) { Is8Bit=true }.Execute() }
+                { 6, () => new Div(MultiDefOutput) { Is8Bit=true }.Execute() },
+                { 7, () => new Div(MultiDefOutput) { Is8Bit=true, IsSigned=true }.Execute() }
             };
             MasterDecodeDict.Add(0xF6, _F6);
 
@@ -80,13 +88,22 @@ namespace debugger
             {
                 { 4, () => new Mul(Oprands:1).Execute() },
                 { 5, () => new Mul(Oprands:1) { IsSigned=true }.Execute() },
-                { 6, () => new Div(MultiDefOutput).Execute() }
+                { 6, () => new Div(MultiDefOutput).Execute() },
+                { 7, () => new Div(MultiDefOutput) { IsSigned=true }.Execute() }
             };
 
             MasterDecodeDict.Add(0xF7, _F7);
+
+            //0xfe
+            Dictionary<int, Action> _FE = new Dictionary<int, Action>
+            {
+                { 0, () => new Inc(MultiDefOutput) { Is8Bit=true }.Execute() },
+            };
+            MasterDecodeDict.Add(0xFE, _FE);
             //0xff
             Dictionary<int, Action> _FF = new Dictionary<int, Action>
             {
+                { 0, () => new Inc(MultiDefOutput).Execute() },
                 { 4, () => new Jmp(Relative:false, Bytes:8).Execute() },
                 { 6, () => new Push().Execute() }
             };
@@ -124,6 +141,13 @@ namespace debugger
                 { 0x1C, () => new Sub(UseBorrow:true) { Is8Bit=true }.Execute() },
                 { 0x1D, () => new Sub(UseBorrow:true).Execute() },
 
+                { 0x20, () => new And() { Is8Bit=true }.Execute() },
+                { 0x21, () => new And().Execute() },
+                { 0x22, () => new And() { Is8Bit=true, IsSwap=true}.Execute() },
+                { 0x23, () => new And() { IsSwap=true }.Execute() },
+                { 0x24, () => new AndImm(Input:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
+                { 0x25, () => new AndImm(Input:FromDest(ByteCode.A)).Execute() },
+
                 { 0x28, () => new Sub().Execute() },
                 { 0x29, () => new Sub().Execute() },
                 { 0x2A, () => new Sub() { IsSwap=true, Is8Bit=true }.Execute() },
@@ -131,12 +155,19 @@ namespace debugger
                 { 0x2C, () => new SubImm(Input:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
                 { 0x2D, () => new SubImm(Input:FromDest(ByteCode.A)).Execute() },
 
+                { 0x30, () => new Xor() { Is8Bit=true }.Execute() },
+                { 0x31, () => new Xor().Execute() },
+                { 0x32, () => new Xor() { Is8Bit=true, IsSwap=true}.Execute() },
+                { 0x33, () => new Xor() { IsSwap=true }.Execute() },
+                { 0x34, () => new XorImm(Input:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
+                { 0x35, () => new XorImm(Input:FromDest(ByteCode.A)).Execute() },
+
                 { 0x38, () => new Cmp() { Is8Bit=true }.Execute() },
                 { 0x39, () => new Cmp().Execute() },
                 { 0x3A, () => new Cmp() { Is8Bit=true, IsSwap=true }.Execute() },
                 { 0x3B, () => new Cmp() { IsSwap=true }.Execute() },
-                { 0x3C, () => new Cmp(IsImmediate:true, InputOverride:new ModRM{ lDest = (byte)ByteCode.A}) { Is8Bit=true }.Execute() },
-                { 0x3D, () => new Cmp(IsImmediate:true, InputOverride:new ModRM{ lDest = (byte)ByteCode.A}).Execute() },
+                { 0x3C, () => new Cmp(IsImmediate:true, InputOverride:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
+                { 0x3D, () => new Cmp(IsImmediate:true, InputOverride:FromDest(ByteCode.A)).Execute() },
 
                 { 0x50, () => new Push(ByteCode.A).Execute() },
                 { 0x51, () => new Push(ByteCode.C).Execute() },
@@ -146,14 +177,14 @@ namespace debugger
                 { 0x55, () => new Push(ByteCode.CH).Execute() },
                 { 0x56, () => new Push(ByteCode.DH).Execute() },
                 { 0x57, () => new Push(ByteCode.BH).Execute() },
-                { 0x58, () => new Pop(ByteCode.A ).Execute() },
-                { 0x59, () => new Pop(ByteCode.C ).Execute() },
-                { 0x5A, () => new Pop(ByteCode.D ).Execute() },
-                { 0x5B, () => new Pop(ByteCode.B ).Execute() },
-                { 0x5C, () => new Pop(ByteCode.AH ).Execute() },
-                { 0x5D, () => new Pop(ByteCode.CH ).Execute() },
-                { 0x5E, () => new Pop(ByteCode.DH ).Execute() },
-                { 0x5F, () => new Pop(ByteCode.BH ).Execute() },
+                { 0x58, () => new Pop(Input:FromDest(ByteCode.A)).Execute() },
+                { 0x59, () => new Pop(Input:FromDest(ByteCode.C)).Execute() },
+                { 0x5A, () => new Pop(Input:FromDest(ByteCode.D)).Execute() },
+                { 0x5B, () => new Pop(Input:FromDest(ByteCode.B)).Execute() },
+                { 0x5C, () => new Pop(Input:FromDest(ByteCode.AH)).Execute() },
+                { 0x5D, () => new Pop(Input:FromDest(ByteCode.CH)).Execute() },
+                { 0x5E, () => new Pop(Input:FromDest(ByteCode.DH)).Execute() },
+                { 0x5F, () => new Pop(Input:FromDest(ByteCode.BH)).Execute() },
 
                 //67 prefix
                 { 0x68, () => new PushImm(32).Execute() }, // its always 32, weird
@@ -185,7 +216,7 @@ namespace debugger
                 { 0x89, () => new Mov().Execute() },
                 { 0x8A, () => new Mov() { IsSwap=true, Is8Bit=true }.Execute() },
                 { 0x8B, () => new Mov() { IsSwap=true }.Execute() },
-                { 0x8F, () => new Pop().Execute() },
+                { 0x8F, () => new Pop(Input:ControlUnit.ModRMDecode()).Execute() },
 
                 { 0xB0, () => new MovImm(Input:FromDest(ByteCode.A)) { Is8Bit=true }.Execute() },
                 { 0xB1, () => new MovImm(Input:FromDest(ByteCode.C)) { Is8Bit=true }.Execute() },
@@ -280,94 +311,122 @@ namespace debugger
         }
         public class Mov : MyOpcode
         {
-            public Mov() {  _string = "MOV"; } // 0x88 ACCEPTS MOV R/M8, R8
-            public override void Execute()
-            {
-                ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+            byte[] baDestData;
+            public Mov() {
+                _string = "MOV";
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                SetDynamic(DestSrc, FetchDynamic(DestSrc, IsSwap), IsSwap);
+                _input = ControlUnit.ModRMDecode(ControlUnit.FetchNext());                
+                baDestData = FetchDynamic(_input, IsSwap);
+            } // 0x88 ACCEPTS MOV R/M8, R8
+            public override void Execute()
+            {               
+                SetDynamic(_input, baDestData , IsSwap);
             }
         }
         public class MovImm : MyOpcode // b8>= <bb
         {
             //Data [Reg]
             //Prefixes RexW, SIZEOVR
-            
-            public MovImm(ModRM Input) { _input = Input; _string = "MOV"; }
-            public override void Execute()
-            {
+            byte[] baImmediate;
+            public MovImm(ModRM Input) {
+                _input = Input;
+                _string = "MOV";
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte bBytesToMove = (byte)((ControlUnit.CurrentCapacity == RegisterCapacity.R) ? 4 : (byte)ControlUnit.CurrentCapacity / 8);
-                byte[] baImmediate = ControlUnit.FetchNext(bBytesToMove); // NOT immediatefetch32(), we dont sign extend for mov ever
+                byte _bytesToMove = (byte)((ControlUnit.CurrentCapacity == RegisterCapacity.R) ? 4 : (byte)ControlUnit.CurrentCapacity / 8);
+                baImmediate = ControlUnit.FetchNext(_bytesToMove); // NOT immediatefetch32(), we dont sign extend for mov ever
+            }
+            public override void Execute()
+            {    
                 SetDynamic(_input, baImmediate);
             }
         }
         public class AddImm : MyOpcode // 05=EAX, 81=any  04=al, 80=8bit
         {
-            bool _signextend;
-            bool _usecarry;
-            public AddImm(ModRM Input, bool SignExtend=false, bool UseCarry=false) { _usecarry = UseCarry; _string = "ADD";_signextend = SignExtend; _input = Input; }
-            public override void Execute()
+            byte[] baImmediate;
+            byte[] baDestBytes;
+            byte[] baResult;
+            public AddImm(ModRM Input, bool SignExtend=false, bool UseCarry=false)
             {
+                _string = (UseCarry) ? "ADC" : "ADD";
+                _input = Input;
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch(_signextend);
-                byte[] baDestBytes = FetchDynamic(_input, true);
-                SetDynamic(_input, Bitwise.Add(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, _usecarry));
+                baImmediate = ImmediateFetch(SignExtend);
+                baDestBytes = FetchDynamic(_input, true);
+                baResult = Bitwise.Add(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, UseCarry);
+            }
+            public override void Execute()
+            {            
+                SetDynamic(_input, baResult);
             }
         }
         public class Add : MyOpcode // 01 32bit, 00 8bit,
         {
             //Data [Dest, Src]
             //Prefixes REXW SIZEOVR
-            bool _usecarry;
-            public Add(bool UseCarry=false) { _string = "ADD"; _usecarry = UseCarry; }
-            public override void Execute()
+            byte[] baSrcData;
+            byte[] baDestData;
+            byte[] baResult;
+            public Add(bool UseCarry=false)
             {
-                ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
-
-                ByteCode bcSrcReg = (ByteCode)DestSrc.lSource;
+                _string = (UseCarry) ? "ADC" : "ADD";
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-
-                byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
-                byte[] baDestData = FetchDynamic(DestSrc, IsSwap);
-                SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity, _usecarry), IsSwap);
+                _input = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+                baSrcData = ControlUnit.FetchRegister((ByteCode)_input.lSource);
+                baDestData = FetchDynamic(_input, IsSwap);
+                baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity, UseCarry);
+            }
+            public override void Execute()
+            {                              
+                SetDynamic(_input, baResult, IsSwap);
             }
         }
         public class Or : MyOpcode
         {
-            public Or() { _string = "OR"; }
+            byte[] baDestBytes;
+            byte[] baSrcBytes;
+            byte[] baResult;
+            public Or()
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                _input = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+                _string = "OR";
+                baDestBytes = FetchDynamic(_input, IsSwap);
+                ByteCode bcSrcReg = (ByteCode)_input.lSource;
+                baSrcBytes = ControlUnit.FetchRegister(bcSrcReg);
+                baResult = Bitwise.Or(baDestBytes, baSrcBytes);
+            }
 
             public override void Execute()
-            {
-                ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
-                ControlUnit.CurrentCapacity = GetRegCap();
-                ByteCode bcSrcReg = (ByteCode)DestSrc.lSource;
-                SetDynamic(DestSrc, Bitwise.Or(FetchDynamic(DestSrc, IsSwap), ControlUnit.FetchRegister(bcSrcReg)), IsSwap);              
+            {                                            
+                SetDynamic(_input, baResult, IsSwap);              
             }
         }
         public class OrImm : MyOpcode
         {
-            bool _signextend;
-            public OrImm(ModRM Input, bool SignExtend = false) {  _signextend = SignExtend; _string = "OR"; _input = Input; }
-            public override void Execute()
+            byte[] baImmediate;
+            byte[] baDestBytes;
+            public OrImm(ModRM Input, bool SignExtend = false)
             {
                 // If no ModRM was decoded in the MultiDefDecoder, it means that we came from the 0x0D instruction, which always has a dest of EAX 
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch(_signextend);
-                byte[] baDestBytes = FetchDynamic(_input, true); // weird at first, but since there is no 2nd byte in single oprand opcodes, actual source is shifted to lDest
+                baImmediate = ImmediateFetch(SignExtend);
+                _string = "OR"; 
+                baDestBytes = FetchDynamic(Input, true); // weird at first, but since there is no 2nd byte in single oprand opcodes, actual source is shifted to lDest
+                _input = Input;
+            }
+            public override void Execute()
+            {               
                 SetDynamic(_input, Bitwise.Or(baDestBytes, baImmediate));
             }
         } 
         public class Push : MyOpcode
         {
+            byte[] baResult;
             ByteCode? bcDestReg;
-            public Push(ByteCode? _dest = null) { bcDestReg = _dest; _string = "PUSH"; }
-
-            public override void Execute()
+            public Push(ByteCode? _dest = null)
             {
-                ControlUnit.CurrentCapacity = (_prefixes.Contains(PrefixBytes.SIZEOVR)) ? RegisterCapacity.X : RegisterCapacity.R; // no 32 bit mode for reg push           
-                RSP -= (uint)ControlUnit.CurrentCapacity / 8; // cheap way to add to rsp, use full ControlUnit.setreg in other cases
-                byte[] baResult;
+                ControlUnit.CurrentCapacity = (_prefixes.Contains(PrefixBytes.SIZEOVR)) ? RegisterCapacity.X : RegisterCapacity.R; // no 32 bit mode for reg push   
+                bcDestReg = _dest; _string = "PUSH";
                 if (bcDestReg.HasValue)
                 {
                     baResult = ControlUnit.FetchRegister(bcDestReg.Value); // pointer rsp ^ IMPORTNAT THIS IS BEFORE
@@ -377,36 +436,46 @@ namespace debugger
                     // push [ptr] opcode is from multi def, if this isnt right, we deserve an error
                     baResult = ControlUnit.Fetch(MultiDefOutput.lDest, (int)ControlUnit.CurrentCapacity / 8);
                 }
+            }
+
+            public override void Execute()
+            {                       
+                RSP -= (uint)ControlUnit.CurrentCapacity / 8; // cheap way to add to rsp, use full ControlUnit.setreg in other cases                               
                 ControlUnit.SetMemory(RSP, baResult); // pointer rsp ^ IMPORTNAT THIS IS BEFORE
             }
         }
         public class PushImm : MyOpcode
         {
-            byte ImmediateCount;
-            public PushImm(byte bImmCount) { ImmediateCount = bImmCount; _string = "PUSH"; }
+            byte[] baImmediate;
+            byte _immcount;
+            public PushImm(byte bImmCount)
+            {
+                ControlUnit.CurrentCapacity = (_prefixes.Contains(PrefixBytes.SIZEOVR)) ? RegisterCapacity.X : RegisterCapacity.R; // no 32 bit mode, default it to 64
+                _string = "PUSH";
+                baImmediate = ControlUnit.FetchNext(bImmCount);
+                _immcount = bImmCount;
+            }
             public override void Execute()
             {
-                ControlUnit.SetMemory(RSP, ControlUnit.FetchNext(ImmediateCount)); // pointer rsp
-                RSP -= ImmediateCount; // cheap way to add to rsp, use full ControlUnit.setreg in other cases
+                ControlUnit.SetMemory(RSP, baImmediate); // pointer rsp
+                RSP -= _immcount; // cheap way to add to rsp, use full ControlUnit.setreg in other cases
             }
         }
         public class Pop : MyOpcode
         {
-            ByteCode? bcDestReg;
-            public Pop(ByteCode? _dest = null) { bcDestReg = _dest; _string = "POP"; }
-            public override void Execute()
+            byte[] StackData;
+            public Pop(ModRM Input)
             {
                 ControlUnit.CurrentCapacity = (_prefixes.Contains(PrefixBytes.SIZEOVR)) ? RegisterCapacity.X : RegisterCapacity.R; // no 32 bit mode for reg pop, default it to 64
-                if (bcDestReg.HasValue)
-                {
-                    ControlUnit.SetRegister(bcDestReg.Value, ControlUnit.Fetch(RSP, (byte)((int)ControlUnit.CurrentCapacity / 8))); // pointer rsp
-                }
-                else
-                {
-                    // pop [ptr]0x8F technichally is a multi def byte because it has 1 oprand, but there is only this instruction
-                    // so i just point it to the generic pop function cause it isnt special enough
-                    ControlUnit.SetMemory(MultiDefOutput.lDest, ControlUnit.Fetch(RSP, (byte)((int)ControlUnit.CurrentCapacity / 8)));
-                }
+                _input = Input;
+                _string = "POP";
+                StackData = ControlUnit.Fetch(RSP, (byte)((int)ControlUnit.CurrentCapacity / 8));
+            }
+            public override void Execute()
+            {
+                SetDynamic(_input, StackData); // pointer rsp
+                // pop [ptr]0x8F technichally is a multi def byte because it has 1 oprand, but there is only this instruction
+                // so i just point it to the generic pop function cause it isnt special enough
                 RSP += (uint)ControlUnit.CurrentCapacity / 8; // cheap way to add to rsp, use full ControlUnit.setreg in other cases, ADD AFTER ^ IS IMPORTANT
                 // this is happens too rarely for it to deserve its own function, we already know the dest is RSP for sure so controlunit.setregister() is a waste of time
             }
@@ -418,10 +487,13 @@ namespace debugger
             //Prefixes REXW SIZEOVR
             readonly byte _oprands;
             readonly byte[] baDestData;
+            readonly byte[] baResult;
+            readonly byte[] baSrcData;
             public Mul(byte Oprands, bool SignExtendedByte=false)
             {
-                _string = "MUL";
-                _oprands = Oprands;              
+                _string = (IsSigned) ? "IMUL" : "MUL";
+                _oprands = Oprands;
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
                 switch (Oprands)
                 {
                     case 1:
@@ -434,17 +506,16 @@ namespace debugger
                         break;
                     case 3:
                         _input = ControlUnit.ModRMDecode();
-                        baDestData = ImmediateFetch(true);                  
+                        baDestData = ImmediateFetch(SignExtendedByte);                  
                         break;
                     default:
                         throw new Exception();
                 }
+                baSrcData = FetchDynamic(_input, true); //sign extend here for case 3 anyway, its only one compare, we dont know current cap yet
+                baResult = Bitwise.Multiply(baSrcData, Bitwise.SignExtend(baDestData, ControlUnit.CurrentCapacity), ControlUnit.CurrentCapacity, Signed: IsSigned);
             }
             public override void Execute()
-            {
-                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baSrcData = FetchDynamic(_input, true); //sign extend here for case 3 anyway, its only one compare, we didn't know current cap yet
-                byte[] baResult = Bitwise.Multiply(baSrcData, Bitwise.SignExtend(baDestData, ControlUnit.CurrentCapacity), ControlUnit.CurrentCapacity, Signed: IsSigned);
+            {    
                 //careful refactoring this it gets messy, dont think there is a way without losing performance when it isn't needed
                 //e.g having to use take,skip with both
                 if (_oprands == 1) 
@@ -462,31 +533,42 @@ namespace debugger
         {
             //Data [Dest, Src]
             //Prefixes REXW SIZEOVR
-            bool _borrow;
-            public Sub(bool UseBorrow=false) { _string = "SUB"; _borrow = UseBorrow; }
+            ByteCode bcSrcReg;
+            byte[] baSrcData;
+            byte[] baDestData;
+            byte[] baResult;
+            public Sub(bool UseBorrow=false)
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                _string = (UseBorrow) ? "SBB" : "SUB";
+                _input = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+                bcSrcReg = (ByteCode)_input.lSource;
+                baSrcData = ControlUnit.FetchRegister(bcSrcReg);
+                baDestData = FetchDynamic(_input, IsSwap);
+                baResult = Bitwise.Subtract(baSrcData, baDestData, ControlUnit.CurrentCapacity, UseBorrow);
+            }
             public override void Execute()
             {
-                ModRM DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
-
-                ByteCode bcSrcReg = (ByteCode)DestSrc.lSource;
-                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-
-                byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
-                byte[] baDestData = FetchDynamic(DestSrc, IsSwap);
-                SetDynamic(DestSrc, Bitwise.Subtract(baSrcData, baDestData, ControlUnit.CurrentCapacity, _borrow), IsSwap);
+                SetDynamic(_input, baResult, IsSwap);
             }
         }
         public class SubImm : MyOpcode // 2c,2d=A ; 80 8bit 81 32bit modrm ; 28, 29 sign extend; 2a 2b swap
         {
-            bool _signextend;
-            bool _borrow;
-            public SubImm(ModRM Input, bool SignExtend = false, bool UseBorrow=false){ _borrow = UseBorrow; _string = "SUB";_signextend = SignExtend; _input = Input; }
-            public override void Execute()
+            byte[] baImmediate;
+            byte[] baDestBytes;
+            byte[] baResult;
+            public SubImm(ModRM Input, bool SignExtend = false, bool UseBorrow=false)
             {
                 ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
-                byte[] baImmediate = ImmediateFetch(_signextend);
-                byte[] baDestBytes = FetchDynamic(_input, true);
-                SetDynamic(_input, Bitwise.Subtract(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, _borrow));
+                _string = (UseBorrow) ? "SBB" : "SUB";
+                _input = Input;
+                baImmediate = ImmediateFetch(SignExtend);
+                baDestBytes = FetchDynamic(_input, true);
+                baResult = Bitwise.Subtract(baDestBytes, baImmediate, ControlUnit.CurrentCapacity, UseBorrow);
+            }
+            public override void Execute()
+            {          
+                SetDynamic(_input, baResult);
             }
         }
         public class Div : MyOpcode // f6,f7
@@ -494,10 +576,15 @@ namespace debugger
             //Data [Dest, Src]
             // or [eax, src]
             //Prefixes REXW SIZEOVR
-            public Div(ModRM Input) { _input = Input; _string = "DIV"; }
+            public Div(ModRM Input)
+            {
+              ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+              _input = Input;
+              _string = (IsSigned) ? "IDIV" : "DIV";
+            }
             public override void Execute()
             {
-                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                
                 byte[] baSrcData = FetchDynamic(_input, true);
                 byte[] baDestData = ControlUnit.FetchRegister(ByteCode.A); // always a, atleast for this opcode
 
@@ -535,7 +622,6 @@ namespace debugger
                 Bitwise.Subtract(baInput1, baInput2, ControlUnit.CurrentCapacity, bCarry:false);
             }
         }
-
         public class Jmp : MyOpcode
         {
             // rel8, rel32, rel16, absolute r/m64 (absolute r/m32,16 zero extended),  
@@ -607,6 +693,112 @@ namespace debugger
                         break;
                 }
                 ControlUnit.BytePointer = DestAddr;
+            }
+        }
+        public class And : MyOpcode
+        {
+            ModRM DestSrc;
+            byte[] baDestBytes;
+            byte[] baSrcBytes;
+            public And()
+            {
+                ControlUnit.CurrentCapacity = GetRegCap();
+                DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+                _string = "AND";
+                baDestBytes = FetchDynamic(DestSrc, IsSwap);
+                ByteCode bcSrcReg = (ByteCode)DestSrc.lSource;
+                baSrcBytes = ControlUnit.FetchRegister(bcSrcReg);
+            }
+
+            public override void Execute()
+            {
+                SetDynamic(DestSrc, Bitwise.And(baDestBytes, baSrcBytes), IsSwap);
+            }
+        }
+        public class AndImm : MyOpcode
+        {
+            byte[] baImmediate;
+            byte[] baDestBytes;
+            public AndImm(ModRM Input, bool SignExtend = false)
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                baImmediate = ImmediateFetch(SignExtend);
+                _string = "AND";
+                baDestBytes = FetchDynamic(Input, true);
+                _input = Input;
+            }
+            public override void Execute()
+            {
+                SetDynamic(_input, Bitwise.And(baDestBytes, baImmediate));
+            }
+        }
+        public class Xor : MyOpcode
+        {
+            ModRM DestSrc;
+            byte[] baDestBytes;
+            byte[] baSrcBytes;
+            public Xor()
+            {
+                ControlUnit.CurrentCapacity = GetRegCap();
+                DestSrc = ControlUnit.ModRMDecode(ControlUnit.FetchNext());
+                _string = "XOR";
+                baDestBytes = FetchDynamic(DestSrc, IsSwap);
+                ByteCode bcSrcReg = (ByteCode)DestSrc.lSource;
+                baSrcBytes = ControlUnit.FetchRegister(bcSrcReg);
+            }
+
+            public override void Execute()
+            {
+                SetDynamic(DestSrc, Bitwise.Xor(baDestBytes, baSrcBytes), IsSwap);
+            }
+        }
+        public class XorImm : MyOpcode
+        {
+            byte[] baImmediate;
+            byte[] baDestBytes;
+            public XorImm(ModRM Input, bool SignExtend = false)
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                baImmediate = ImmediateFetch(SignExtend);
+                _string = "XOR";
+                baDestBytes = FetchDynamic(Input, true); 
+                _input = Input;
+            }
+            public override void Execute()
+            {
+                SetDynamic(_input, Bitwise.Xor(baDestBytes, baImmediate));
+            }
+        }
+
+        public class Inc : MyOpcode 
+        {
+            byte[] baDestBytes;
+            public Inc(ModRM Input)
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                _string = "INC";
+                _input = Input;
+                baDestBytes = FetchDynamic(_input, true);
+            }
+            public override void Execute()
+            {               
+                SetDynamic(_input, Bitwise.Increment(baDestBytes, ControlUnit.CurrentCapacity));
+            }
+        }
+
+        public class Dec : MyOpcode
+        {
+            byte[] baDestBytes;
+            public Dec(ModRM Input)
+            {
+                ControlUnit.CurrentCapacity = (Is8Bit) ? RegisterCapacity.B : GetRegCap();
+                _string = "DEC";
+                _input = Input;
+                baDestBytes = FetchDynamic(_input, true);
+            }
+            public override void Execute()
+            {
+                SetDynamic(_input, Bitwise.Decrement(baDestBytes, ControlUnit.CurrentCapacity));
             }
         }
     }
