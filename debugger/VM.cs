@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using static debugger.Registers;
+using static debugger.ControlUnit;
 using System.Threading;
 using System.Collections.Concurrent;
 using static debugger.Opcodes;
+using static debugger.Util;
+using static debugger.Primitives;
 
 namespace debugger
 {
@@ -30,19 +32,19 @@ namespace debugger
             return new List<Dictionary<string, ulong>>() {
                  new Dictionary<string, ulong>()
                 {
-                { "RIP", Registers.RIP},
-                { "RSP", Registers.RSP},
-                { "RBP", Registers.RBP},
-                { "RSI", Registers.RSI},
-                { "RDI", Registers.RDI}
+                { "RIP", RIP},
+                { "RSP", BitConverter.ToUInt64(FetchRegister(ByteCode.SP, RegisterCapacity.R),0)},
+                { "RBP", BitConverter.ToUInt64(FetchRegister(ByteCode.BP, RegisterCapacity.R),0)},
+                { "RSI", BitConverter.ToUInt64(FetchRegister(ByteCode.SI, RegisterCapacity.R),0)},
+                { "RDI", BitConverter.ToUInt64(FetchRegister(ByteCode.DI, RegisterCapacity.R),0)}
                 },
 
                 new Dictionary<string, ulong>()
                 {
-                { "RAX", Registers.RAX},
-                { "RBX", Registers.RBX},
-                { "RCX", Registers.RCX},
-                { "RDX", Registers.RDX}
+                { "RAX", BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R),0)},
+                { "RBX", BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R),0)},
+                { "RCX", BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R),0)},
+                { "RDX", BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R),0)}
                 },
                 new Dictionary<string, ulong>()
                 {
@@ -51,60 +53,42 @@ namespace debugger
                 {"AF", (ulong)(Eflags.Adjust ? 1 : 0) },
                 {"ZF", (ulong)(Eflags.Zero ? 1 : 0) },
                 {"SF", (ulong)(Eflags.Sign ? 1 : 0) },
-                {"TF", (ulong)(Eflags.Trap ? 1 : 0) },
-                {"IF", (ulong)(Eflags.Interrupt ? 1 : 0) },
-                {"DF", (ulong)(Eflags.Direction ? 1 : 0) },
                 {"OF", (ulong)(Eflags.Overflow ? 1 : 0) },
                 }
            };
         }
-
-        /*  public Dictionary<ulong, byte> GetMemory(string Segment, ulong lEntries)
-          {
-              ulong segoffset = ControlUnit.Memory.SegmentMap[Segment].StartAddr;
-              Dictionary<ulong, byte> OutputDict = new Dictionary<ulong, byte>();
-              for (ulong i = 0; i < lEntries; i++)
-              {
-                  OutputDict.Add(segoffset + i, ControlUnit.Fetch(segoffset + i)[0]);
-              }
-              return OutputDict;
-          }
-
-          public Dictionary<ulong, byte> GetMemory(ulong lOffset, ulong lEntries)
-          {
-              Dictionary<ulong, byte> OutputDict = new Dictionary<ulong, byte>();
-              for (ulong i = 0; i < lEntries; i++)
-              {
-                  OutputDict.Add(lOffset + i, ControlUnit.Fetch(lOffset + i)[0]);
-              }
-              return OutputDict;
-          }*/
-
         public Dictionary<ulong, byte> GetMemory()
         {
-            return ControlUnit.Memory;
+            return Memory;
         }
-
-
-
     }
 
     public static class ControlUnit
     {
-
+        
+        public class Eflags
+        {
+            public static bool Carry = false;
+            public static bool Parity = false;
+            public static bool Adjust = false;
+            public static bool Zero = false; // zero = false
+            public static bool Sign = false; // false = positive
+            public static bool Overflow = false; // true = overflow
+        }
         public static MemorySpace Memory = new MemorySpace();
-
+        private static RegisterGroup Registers = new RegisterGroup();
         public static RegisterCapacity CurrentCapacity;
+        public static ulong RIP;
         public static ulong BytePointer;
-        public static List<PrefixBytes> Prefixes = new List<PrefixBytes>();
+        public static List<PrefixByte> Prefixes = new List<PrefixByte>();
         private static byte _opbytes = 1;
 
         public static void Initialise(MemorySpace _memory)
         {
             BytePointer = _memory.EntryPoint;
             Memory = _memory;
-            RSP = _memory.SegmentMap[".stack"].StartAddr;
-            RBP = RSP;
+            SetRegister(ByteCode.SP, _memory.SegmentMap[".stack"].StartAddr);
+            SetRegister(ByteCode.BP, _memory.SegmentMap[".stack"].StartAddr);
             RIP = Memory.SegmentMap[".main"].StartAddr;
         }
         public static void ClockStart(bool Step=false)
@@ -133,13 +117,17 @@ namespace debugger
             if (!_decode(bFetched)) // true = no op
             {
                 _execute(bFetched);
-                Prefixes = new List<PrefixBytes>();
+                Prefixes = new List<PrefixByte>();
                 RIP = BytePointer;
             } else
             {
                 RIP++;
                 _step();
             }           
+        }
+        public static byte[] Fetch(byte[] Address, int Length=1)
+        {
+            return Fetch(BitConverter.ToUInt64(Address, 0), Length);
         }
         public static byte[] Fetch(ulong _addr, int _length=1)
         {
@@ -156,239 +144,50 @@ namespace debugger
             }
             return baOutput;
         }
-
-        public static byte[] Fetch(ulong _addr, RegisterCapacity _regcap)
+        /*public static byte[] Fetch(ulong _addr, RegisterCapacity _regcap)
         {
-            return Fetch(_addr, (byte)((int)_regcap / 8));
-        }
-
+            return Fetch(_addr, (byte)_regcap);
+        }*/
         public static byte[] FetchRegister(ByteCode bcByteCode)
         {
             return FetchRegister(bcByteCode, CurrentCapacity);
         }
-        public static byte[] FetchRegister(ByteCode bcByteCode, RegisterCapacity WorkingBits)
+        public static byte[] FetchRegister(ByteCode bcByteCode, RegisterCapacity _regcap)
         {
-            switch (WorkingBits)
+            return Registers.Fetch((byte)bcByteCode, (byte)_regcap);
+        }
+        public static void SetRegister(ByteCode RegisterCode, byte[] Data, bool HigherBit=false)
+        {
+            if(HigherBit)
             {
-                case RegisterCapacity.X:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            return BitConverter.GetBytes(AX).Take(2).ToArray(); // why this? because c# sucks, Bitconverter.GetBytes(AX) != BitConverter.GetBytes([[whatever is in the get accessor]]) for some reason
-                        case ByteCode.B:
-                            return BitConverter.GetBytes(BX).Take(2).ToArray();
-                        case ByteCode.C:
-                            return BitConverter.GetBytes(CX).Take(2).ToArray();
-                        case ByteCode.D:
-                            return BitConverter.GetBytes(DX).Take(2).ToArray();
-                        case ByteCode.AH:
-                            return BitConverter.GetBytes(SP).Take(2).ToArray();
-                        case ByteCode.BH:
-                            return BitConverter.GetBytes(BP).Take(2).ToArray();
-                        case ByteCode.CH:
-                            return BitConverter.GetBytes(DI).Take(2).ToArray();
-                        case ByteCode.DH:
-                            return BitConverter.GetBytes(SI).Take(2).ToArray();
-                    }
-                    break;
-                case RegisterCapacity.E:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            return BitConverter.GetBytes(EAX);
-                        case ByteCode.B:
-                            return BitConverter.GetBytes(EBX);
-                        case ByteCode.C:
-                            return BitConverter.GetBytes(ECX);
-                        case ByteCode.D:
-                            return BitConverter.GetBytes(EDX);
-                        case ByteCode.AH:
-                            return BitConverter.GetBytes(ESP);
-                        case ByteCode.BH:
-                            return BitConverter.GetBytes(EBP);
-                        case ByteCode.CH:
-                            return BitConverter.GetBytes(ESI);
-                        case ByteCode.DH:
-                            return BitConverter.GetBytes(EDI);
-
-                    }
-                    break;
-                case RegisterCapacity.R:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            return BitConverter.GetBytes(RAX);
-                        case ByteCode.B:
-                            return BitConverter.GetBytes(RBX);
-                        case ByteCode.C:
-                            return BitConverter.GetBytes(RCX);
-                        case ByteCode.D:
-                            return BitConverter.GetBytes(RDX);
-                        case ByteCode.AH:
-                            return BitConverter.GetBytes(RSP);
-                        case ByteCode.BH:
-                            return BitConverter.GetBytes(RBP);
-                        case ByteCode.CH:
-                            return BitConverter.GetBytes(RSI);
-                        case ByteCode.DH:
-                            return BitConverter.GetBytes(RDI);
-
-                    }
-                    break;
-                case RegisterCapacity.B:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            return (AL);
-                        case ByteCode.B:
-                            return (BL);
-                        case ByteCode.C:
-                            return (CL);
-                        case ByteCode.D:
-                            return (DL);
-                        case ByteCode.AH:
-                            return (AH);
-                        case ByteCode.BH:
-                            return (BH);
-                        case ByteCode.CH:
-                            return (CH);
-                        case ByteCode.DH:
-                            return (DH);
-                        default:
-                            throw new Exception();
-                    }
+                Registers.Set((byte)RegisterCode, new byte[] { Registers.Fetch((byte)RegisterCode, 2)[0], Data[0]});
+            } else
+            {
+                if(Data.Length >= 4) { Data = Bitwise.ZeroExtend(Data, 8); }
+                Registers.Set((byte)RegisterCode, Data);
             }
-            throw new Exception();
-        }
-
-        public static void SetRegister(ByteCode bcByteCode, byte[] baData)
-        {
-            SetRegister(bcByteCode, baData, CurrentCapacity);
-        }
-        public static void SetRegister(ByteCode bcByteCode, byte[] baData, RegisterCapacity WorkingBits)
-        {
-            if (WorkingBits == RegisterCapacity.E)
-            {
-                baData = Util.Bitwise.ZeroExtend(baData, 64); // weird 86_64 thing, partial register stalls, doesnt matter for us but still emulate it}
-                WorkingBits = RegisterCapacity.R;
-            } 
-
             
-            switch (WorkingBits)
-            {
-                case RegisterCapacity.X:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            AX = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.B:
-                            BX = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.C:
-                            CX = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.D:
-                            DX = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.AH:
-                            SP = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.BH:
-                            BP = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.CH:
-                            SI = BitConverter.ToUInt16(baData, 0);
-                            break;
-                        case ByteCode.DH:
-                            DI = BitConverter.ToUInt16(baData, 0);
-                            break;
-                    }
-                    break;
-                case RegisterCapacity.R:                   
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            RAX = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.B:
-                            RBX = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.C:
-                            RCX = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.D:
-                            RDX = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.AH:
-                            RSP = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.BH:
-                            RBP = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.CH:
-                            RSI = BitConverter.ToUInt64(baData, 0);
-                            break;
-                        case ByteCode.DH:
-                            RDI = BitConverter.ToUInt64(baData, 0);
-                            break;
-                    }
-                    break;
-                case RegisterCapacity.B:
-                    switch (bcByteCode)
-                    {
-                        case ByteCode.A:
-                            AL = baData[0];
-                            break;
-                        case ByteCode.B:
-                            BL = baData[0];
-                            break;
-                        case ByteCode.C:
-                            CL = baData[0];
-                            break;
-                        case ByteCode.D:
-                            DL = baData[0];
-                            break;
-                        case ByteCode.AH:
-                            AH = baData[0];
-                            break;
-                        case ByteCode.BH:
-                            BH = baData[0];
-                            break;
-                        case ByteCode.CH:
-                            CH = baData[0];
-                            break;
-                        case ByteCode.DH:
-                            DH = baData[0];
-                            break;
-                        default:
-                            throw new Exception();
-                    }
-                    break;
-            } 
         }
-
         public static void SetRegister(ByteCode bcByteCode, byte bData)
         {
-            SetRegister(bcByteCode, new byte[] { bData }, RegisterCapacity.B);
+            SetRegister(bcByteCode, new byte[] { bData });
         }
-
         public static void SetRegister(ByteCode bcByteCode, ulong lData)
         {
-            SetRegister(bcByteCode, BitConverter.GetBytes(lData), RegisterCapacity.R);
+            SetRegister(bcByteCode, BitConverter.GetBytes(lData));
         }
-
         public static void SetRegister(ByteCode bcByteCode, uint iData)
         {
-            SetRegister(bcByteCode, BitConverter.GetBytes(iData), RegisterCapacity.E);
+            SetRegister(bcByteCode, BitConverter.GetBytes(iData));
         }
-
         public static void SetRegister(ByteCode bcByteCode, ushort sData)
         {
-            SetRegister(bcByteCode, BitConverter.GetBytes(sData), RegisterCapacity.X);
+            SetRegister(bcByteCode, BitConverter.GetBytes(sData));
         }
-
-
+        public static void SetMemory(byte[] Address, byte[] baData)
+        {
+            SetMemory(BitConverter.ToUInt64(Address,0), baData);
+        }
         public static void SetMemory(ulong lAddress, byte[] baData)
         {
             for (uint iOffset = 0; iOffset < baData.Length; iOffset++)
@@ -403,7 +202,6 @@ namespace debugger
             }
             
         }
-
         public static void SetMemory(ulong lAddress, byte bData)
         {
             if (Memory.ContainsAddr(lAddress))
@@ -415,12 +213,10 @@ namespace debugger
                 Memory.Set(lAddress, bData);
             }
         }
-
         public static void SetMemory(ulong lDestAddr, ulong lSrcAddr, byte bLength = 1)
         {
             SetMemory(lDestAddr, Fetch(lSrcAddr, bLength));
         }
-
         public static byte FetchNext(bool Increase=true)
         {
             byte bFetched = Fetch(BytePointer, 1)[0];
@@ -431,7 +227,6 @@ namespace debugger
             return bFetched;
             
         }
-
         public static byte[] FetchNext(byte bLength)
         {
             byte[] baOutput = new byte[bLength];
@@ -441,12 +236,6 @@ namespace debugger
             }
             return baOutput;
         }
-
-        public static byte[] FetchNext(RegisterCapacity _regcap)
-        {
-
-            return FetchNext((byte)((int)(_regcap) / 8));
-        }
         private static bool _decode(byte bFetched)
         {
             if (bFetched == 0x0F)
@@ -454,179 +243,70 @@ namespace debugger
                 _opbytes = 2;
                 return true;
             }
-            else if (Enum.IsDefined(typeof(PrefixBytes), (int)bFetched)) {
-                Prefixes.Add((PrefixBytes)bFetched);
+            else if (Enum.IsDefined(typeof(PrefixByte), (int)bFetched)) {
+                Prefixes.Add((PrefixByte)bFetched);
                 return true;
-            } else if(bFetched == 0x90) // FIX STACk
-            {
-                return true;
-            }
+            } 
             return false;
         }
         private static void _execute(byte bFetched)
         {
-            OpcodeLookup.OpcodeTable[_opbytes][bFetched].Invoke();
+            OpcodeLookup.OpcodeTable[_opbytes][bFetched].Invoke().Execute();
             _opbytes = 1;
         }
-
         public static ModRM ModRMDecode()
         {
             return ModRMDecode(FetchNext());
         }
-        public static ModRM ModRMDecode(byte bModRM, bool MultiDef=false)
+        public static ModRM ModRMDecode(byte bModRM)
         {
             ModRM Output = new ModRM();
-            string sBits = Util.Bitwise.GetBits(bModRM);
-            string sMod = sBits.Substring(0,2); // pointer, offset pointer, or reg
-            string sReg = sBits.Substring(2, 3);
-            string sRM = sBits.Substring(5, 3);
+            string sBits = Bitwise.GetBits(bModRM);
+            Output.Mod = Convert.ToByte(sBits.Substring(0, 2), 2); // pointer, offset pointer, or reg
+            //Output.Reg = Convert.ToByte(sBits.Substring(2, 3), 2); //reg =src
+            Output.Source = Convert.ToByte(sBits.Substring(2, 3), 2);
+            Output.RM = Convert.ToByte(sBits.Substring(5, 3), 2); // rm = dest
 
-            if(MultiDef) // reg diff meaning in multi def
-            {
-                switch (sReg)
-                {
-                    case "000":
-                        Output.lSource = 0;
-                        break;
-                    case "001":
-                        Output.lSource = 1;
-                        break;
-                    case "010":
-                        Output.lSource = 2;
-                        break;
-                    case "011":
-                        Output.lSource = 3;
-                        break;
-                    case "100":
-                        Output.lSource = 4;
-                        break;
-                    case "101":
-                        Output.lSource = 5;
-                        break;
-                    case "110":
-                        Output.lSource = 6;
-                        break;
-                    case "111":
-                        Output.lSource = 7;
-                        break;
-                }
-            } else
-            {
-                switch (sReg)
-                {
-                    case "000":
-                        Output.lSource = (ulong)ByteCode.A;
-                        break;
-                    case "001":
-                        Output.lSource = (ulong)ByteCode.C;
-                        break;
-                    case "010":
-                        Output.lSource = (ulong)ByteCode.D;
-                        break;
-                    case "011":
-                        Output.lSource = (ulong)ByteCode.B;
-                        break;
-                    case "100":
-                        Output.lSource = (ulong)ByteCode.AH;
-                        break;
-                    case "101":
-                        Output.lSource = (ulong)ByteCode.CH;
-                        break;
-                    case "110":
-                        Output.lSource = (ulong)ByteCode.DH;
-                        break;
-                    case "111":
-                        Output.lSource = (ulong)ByteCode.BH;
-                        break;
-                }
-            }
-            
-
-            if (sMod == "11")
+           
+            if (Output.Mod == 3)
             {
                 // direct register
-                Output.IsAddress = false;
-                switch (sRM)
-                {
-                    case "000":
-                        Output.lDest = (ulong)ByteCode.A;
-                        break;
-                    case "001":
-                        Output.lDest = (ulong)ByteCode.C;
-                        break;
-                    case "010":
-                        Output.lDest = (ulong)ByteCode.D;
-                        break;
-                    case "011":
-                        Output.lDest = (ulong)ByteCode.B;
-                        break;
-                    case "100":
-                        Output.lDest = (ulong)ByteCode.AH;
-                        break;
-                    case "101":
-                        Output.lDest = (ulong)ByteCode.CH;
-                        break;
-                    case "110":
-                        Output.lDest = (ulong)ByteCode.DH;
-                        break;
-                    case "111":
-                        Output.lDest = (ulong)ByteCode.BH;
-                        break;
-
-                }
+                Output.Dest = Output.RM;
             }
             else
             {
-                uint iOffset = 0;
-                Output.IsAddress = true;
-                if (sMod == "01") //1B
+                Output.Offset = 0;
+                if (Output.Mod == 1) //1B
                 {
-                    iOffset = FetchNext();
+                    Output.Offset = FetchNext();
                 }
-                else if (sMod == "10") // 1W
+                else if (Output.Mod == 2) // 1W
                 {
-                    iOffset = BitConverter.ToUInt32(FetchNext(4), 0);
+                    Output.Offset = BitConverter.ToUInt32(FetchNext(4), 0);
                 }
 
-                switch (sRM)
+                if(Output.RM == 5) // disp32/rbp+disp
                 {
-                    case "000":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    case "001":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    case "010":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    case "011":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    case "100":
-                        //SIB! //if (sRM == "100" && sMod != "11") { Output.bSIB = FetchNext(); BytePointer++; }
-                        Output.lDest = SIBDecode();
-                        break;
-                    case "110":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.DH, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    case "111":
-                        Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
-                        break;
-                    default:
-                        if (sMod == "00") // either displacement32 if it is just a pointer(mod=00)
-                        {
-                            Output.lDest = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
-                        }
-                        else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
-                        {
-                            Output.lDest = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + iOffset;
-                        }
-                        break;
+                    if (Output.Mod == 0) // either displacement32 if it is just a pointer(mod=00)
+                    {
+                        Output.Offset = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
+                    }
+                    else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
+                    {
+                        Output.Offset = (long)BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + Output.Offset;
+                    }
+                    Output.Dest = (ulong)Output.Offset; // set it to the offset because its easier for disassembler
+                } else if (Output.RM == 4)
+                {
+                    //SIB! //if (sRM == "100" && sMod != "11") { Output.bSIB = FetchNext(); BytePointer++; }
+                    Output.Dest = SIBDecode();
+                } else
+                {
+                    Output.Dest = (ulong)((long)BitConverter.ToUInt64(FetchRegister((ByteCode)Output.RM, RegisterCapacity.R), 0) + Output.Offset);
                 }
             }
             return Output;
         }
-
         public static ulong SIBDecode()
         {
             
@@ -833,207 +513,61 @@ namespace debugger
 
     public struct ModRM
     {
-        public ulong lDest;
-        public ulong lSource;
-        public bool IsAddress;
+        public ulong Dest;
+        public ulong Source;
+        //for disas only
+        public long Offset;
+        public byte Mod; // first 2
+        //public byte Reg; // next 3
+        public byte RM; // last 3
     }
 
-    public static class Registers
+    public class RegisterGroup
     {
-        public enum PrefixBytes
+        
+        public class Register
         {
-            ADDR32 = 0x67,
-            SIZEOVR = 0x66,
-            REXW = 0x48
-        }
-        public enum RegisterCapacity
-        {
-            B = 8,
-            X = 16,
-            E = 32,
-            R = 64
-        }
-
-        public enum ByteCode
-        {
-            A = 0xC0,
-            C = 0xC1,
-            D = 0xC2,
-            B = 0xC3,
-            AH = 0xC4,
-            DH = 0xC5,
-            CH = 0xC6,
-            BH = 0xC7
-        }
-
-        public static class Eflags {
-            public static bool Carry = false;
-            public static bool Parity = false;
-            public static bool Adjust = false;
-            public static bool Zero = false; // zero = false
-            public static bool Sign = false; // false = positive
-            public static bool Trap = false;
-            public static bool Interrupt = false; // interrupt enable = true
-            public static bool Direction = false; // false = up
-            public static bool Overflow = false; // true = overflow
-        }
-
-        public static Register64 RIP = 0x0000000000000000;
-
-
-        public static Register64 RAX = 0x0000000000000000;
-        public static Register64 RBX = 0x0000000000000000;
-        public static Register64 RCX = 0x0000000000000000;
-        public static Register64 RDX = 0x0000000000000000;
-        public static Register64 RSP = 0x0000000000000000;
-        public static Register64 RBP = 0x0000000000000000;
-        public static Register64 RSI = 0x0000000000000000;
-        public static Register64 RDI = 0x0000000000000000;
-
-        public static Register32 EAX { get { return BitConverter.ToUInt32(_getlowerbytes(RAX, 4),0); } set { RAX = _setlowerbytes(EAX, value, 4); } }
-        public static Register32 EBX { get { return BitConverter.ToUInt32(_getlowerbytes(RBX, 4),0); } set { RBX = _setlowerbytes(EBX, value, 4); } }
-        public static Register32 ECX { get { return BitConverter.ToUInt32(_getlowerbytes(RCX, 4),0); } set { RCX = _setlowerbytes(ECX, value, 4); } }
-        public static Register32 EDX { get { return BitConverter.ToUInt32(_getlowerbytes(RDX, 4),0); } set { RDX =_setlowerbytes(EDX, value, 4); } }
-        public static Register32 ESP { get { return BitConverter.ToUInt32(_getlowerbytes(RSP, 4), 0); } set { RSP = _setlowerbytes(RSP, value, 4); } }
-        public static Register32 EBP { get { return BitConverter.ToUInt32(_getlowerbytes(RBP, 4), 0); } set { RBP = _setlowerbytes(RBP, value, 4); } }
-        public static Register32 ESI { get { return BitConverter.ToUInt32(_getlowerbytes(RSI, 4), 0); } set { RSI = _setlowerbytes(RSI, value, 4); } }
-        public static Register32 EDI { get { return BitConverter.ToUInt32(_getlowerbytes(RDI, 4), 0); } set { RDI = _setlowerbytes(RDI, value, 4); } }
-
-        public static Register16 AX { get { return BitConverter.ToUInt16(_getlowerbytes(RAX, 2),0); } set { RAX = _setlowerbytes(RAX, value, 2); } }
-        public static Register16 BX { get { return BitConverter.ToUInt16(_getlowerbytes(RBX, 2),0); } set { RBX = _setlowerbytes(RBX, value, 2); } }
-        public static Register16 CX { get { return BitConverter.ToUInt16(_getlowerbytes(RCX, 2),0); } set { RCX = _setlowerbytes(RCX, value, 2); } }
-        public static Register16 DX { get { return BitConverter.ToUInt16(_getlowerbytes(RDX, 2),0); } set { RDX = _setlowerbytes(RDX, value, 2); } }
-        public static Register16 SP { get { return BitConverter.ToUInt16(_getlowerbytes(RSP, 2), 0); } set { RSP = _setlowerbytes(RSP, value, 2); } }
-        public static Register16 BP { get { return BitConverter.ToUInt16(_getlowerbytes(RBP, 2), 0); } set { RBP = _setlowerbytes(RBP, value, 2); } }
-        public static Register16 SI { get { return BitConverter.ToUInt16(_getlowerbytes(RSI, 2), 0); } set { RSI = _setlowerbytes(RSI, value, 2); } }
-        public static Register16 DI { get { return BitConverter.ToUInt16(_getlowerbytes(RDI, 2), 0); } set { RDI = _setlowerbytes(RDI, value, 2); } }
-
-        public static Register8 AH { get { return _getlowerbytes(RAX, 2)[1]; } set { RAX = _setlowerbytes(RAX, value, 1, 1); } }
-        public static Register8 AL { get { return _getlowerbytes(RAX, 1)[0]; } set { RAX = _setlowerbytes(RAX, value, 1); } }
-        public static Register8 BH { get { return _getlowerbytes(RBX, 2)[1]; } set { RBX = _setlowerbytes(RBX, value, 1, 1); } }
-        public static Register8 BL { get { return _getlowerbytes(RBX, 1)[0]; } set { RBX = _setlowerbytes(RBX, value, 1); } }
-        public static Register8 CH { get { return _getlowerbytes(RCX, 2)[1]; } set { RCX = _setlowerbytes(RCX, value, 1, 1); } }
-        public static Register8 CL { get { return _getlowerbytes(RCX, 1)[0]; } set { RCX = _setlowerbytes(RCX, value, 1); } }
-        public static Register8 DH { get { return _getlowerbytes(RDX, 2)[1]; } set { RDX = _setlowerbytes(RDX, value, 1, 1); } }
-        public static Register8 DL { get { return _getlowerbytes(RDX, 1)[0]; } set { RDX = _setlowerbytes(RDX, value, 1); } }
-
-        private static byte[] _getlowerbytes(Register64 lValue, int iCount)
-        {
-            byte[] baBytes = BitConverter.GetBytes(lValue);
-            return baBytes.Take(iCount).ToArray();
-        }
-
-
-        private static Register64 _setlowerbytes(byte[] baInputBytes, byte[] baBytesToSet, int iCount, int iOffset=0)
-        {
-            if (baBytesToSet.Length > iCount)
+            private byte[] Data;
+            public Register()
             {
-                throw new OverflowException();
+                Data = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 };
             }
-            byte[] baBuffer = new byte[8];
-            Array.Copy(baInputBytes, baBuffer, iCount);           
-            Array.Copy(baBytesToSet, 0, baBuffer, iOffset, iCount);
-            return BitConverter.ToUInt64(baBuffer, 0);
+            public Register(byte[] Input)
+            {
+                Data = Input;
+            }
+            public byte this[int i] => this[i];
+            public static implicit operator byte[] (Register R)
+            {
+                return R.Data;
+            }
+
+            public static implicit operator Register(byte[] Initialiser)
+            {
+                return new Register(Initialiser);
+            }
+        }
+        private static List<Register> _regTable = new List<Register>() //there isn't a great way/clean to do this, enumerable.repeat returns x instances of the same object e.g list will be 8 pointers to one reg
+        { new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register() }; // 8 regs, 0 = eax, 1=ecx,2=edx,3=ebx,4=esp,5=ebp,6=esi,7=edi
+        protected internal static List<bool> _Flags = Enumerable.Repeat(false, 6).ToList();
+        private static byte[] _setLower(Register DestReg, byte[] Input, int iOffset = 0)
+        {
+            Array.Copy(Input, 0, DestReg, iOffset, Input.Length - iOffset);
+            return DestReg;
+        }
+        protected internal byte[] Fetch(byte RegCode, byte Size)
+        {
+            return Bitwise.Cut(_regTable[RegCode], Size);
+        }
+        protected internal void Set(byte RegCode, byte[] Input)
+        {
+            if(!new int[] { 1,2,4,8 }.Contains(Input.Length))
+            {
+                throw new Exception();
+            }
+            _regTable[RegCode] = _setLower(_regTable[RegCode], Input);
         }
 
+       
     } 
-
-    public class Register64
-    {
-        private ulong lValue;
-        public Register64(ulong R)
-        {
-            lValue = R;
-        }
-
-        public byte this[int i] => this[i];
-        public static implicit operator ulong(Register64 R)
-        {
-            return R.lValue;
-        }
-        public static implicit operator byte[] (Register64 R)
-        {
-            return BitConverter.GetBytes(R.lValue);
-        }
-
-        public static implicit operator Register64(ulong lVal)
-        {
-            return new Register64(lVal);
-        }
-    }
-
-    public class Register32
-    {
-        private uint iValue;
-        public Register32(uint R)
-        {
-            iValue = R;
-        }
-
-        public byte this[int i] => this[i];
-        public static implicit operator uint(Register32 R)
-        {
-            return R.iValue;
-        }
-
-        public static implicit operator byte[] (Register32 R)
-        {
-            return BitConverter.GetBytes(R.iValue);
-        }
-
-        public static implicit operator Register32(uint iVal)
-        {
-            return new Register32(iVal);
-        }
-    }
-
-    public class Register16
-    {
-        private ushort sValue;
-        public Register16(ushort R)
-        {
-            sValue = R;
-        }
-
-        public byte this[int i] => this[i];
-        public static implicit operator uint(Register16 R)
-        {
-            return R.sValue;
-        }
-
-        public static implicit operator byte[] (Register16 R)
-        {
-            return BitConverter.GetBytes(R.sValue);
-        }
-
-        public static implicit operator Register16(ushort sVal)
-        {
-            return new Register16(sVal);
-        }
-    }
-    public class Register8
-    {
-        private byte bValue;
-        public Register8(byte R)
-        {
-            bValue = R;
-        }
-
-        public byte this[int i] => this[i];
-        public static implicit operator byte(Register8 R)
-        {
-            return R.bValue;
-        }
-
-        public static implicit operator byte[] (Register8 R)
-        {
-            return new byte[] { R.bValue };
-        }
-
-        public static implicit operator Register8(byte bVal)
-        {
-            return new Register8(bVal);
-        }
-    }
-
 }

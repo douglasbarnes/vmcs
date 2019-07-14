@@ -3,9 +3,51 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static debugger.Registers;
+using static debugger.ControlUnit;
+using static debugger.Primitives;
 namespace debugger
 {
+    public class Primitives
+    {
+        public struct OpcodeInput
+        {
+            internal ModRM DecodedModRM;
+            internal bool Is8Bit;
+            internal bool IsSwap;
+            internal bool IsSigned;
+            internal bool IsImmediate;
+            internal bool IsSignExtendedByte;
+        }
+
+        public enum ByteCode
+        {
+            A = 0x00,
+            C = 0x01,
+            D = 0x02,
+            B = 0x03,
+            SP = 0x04,
+            BP = 0x05,
+            SI = 0x06,
+            DI = 0x07,
+            AH = 0x04,
+            CH = 0x05,
+            DH = 0x06,
+            BH = 0x07
+        }
+        public enum PrefixByte
+        {
+            ADDR32 = 0x67,
+            SIZEOVR = 0x66,
+            REXW = 0x48
+        }
+        public enum RegisterCapacity
+        {
+            B = 1,
+            X = 2,
+            E = 4,
+            R = 8
+        }
+    }
     public static class Util
     {
         public static bool IsNegative(this byte[] baInput)
@@ -33,7 +75,6 @@ namespace debugger
             Bitwise.PadEqual(ref baInput1, ref baInput2); //  V check for signs
             return ((sbyte)baInput1[baInput1.Length - 1] > (sbyte)baInput2[baInput2.Length - 1]);
         }
-
         public static class Bitwise
         {
             public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
@@ -48,15 +89,26 @@ namespace debugger
                 }
                 return baInput;
             }
-            public static byte[] Trim(byte[] baInput, RegisterCapacity _regcap) // time difference between this and linq.take is huge, 
+            public static byte[] Cut(byte[] baInput, int Count) // time difference between this and linq.take is huge, 
             {                                                           // http://prntscr.com/od20o4 // linq: http://prntscr.com/od20vw  //my way: http://prntscr.com/od21br
-                byte[] baBuffer = new byte[(byte)_regcap/8];       
+                byte[] baBuffer = new byte[Count];
                 for (int i = 0; i < baBuffer.Length; i++)
                 {
                     baBuffer[i] = baInput[i];
                 }
-                return baInput;
+                return baBuffer;
             }
+
+            public static byte[] Subarray(byte[] Input, int Offset)
+            {
+                byte[] Buffer = new byte[Input.Length];
+                for (int i = Offset; i < Buffer.Length; i++)
+                {
+                    Buffer[i] = Input[i];
+                }
+                return Buffer;
+            }
+
             public static void PadEqual(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
@@ -79,10 +131,10 @@ namespace debugger
                     b1 = SignExtend(b1, (byte)b2.Length);
                 }
             }
-            public static byte[] Or(byte[] baData1, byte[] baData2)
+            public static byte[] Or(byte[] baInput1, byte[] baInput2)
             {
-                string sBits1 = GetBits(baData1);
-                string sBits2 = GetBits(baData2);
+                string sBits1 = GetBits(baInput1);
+                string sBits2 = GetBits(baInput2);
                 PadEqual(ref sBits1, ref sBits2);
 
                 string sOutput = "";
@@ -98,13 +150,13 @@ namespace debugger
                     }
                 }
                 byte[] baResult = GetBytes(sOutput);
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                
                 return baResult;
             }
-            public static byte[] And(byte[] baData1, byte[] baData2)
+            public static byte[] And(byte[] baInput1, byte[] baInput2)
             {
-                string sBits1 = GetBits(baData1);
-                string sBits2 = GetBits(baData2);
+                string sBits1 = GetBits(baInput1);
+                string sBits2 = GetBits(baInput2);
                 PadEqual(ref sBits1, ref sBits2);
 
                 string sOutput = "";
@@ -120,13 +172,13 @@ namespace debugger
                     }
                 }
                 byte[] baResult = GetBytes(sOutput);
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baInput1, baInput2);
                 return baResult;
             }
-            public static byte[] Xor(byte[] baData1, byte[] baData2)
+            public static byte[] Xor(byte[] baInput1, byte[] baInput2)
             {
-                string sBits1 = GetBits(baData1);
-                string sBits2 = GetBits(baData2);
+                string sBits1 = GetBits(baInput1);
+                string sBits2 = GetBits(baInput2);
                 PadEqual(ref sBits1, ref sBits2);
 
                 string sOutput = "";
@@ -142,183 +194,84 @@ namespace debugger
                     }
                 }
                 byte[] baResult = GetBytes(sOutput);
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baData1, baData2);
+                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baInput1, baInput2);
                 return baResult;
             }
-            public static byte[] Add(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
+            public static byte[] Add(byte[] baInput1, byte[] baInput2, bool bCarry, int Size)
             {
-                /*int iSum;  /// revist this
-                byte[] baResult = new byte[baInput1.Length];
-                for (int i = baInput1.Length-1; i >= 0; i--)
-                {
-                    iSum = baInput1[i] + baInput2[i];
-                    if(iSum > 255)
-                    {
-                        baResult[i - 1] += 1;
-                        baResult[i] += (byte)(iSum - 255);
-                    } else
-                    {
-                        baResult[i] += (byte)iSum;
-                    }
-                }*/
+                Array.Resize(ref baInput1, 8);
+                Array.Resize(ref baInput2, 8);
+                /// http://prntscr.com/odko8i really is by far the best way to do it
                 byte[] baResult = BitConverter.GetBytes(
-                        Convert.ToUInt64(
                          BitConverter.ToUInt64(baInput1, 0)
                        + BitConverter.ToUInt64(baInput2, 0)
-                       + (ulong)(bCarry && Eflags.Carry ? 1 : 0)
-                    ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Add, baInput1, baInput2);
-                return Trim(baResult, _regcap);
+                       + (ulong)(bCarry ? 1 : 0)
+                    );
+                return Cut(baResult, Size);
             }
-            public static byte[] Subtract(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool bCarry)
+            public static byte[] Subtract(byte[] baInput1, byte[] baInput2, bool bCarry, int Size)
             {
+                Array.Resize(ref baInput1, 8);
+                Array.Resize(ref baInput2, 8);
                 byte[] baResult = BitConverter.GetBytes(
                         Convert.ToUInt64(
                          BitConverter.ToUInt64(baInput1, 0)
                        - BitConverter.ToUInt64(baInput2, 0)
-                       + (ulong)(bCarry && Eflags.Carry ? 1 : 0) //add borrow
+                       + (ulong)(bCarry ? 1 : 0) //add borrow
                     ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Sub, baInput1, baInput2);
-                return Trim(baResult, _regcap);
+                
+                return Cut(baResult, Size);
             }
-            public static byte[] Divide(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
+            public static byte[] Divide(byte[] baInput1, byte[] baInput2, bool Signed, int Size)
             {
-                if (Signed)
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            return BitConverter.GetBytes((ulong)Math.Floor((double)Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) / BitConverter.ToInt64(baInput2, 0))));
-                        case RegisterCapacity.E:
-                            return BitConverter.GetBytes((uint)Math.Floor((double)Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
-                        case RegisterCapacity.X:
-                            return BitConverter.GetBytes((ushort)Math.Floor((double)Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) / BitConverter.ToInt32(baInput2, 0))));
-                        case RegisterCapacity.B:
-                            return BitConverter.GetBytes((byte)Math.Floor((double)Convert.ToInt16(baInput1[0] * baInput2[0])));
-                        default:
-                            throw new Exception();
-                    }
-                }
-                else
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            return BitConverter.GetBytes((ulong)Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) / BitConverter.ToUInt64(baInput2, 0))));
-                        case RegisterCapacity.E:
-                            return BitConverter.GetBytes((uint)Math.Floor((double)Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0)))); // we take this up a byte order because overflows are supported in multiply
-                        case RegisterCapacity.X:
-                            return BitConverter.GetBytes((ushort)Math.Floor((double)Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) / BitConverter.ToUInt32(baInput2, 0))));
-                        case RegisterCapacity.B:
-                            return BitConverter.GetBytes((byte)Math.Floor((double)Convert.ToUInt16(baInput1[0] / baInput2[0])));
-                        default:
-                            throw new Exception();
-                    }
-                }
                 //divide dont set flags
+                baInput1 = (Signed) ? SignExtend(baInput1, 8) : ZeroExtend(baInput1, 8);
+                baInput2 = (Signed) ? SignExtend(baInput2, 8) : ZeroExtend(baInput2, 8);
+                byte[] baResult = BitConverter.GetBytes( // integer divison, never have to handle floats
+                         BitConverter.ToUInt64(baInput1, 0)
+                       / BitConverter.ToUInt64(baInput2, 0)                      
+                );
+                return Cut(baResult, Size);
             }
-            public static byte[] Multiply(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
+            public static byte[] Multiply(byte[] baInput1, byte[] baInput2, bool Signed, int Size)
             {
-                byte[] baResult;
-                if(Signed)
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            baResult = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) * BitConverter.ToInt64(baInput2, 0)));
-                            break;
-                        case RegisterCapacity.E:// this is making it too long fix it
-                            baResult = BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
-                            break;
-                        case RegisterCapacity.X:
-                            baResult = BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) * BitConverter.ToInt32(baInput2, 0)));
-                            break;
-                        case RegisterCapacity.B:
-                            baResult = BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
-                            break;
-                        default:
-                            throw new Exception();
-                    }
-                    
-                    
-                } else
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) * BitConverter.ToUInt64(baInput2, 0)));
-                            break;
-                        case RegisterCapacity.E:
-                            baResult = BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
-                            break;
-                        case RegisterCapacity.X:
-                            baResult = BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) * BitConverter.ToUInt32(baInput2, 0)));
-                            break;
-                        case RegisterCapacity.B:
-                            baResult = BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
-                            break;
-                        default:
-                            throw new Exception();
-                    }
-                }
-                //set flags             
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Mul);
-                return baResult;
+                baInput1 = (Signed) ? SignExtend(baInput1, 8) : ZeroExtend(baInput1, 8);
+                baInput2 = (Signed) ? SignExtend(baInput2, 8) : ZeroExtend(baInput2, 8);
+                byte[] Result = BitConverter.GetBytes(
+                         BitConverter.ToUInt64(baInput1, 0)
+                       * BitConverter.ToUInt64(baInput2, 0)
+                    );
+                //set flags                            
+                return Cut(Result, Size*2);
             }
-            public static byte[] Modulo(byte[] baInput1, byte[] baInput2, RegisterCapacity _regcap, bool Signed)
+            public static byte[] Modulo(byte[] baInput1, byte[] baInput2, bool Signed, int Size)
             {
-                if (Signed)
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt64(baInput1, 0) % BitConverter.ToInt64(baInput2, 0)));
-                        case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Convert.ToInt64(BitConverter.ToInt32(baInput1, 0) % BitConverter.ToInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
-                        case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Convert.ToInt32(BitConverter.ToInt32(baInput1, 0) % BitConverter.ToInt32(baInput2, 0)));
-                        case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Convert.ToInt16(baInput1[0] * baInput2[0]));
-                        default:
-                            throw new Exception();
-                    }
-                }
-                else
-                {
-                    switch (_regcap)
-                    {
-                        case RegisterCapacity.R:
-                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt64(baInput1, 0) % BitConverter.ToUInt64(baInput2, 0)));
-                        case RegisterCapacity.E:
-                            return BitConverter.GetBytes(Convert.ToUInt64(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0))); // we take this up a byte order because overflows are supported in multiply
-                        case RegisterCapacity.X:
-                            return BitConverter.GetBytes(Convert.ToUInt32(BitConverter.ToUInt32(baInput1, 0) % BitConverter.ToUInt32(baInput2, 0)));
-                        case RegisterCapacity.B:
-                            return BitConverter.GetBytes(Convert.ToUInt16(baInput1[0] * baInput2[0]));
-                        default:
-                            throw new Exception();
-                    }
-                }
+                baInput1 = (Signed) ? SignExtend(baInput1, 8) : ZeroExtend(baInput1, 8);
+                baInput2 = (Signed) ? SignExtend(baInput2, 8) : ZeroExtend(baInput2, 8);
+                byte[] baResult = BitConverter.GetBytes(
+                         BitConverter.ToUInt64(baInput1, 0)
+                       % BitConverter.ToUInt64(baInput2, 0)
+                    );
+                return Cut(baResult, Size);
             }
-            public static byte[] Increment(byte[] baInput1, RegisterCapacity _regcap) // inc is twice as fast as add http://prntscr.com/od5rr9 (without flags)
+            public static byte[] Increment(byte[] baInput1, int Size) // inc is twice as fast as add http://prntscr.com/od5rr9 (without flags)
             {
                 byte[] baResult = BitConverter.GetBytes(
                        Convert.ToUInt64(
                        BitConverter.ToUInt64(baInput1, 0)
                        + 1
                     ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Inc, baInput1);
-                return Trim(baResult, _regcap);
+                return Cut(baResult, Size);
             }
-            public static byte[] Decrement(byte[] baInput1, RegisterCapacity _regcap)
+            public static byte[] Decrement(byte[] baInput1, int Size)
             {
                 byte[] baResult = BitConverter.GetBytes(
                        Convert.ToUInt64(
                        BitConverter.ToUInt64(baInput1, 0)
                        + 1
                     ));
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Dec, baInput1);
-                return Trim(baResult, _regcap);
+                
+                return Cut(baResult, Size);
             }
             public static string GetBits(byte[] bInput)
             {
@@ -367,9 +320,8 @@ namespace debugger
             }
             public static byte[] SignExtend(byte[] baInput, RegisterCapacity _regcap)
             {
-                return SignExtend(baInput, (byte)((byte)_regcap / 8));
+                return SignExtend(baInput, (byte)_regcap);
             }
-
             public static string SignExtend(string sInput, int bLength)
             {
                 string sBuffer = "";
@@ -389,14 +341,12 @@ namespace debugger
                 }
                 return blBuffer.ToArray();
             }
-
             public static byte[] ZeroExtend(byte[] baInput, RegisterCapacity _regcap)
             {
-                return ZeroExtend(baInput, (byte)((byte)_regcap / 8));
+                return ZeroExtend(baInput, (byte)_regcap);
             }
 
         }
-
         public class Opcode
         {
             public enum FlagMode
@@ -408,28 +358,27 @@ namespace debugger
                 Inc,
                 Dec,
             }
-            public static void SetFlags(byte[] baResult, FlagMode fm, byte[] baInput1=null, byte[] baInput2=null)
+            public static void SetFlags(byte[] baResult, FlagMode fm, byte[] baInput1, byte[] baInput2)
             {
-                RegisterCapacity _regcap = ControlUnit.CurrentCapacity;
                 switch (fm)
                 {
                     case FlagMode.Add:
                         Eflags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
-                        baResult = Bitwise.Trim(baResult, _regcap); // must be after carry                                                            
+                        baResult = Bitwise.Cut(baResult, (int)CurrentCapacity); // must be after carry                                                            
                         Eflags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                         // negative + negative should never be positive, vice versa
                         break;
                     case FlagMode.Sub:
                         Eflags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
-                        baResult = Bitwise.Trim(baResult, _regcap); // must be after carry
+                        baResult = Bitwise.Cut(baResult, (int)CurrentCapacity); // must be after carry
                         Eflags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                         // negative + negative should never be positive, vice versa
                         break;
                     case FlagMode.Mul:
-                        Eflags.Carry = (baResult != Bitwise.ZeroExtend(Bitwise.Trim(baResult, _regcap), _regcap));
-                        Eflags.Overflow = (baResult != Bitwise.SignExtend(Bitwise.Trim(baResult, _regcap), _regcap));
+                        Eflags.Carry = (baResult != Bitwise.ZeroExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
+                        Eflags.Overflow = (baResult != Bitwise.SignExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
                         //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
                         // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
                         // dont know how this plays out with 64bit regs
@@ -452,32 +401,19 @@ namespace debugger
 
             public static RegisterCapacity GetRegCap(RegisterCapacity defaultreg = RegisterCapacity.E)
             {
-                PrefixBytes[] _prefixes = ControlUnit.Prefixes.ToArray();
+                PrefixByte[] _prefixes = ControlUnit.Prefixes.ToArray();
                 RegisterCapacity _regcap;
-                if (_prefixes.Contains(PrefixBytes.REXW)) { _regcap = RegisterCapacity.R; }
-                else if (_prefixes.Contains(PrefixBytes.SIZEOVR)) { _regcap = RegisterCapacity.X; }
+                if (_prefixes.Contains(PrefixByte.REXW)) { _regcap = RegisterCapacity.R; }
+                else if (_prefixes.Contains(PrefixByte.SIZEOVR)) { _regcap = RegisterCapacity.X; }
                 else { _regcap = defaultreg; }
                 return _regcap;
             }
 
-            public static byte[] ImmediateFetch(bool SignExtendedByte)
+            public struct DynamicResult
             {
-                if (SignExtendedByte)
-                {
-                    return Bitwise.SignExtend(ControlUnit.FetchNext(1), (byte)((byte)ControlUnit.CurrentCapacity / 8));
-                }
-                else if (ControlUnit.CurrentCapacity == RegisterCapacity.R)
-                {
-                    //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
-                    return Bitwise.SignExtend(ControlUnit.FetchNext(4), 8);
-                }
-               else
-               {
-                   return ControlUnit.FetchNext((byte)((ControlUnit.CurrentCapacity == RegisterCapacity.R) ? 4 : (byte)ControlUnit.CurrentCapacity / 8));
-               }
-                
+                public byte[] SourceBytes;
+                public byte[] DestBytes;
             }
-
 
 
             /*Dynamic functions turn..
@@ -522,64 +458,132 @@ namespace debugger
              * 
              * 
              */
-            public static void SetDynamic(ModRM ModRMByte, byte[] baData, bool Swap=false)
+            public static void SetDynamic(OpcodeInput Input, byte[] baData)
             {
-                if (ModRMByte.IsAddress)
+                if(Input.IsSwap)
                 {
-                    if(Swap)
+                    if(Input.DecodedModRM.Mod != 3)//not register->reg
                     {
-                        ControlUnit.SetRegister((ByteCode)ModRMByte.lSource, baData, ControlUnit.CurrentCapacity);
-                    }
-                    else
-                    {
-                        ControlUnit.SetMemory(ModRMByte.lDest, baData);
-                    }                    
-                } else
-                {
-                    if(Swap)
-                    {
-                        ControlUnit.SetRegister((ByteCode)ModRMByte.lSource, baData);
+                        SetRegister((ByteCode)Input.DecodedModRM.Source, baData);
                     } else
                     {
-                        ControlUnit.SetRegister((ByteCode)ModRMByte.lDest, baData);
-                    }                   
+                        SetRegister((ByteCode)Input.DecodedModRM.Source, baData);
+                    }
+                } else
+                {
+                    if(Input.DecodedModRM.Mod != 3)
+                    {
+                        SetMemory(Input.DecodedModRM.Dest, baData);
+                    } else
+                    {
+                        SetRegister((ByteCode)Input.DecodedModRM.Dest, baData);
+                    }
                 }
             }
 
-            public static byte[] FetchDynamic(ModRM ModRMByte, bool Swap=false)
+            //works with r/m/imm
+            public static DynamicResult FetchDynamic(OpcodeInput Input, bool PreventSignExtend=false)
             {
-                if(Swap)
+                DynamicResult Output = new DynamicResult();
+                if(Input.IsSwap)
                 {
-                    if (ModRMByte.IsAddress)
+                    if (Input.DecodedModRM.Mod != 3)
                     {
-                        return ControlUnit.Fetch(ModRMByte.lDest, ControlUnit.CurrentCapacity);
+                        Output.SourceBytes = Fetch(Input.DecodedModRM.Dest, (int)CurrentCapacity);
                     }
                     else
                     {
-                        return ControlUnit.FetchRegister((ByteCode)ModRMByte.lDest);
+                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.Dest, CurrentCapacity);
                     }
+                    Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.Source);
                 } else
                 {
-                    return ControlUnit.FetchRegister((ByteCode)ModRMByte.lSource);
-                    /*(if (ModRMByte.IsAddress)
+                    if (Input.IsImmediate)
                     {
-                        return ControlUnit.Fetch(ModRMByte.lSource, ControlUnit.CurrentCapacity);
+                        if (Input.IsSignExtendedByte)
+                        {
+                            Output.SourceBytes = Bitwise.SignExtend(FetchNext(1), ((byte)CurrentCapacity));
+                        }
+                        else if (CurrentCapacity == RegisterCapacity.R)
+                        {
+                            //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
+                            Output.SourceBytes = (PreventSignExtend) ? Bitwise.ZeroExtend(FetchNext(4), 8) : Bitwise.SignExtend(FetchNext(4), 8);
+                        }
+                        else
+                        {
+                            Output.SourceBytes = FetchNext((byte)CurrentCapacity);
+                        }
                     }
                     else
                     {
-                        return ControlUnit.FetchRegister((ByteCode)ModRMByte.lSource);
-                    }*/
+                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.Source);
+                    }          
+                    
+                    if(Input.DecodedModRM.Mod != 3)
+                    {
+                        Output.DestBytes = Fetch(Input.DecodedModRM.Dest, (int)CurrentCapacity);
+                    } else
+                    {
+                        Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.Dest, CurrentCapacity);
+                    }
+                    
                 }
-                          
+                return Output;                        
             }
 
             public static ModRM FromDest(ByteCode Dest)
             {
-                return new ModRM { lDest = (ulong)Dest };
+                return new ModRM { Dest = (ulong)Dest, Mod=3};
             }
+
+            
         }
 
-
+        public static class Disassembly
+        {
+            public static List<Dictionary<RegisterCapacity, string>> RegisterMnemonics = new List<Dictionary<RegisterCapacity, string>>
+            {
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RAX" }, { RegisterCapacity.E, "EAX" },{ RegisterCapacity.X, "AX" },{ RegisterCapacity.B, "AL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RCX" }, { RegisterCapacity.E, "ECX" },{ RegisterCapacity.X, "CX" },{ RegisterCapacity.B, "CL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RDX" }, { RegisterCapacity.E, "EDX" },{ RegisterCapacity.X, "DX" },{ RegisterCapacity.B, "DL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RBX" }, { RegisterCapacity.E, "EBX" },{ RegisterCapacity.X, "BX" },{ RegisterCapacity.B, "BL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RSP" }, { RegisterCapacity.E, "ESP" },{ RegisterCapacity.X, "SP" },{ RegisterCapacity.B, "AH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RBP" }, { RegisterCapacity.E, "EBP" },{ RegisterCapacity.X, "BP" },{ RegisterCapacity.B, "CH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RSI" }, { RegisterCapacity.E, "ESI" },{ RegisterCapacity.X, "SI" },{ RegisterCapacity.B, "DH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RDI" }, { RegisterCapacity.E, "EDI" },{ RegisterCapacity.X, "DI" },{ RegisterCapacity.B, "BH" }}
+            };
+            public static string[] DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
+            {
+                string Dest = "";
+                switch (Input.DecodedModRM.Mod)
+                {
+                    case 0:
+                        Dest = $"[{RegisterMnemonics[Input.DecodedModRM.RM][RegCap]}]";
+                        break;
+                    case 1:
+                    case 2:
+                        Dest = $"[{RegisterMnemonics[Input.DecodedModRM.RM][RegCap]} {((Input.DecodedModRM.Offset < 0) ? "- " : "+ ")}{Math.Abs(Input.DecodedModRM.Offset).ToString("X")}]";
+                        break;
+                    case 3:
+                        Dest = RegisterMnemonics[Input.DecodedModRM.RM][RegCap];
+                        break;
+                   /* case 4:
+                        Output = $"${((Input.Offset < 0) ? " -" : " +")}0x{Math.Abs(Input.Offset).ToString("X")} (0x{((long)BytePointer + Input.Offset).ToString("X")})";
+                        break;*/
+                }
+                string Source;
+                if(Input.IsSwap)
+                {
+                    Source = Dest;
+                    Dest = RegisterMnemonics[(int)Input.DecodedModRM.Source][RegCap];
+                }
+                else
+                {
+                    Source = RegisterMnemonics[(int)Input.DecodedModRM.Source][RegCap];
+                }
+                return new string[] { Dest, Source };
+            }
+        }
 
     }
 }
