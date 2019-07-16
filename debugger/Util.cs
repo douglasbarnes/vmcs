@@ -11,14 +11,13 @@ namespace debugger
     {
         public struct OpcodeInput
         {
-            internal ModRM DecodedModRM;
+            internal ModRM DecodedModRM;          
             internal bool Is8Bit;
             internal bool IsSwap;
             internal bool IsSigned;
             internal bool IsImmediate;
             internal bool IsSignExtendedByte;
         }
-
         public enum ByteCode
         {
             A = 0x00,
@@ -46,6 +45,28 @@ namespace debugger
             X = 2,
             E = 4,
             R = 8
+        }
+        public struct ModRM
+        {
+            public ulong DestPtr;
+            public ulong SourceReg;
+            //for disas only
+            public long Offset;
+            public byte Mod; // first 2
+           // public byte Reg; // next 3
+            public byte RM; // last 3
+            public SIB DecodedSIB;
+        }
+        public struct SIB
+        {
+            public RegisterCapacity PointerSize;
+            public ulong ResultNoOffset;
+            public byte ScaledIndex;
+            public byte Base;
+            public ulong ScaledIndexValue;
+            public ulong BaseValue;
+            public long OffsetValue; // a way to avoid this? when we have a sib where its [reg + ebp + offset], we cant disassemble that visibly without this because ebp could change giving the wrong offset displayed
+            public byte Scale;
         }
     }
     public static class Util
@@ -98,7 +119,6 @@ namespace debugger
                 }
                 return baBuffer;
             }
-
             public static byte[] Subarray(byte[] Input, int Offset)
             {
                 byte[] Buffer = new byte[Input.Length];
@@ -108,7 +128,6 @@ namespace debugger
                 }
                 return Buffer;
             }
-
             public static void PadEqual(ref string s1, ref string s2)
             {
                 if (s1.Length > s2.Length)
@@ -201,6 +220,7 @@ namespace debugger
             {
                 Array.Resize(ref baInput1, 8);
                 Array.Resize(ref baInput2, 8);
+                baInput1 = ZeroExtend(baInput1, 8);
                 /// http://prntscr.com/odko8i really is by far the best way to do it
                 byte[] baResult = BitConverter.GetBytes(
                          BitConverter.ToUInt64(baInput1, 0)
@@ -332,14 +352,10 @@ namespace debugger
                 }
                 return sBuffer;
             }
-            public static byte[] ZeroExtend(byte[] baInput, byte bLength)
+            public static byte[] ZeroExtend(byte[] Input, byte Length) // http://prntscr.com/ofb1dy
             {
-                List<byte> blBuffer = baInput.ToList();
-                for (int i = baInput.Length; i < bLength; i++)
-                {
-                    blBuffer.Add(0);
-                }
-                return blBuffer.ToArray();
+                Array.Resize(ref Input, Length);
+                return Input;
             }
             public static byte[] ZeroExtend(byte[] baInput, RegisterCapacity _regcap)
             {
@@ -464,19 +480,19 @@ namespace debugger
                 {
                     if(Input.DecodedModRM.Mod != 3)//not register->reg
                     {
-                        SetRegister((ByteCode)Input.DecodedModRM.Source, baData);
+                        SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
                     } else
                     {
-                        SetRegister((ByteCode)Input.DecodedModRM.Source, baData);
+                        SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
                     }
                 } else
                 {
                     if(Input.DecodedModRM.Mod != 3)
                     {
-                        SetMemory(Input.DecodedModRM.Dest, baData);
+                        SetMemory(Input.DecodedModRM.DestPtr, baData);
                     } else
                     {
-                        SetRegister((ByteCode)Input.DecodedModRM.Dest, baData);
+                        SetRegister((ByteCode)Input.DecodedModRM.DestPtr, baData, HigherBit:(CurrentCapacity==RegisterCapacity.B && Input.DecodedModRM.RM > 0x3));
                     }
                 }
             }
@@ -489,13 +505,13 @@ namespace debugger
                 {
                     if (Input.DecodedModRM.Mod != 3)
                     {
-                        Output.SourceBytes = Fetch(Input.DecodedModRM.Dest, (int)CurrentCapacity);
+                        Output.SourceBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
                     }
                     else
                     {
-                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.Dest, CurrentCapacity);
+                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
                     }
-                    Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.Source);
+                    Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg);
                 } else
                 {
                     if (Input.IsImmediate)
@@ -516,15 +532,15 @@ namespace debugger
                     }
                     else
                     {
-                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.Source);
+                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg);
                     }          
                     
                     if(Input.DecodedModRM.Mod != 3)
                     {
-                        Output.DestBytes = Fetch(Input.DecodedModRM.Dest, (int)CurrentCapacity);
+                        Output.DestBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
                     } else
                     {
-                        Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.Dest, CurrentCapacity);
+                        Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
                     }
                     
                 }
@@ -533,7 +549,7 @@ namespace debugger
 
             public static ModRM FromDest(ByteCode Dest)
             {
-                return new ModRM { Dest = (ulong)Dest, Mod=3};
+                return new ModRM { DestPtr = (ulong)Dest, Mod=3, RM=(byte)Dest};
             }
 
             
@@ -552,36 +568,83 @@ namespace debugger
                 new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RSI" }, { RegisterCapacity.E, "ESI" },{ RegisterCapacity.X, "SI" },{ RegisterCapacity.B, "DH" }},
                 new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RDI" }, { RegisterCapacity.E, "EDI" },{ RegisterCapacity.X, "DI" },{ RegisterCapacity.B, "BH" }}
             };
-            public static string[] DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
+            public static Dictionary<RegisterCapacity, string> PointerMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
             {
-                string Dest = "";
-                switch (Input.DecodedModRM.Mod)
+                {RegisterCapacity.B, "BYTE"},
+                {RegisterCapacity.X, "WORD"},
+                {RegisterCapacity.E, "DWORD"},
+                {RegisterCapacity.R, "QWORD"}
+            };
+            public static string DisassembleSIB(SIB Input, int Mod)
+            {
+                string Source = "";
+                if (Input.ScaledIndex != 4) // "none"
                 {
-                    case 0:
-                        Dest = $"[{RegisterMnemonics[Input.DecodedModRM.RM][RegCap]}]";
-                        break;
-                    case 1:
-                    case 2:
-                        Dest = $"[{RegisterMnemonics[Input.DecodedModRM.RM][RegCap]} {((Input.DecodedModRM.Offset < 0) ? "- " : "+ ")}{Math.Abs(Input.DecodedModRM.Offset).ToString("X")}]";
-                        break;
-                    case 3:
-                        Dest = RegisterMnemonics[Input.DecodedModRM.RM][RegCap];
-                        break;
-                   /* case 4:
-                        Output = $"${((Input.Offset < 0) ? " -" : " +")}0x{Math.Abs(Input.Offset).ToString("X")} (0x{((long)BytePointer + Input.Offset).ToString("X")})";
-                        break;*/
+                    Source += RegisterMnemonics[Input.ScaledIndex][Input.PointerSize];
+                    if (Input.Scale > 0) // dont show eax*1 etc
+                    {
+                        Source += $"*{Input.Scale}";
+                    }
                 }
-                string Source;
-                if(Input.IsSwap)
+
+                if (Input.Base == 5) //[*] ptr/ ptr+ebp
                 {
-                    Source = Dest;
-                    Dest = RegisterMnemonics[(int)Input.DecodedModRM.Source][RegCap];
+                    if (Mod > 0)
+                    {
+                        Source += $"+{RegisterMnemonics[(int)ByteCode.BP][Input.PointerSize]}";
+                    }                              
                 }
                 else
                 {
-                    Source = RegisterMnemonics[(int)Input.DecodedModRM.Source][RegCap];
+                    Source += $"+{RegisterMnemonics[Input.Base][Input.PointerSize]}";
                 }
-                return new string[] { Dest, Source };
+                return $"{Source}";
+            }
+
+            //{dest}, {src}{+/-}{offset}
+            struct DisassembledObject
+            {
+
+            }
+            public static string[] DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
+            {
+                if (Input.IsSwap)
+                {
+                    var _tmp = Input.DecodedModRM.SourceReg;
+                    Input.DecodedModRM.SourceReg = Input.DecodedModRM.RM;
+                    Input.DecodedModRM.SourceReg = _tmp;
+                }
+                string Dest = RegisterMnemonics[Input.DecodedModRM.RM][RegCap];
+                string Source = RegisterMnemonics[(int)Input.DecodedModRM.SourceReg][RegCap];
+
+                if (Input.DecodedModRM.RM == 4 && Input.DecodedModRM.Mod != 3) // sib conditions
+                {
+                    Dest = DisassembleSIB(Input.DecodedModRM.DecodedSIB, Input.DecodedModRM.Mod);
+                }
+
+                long OffsetSum = Input.DecodedModRM.Offset + Input.DecodedModRM.DecodedSIB.OffsetValue;
+                if (OffsetSum != 0)
+                {
+                    if(!(Input.DecodedModRM.Mod == 0 && Input.DecodedModRM.RM == 5) && Input.DecodedModRM.DecodedSIB.ScaledIndex != 4) //disp32 or none filtered out
+                    {
+                        Dest += (Input.DecodedModRM.Offset < 0) ? "-" : "+";
+                    }
+                    Dest += $"0x{Math.Abs(Input.DecodedModRM.Offset).ToString("X")}";
+                }
+
+                if(Input.DecodedModRM.Mod != 3)
+                {
+                    Dest = $"{PointerMnemonics[RegCap]} PTR [{Dest}]";                   
+                }
+                
+                if (Input.IsSwap)
+                {
+                    return new string[] { Source, Dest };
+                } else
+                {
+                    return new string[] { Dest, Source };
+                }
+                
             }
         }
 

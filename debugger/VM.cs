@@ -160,6 +160,7 @@ namespace debugger
         {
             if(HigherBit)
             {
+                RegisterCode -= 0x4;
                 Registers.Set((byte)RegisterCode, new byte[] { Registers.Fetch((byte)RegisterCode, 2)[0], Data[0]});
             } else
             {
@@ -264,141 +265,89 @@ namespace debugger
             string sBits = Bitwise.GetBits(bModRM);
             Output.Mod = Convert.ToByte(sBits.Substring(0, 2), 2); // pointer, offset pointer, or reg
             //Output.Reg = Convert.ToByte(sBits.Substring(2, 3), 2); //reg =src
-            Output.Source = Convert.ToByte(sBits.Substring(2, 3), 2);
+            Output.SourceReg = Convert.ToByte(sBits.Substring(2, 3), 2);
             Output.RM = Convert.ToByte(sBits.Substring(5, 3), 2); // rm = dest
 
            
             if (Output.Mod == 3)
             {
                 // direct register
-                Output.Dest = Output.RM;
+                Output.DestPtr = Output.RM;
             }
             else
             {
                 Output.Offset = 0;
-                if (Output.Mod == 1) //1B
+                if(Output.Mod == 0 && Output.RM == 5) //special case, rip relative imm32
                 {
-                    Output.Offset = FetchNext();
+                    Output.DestPtr = BytePointer + BitConverter.ToUInt32(FetchNext(4), 0);
                 }
-                else if (Output.Mod == 2) // 1W
+                else if (Output.RM == 4)//sib! sib always after modrm 
                 {
-                    Output.Offset = BitConverter.ToUInt32(FetchNext(4), 0);
-                }
-
-                if(Output.RM == 5) // disp32/rbp+disp
-                {
-                    if (Output.Mod == 0) // either displacement32 if it is just a pointer(mod=00)
-                    {
-                        Output.Offset = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
-                    }
-                    else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
-                    {
-                        Output.Offset = (long)BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0) + Output.Offset;
-                    }
-                    Output.Dest = (ulong)Output.Offset; // set it to the offset because its easier for disassembler
-                } else if (Output.RM == 4)
-                {
-                    //SIB! //if (sRM == "100" && sMod != "11") { Output.bSIB = FetchNext(); BytePointer++; }
-                    Output.Dest = SIBDecode();
+                    Output.DecodedSIB = SIBDecode(Output.Mod);
+                    Output.Offset += Output.DecodedSIB.OffsetValue;
+                    Output.DestPtr += Output.DecodedSIB.ResultNoOffset;
                 } else
                 {
-                    Output.Dest = (ulong)((long)BitConverter.ToUInt64(FetchRegister((ByteCode)Output.RM, RegisterCapacity.R), 0) + Output.Offset);
+                    Output.DestPtr += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.RM, RegisterCapacity.R), 0);
                 }
+
+                //any immediate
+                if (Output.Mod == 1) //1B imm
+                {
+                    Output.Offset += FetchNext();
+                }
+                else if (Output.Mod == 2) // 1W imm, mod1 rm5 is disp32
+                {
+                    Output.Offset += BitConverter.ToUInt32(FetchNext(4), 0);
+                }
+
+
+
+            //   if (Output.RM == 5) // disp32/rbp+disp
+            //   {
+            //       if (Output.Mod == 0) // either displacement32 if it is just a pointer(mod=00)
+            //       {
+            //           Output.Offset = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
+            //       }
+            //       else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
+            //       {
+            //           Output.DestPtr += BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0);
+            //       }
+            //   }
+                Output.DestPtr += (ulong)Output.Offset;// set it to the offset because its easier for disassembler
             }
+            
             return Output;
         }
-        public static ulong SIBDecode()
-        {
-            
-            string sSIB = Util.Bitwise.GetBits(FetchNext());
-            string sSSBits = sSIB.Substring(0, 2);
-            string sIndexBits = sSIB.Substring(2, 3);
-            string sBase = sSIB.Substring(5, 3);
-            ulong lBase = 0;
-            ulong lSrcVal = 0;
-            switch(sBase)
+        public static SIB SIBDecode(int Mod)
+        {          
+            string SIBbits = Bitwise.GetBits(FetchNext());
+            SIB Output = new SIB()
             {
-                case "000":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R),0);
-                    break;
-                case "001":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R), 0);
-                    break;
-                case "010":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R), 0);
-                    break;
-                case "011":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R), 0);
-                    break;
-                case "100":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.AH, RegisterCapacity.R), 0);
-                    break;
-                case "101":
-                    lBase = BitConverter.ToUInt32(FetchNext(4),0); //4 bytes, int32
-                    break;
-                case "110":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.DH, RegisterCapacity.R), 0);
-                    break;
-                case "111":
-                    lBase = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0);
-                    break;
-            }
-
-            byte bScale = 0; // what to times the scaled index by(ssbits)
-            switch(sSSBits)
+                Scale    = (byte)Math.Pow(2, Convert.ToByte(SIBbits.Substring(0, 2), 2)),  // scale
+                ScaledIndex = Convert.ToByte(SIBbits.Substring(2, 3), 2),
+                Base  = Convert.ToByte(SIBbits.Substring(5, 3), 2),
+                PointerSize = (Prefixes.Contains(PrefixByte.ADDR32) ? RegisterCapacity.E : RegisterCapacity.R)
+            };
+            if (Output.ScaledIndex != 4)//4 == none
             {
-                case "00":
-                    bScale = 1;
-                    break;
-                case "01":
-                    bScale = 2;                    
-                    break;
-                case "10":
-                    bScale = 4;
-                    break;
-                case "11":
-                    bScale = 8;
-                    break;
-                default: throw new Exception();
-            }
+                Output.ScaledIndexValue = Output.Scale * BitConverter.ToUInt64(Bitwise.SignExtend(FetchRegister((ByteCode)Output.ScaledIndex, Output.PointerSize),8),0);
+            }            
 
-            switch (sIndexBits)
+            if (Output.Base != 5) // 5 = ptr or ebp+ptr
             {
-                case "000":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.A, RegisterCapacity.R),0); // times it later!
-                    break;
-                case "001":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.C, RegisterCapacity.R), 0);
-                    break;
-                case "010":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.D, RegisterCapacity.R), 0);
-                    break;
-                case "011":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.B, RegisterCapacity.R), 0);
-                    break;
-                case "100":
-                    // NOT !! lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.AH, RegisterCapacity.R), 0);
-                    // none! do nothing
-                    break;
-                case "101":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.CH, RegisterCapacity.R), 0);
-                    break;
-                case "110":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.DH, RegisterCapacity.R), 0);
-                    break;
-                case "111":
-                    lSrcVal = BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0);
-                    break;
-                default: throw new Exception();
+                Output.BaseValue += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Base, RegisterCapacity.R), 0);
+            } else
+            {                                                                       // mod1 = imm8 else imm32
+                Output.OffsetValue += BitConverter.ToInt64(Bitwise.SignExtend(FetchNext( (byte)((Mod == 1) ? 1 : 4) ), 8), 0);
+                if (Mod > 0) // mod1 mod2 = ebp+imm
+                {
+                    Output.BaseValue += BitConverter.ToUInt64(Bitwise.SignExtend(FetchRegister(ByteCode.BP, Output.PointerSize),8),0);
+                }
+                
             }
-
-            if(sSSBits != "00" && sIndexBits == "100") // special rule, add rbp 
-            {
-                lSrcVal += BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R),0);
-            }
-
-            return (lSrcVal * bScale) + lBase;
-
+            Output.ResultNoOffset = Output.BaseValue + Output.ScaledIndexValue;
+            return Output;
         }
     }
     public class MemorySpace
@@ -511,16 +460,7 @@ namespace debugger
         }
     }
 
-    public struct ModRM
-    {
-        public ulong Dest;
-        public ulong Source;
-        //for disas only
-        public long Offset;
-        public byte Mod; // first 2
-        //public byte Reg; // next 3
-        public byte RM; // last 3
-    }
+    
 
     public class RegisterGroup
     {

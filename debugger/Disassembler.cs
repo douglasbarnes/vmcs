@@ -29,7 +29,7 @@ namespace debugger
                 BytePointer++;
                 if(Enum.IsDefined(typeof(PrefixByte), (int)bFetched))
                 {
-                    Prefixes.Add((PrefixByte)bFetched); i++;
+                    Prefixes.Add((PrefixByte)bFetched); i--;
                 }
                 else
                 {
@@ -45,32 +45,7 @@ namespace debugger
         public string DisassembleLine(byte bFetched)
         {
             ulong First = BytePointer;
-            Opcodes.MyOpcode OpcodeInst = OpcodeLookup.OpcodeTable[1][bFetched].Invoke();
-            
-            //ModRM DestSrc = OpcodeInst.Input;
-
-            /*  string SourceMnemonic = (OpcodeInst.IsImmediate) ? BitConverter.ToUInt64(OpcodeInst.ImmediateBuffer,0).ToString("X") : "";
-              string DestMnemonic = "";
-
-              switch(OpcodeInst.Input.Mod)
-              {
-                  case 0:
-                      DestMnemonic = $"[{DisasRegister((ByteCode)DestSrc.RM, CurrentCapacity)}]";
-                      break;
-                  case 1:
-                  case 2:
-                      DestMnemonic = $"[{DisasRegister((ByteCode)DestSrc.RM, CurrentCapacity)} {((DestSrc.Offset < 0) ? "- " : "+ ")}{Math.Abs(DestSrc.Offset).ToString("X")}]";
-                      break;
-                  case 3:
-                      DestMnemonic = DisasRegister((ByteCode)DestSrc.RM, CurrentCapacity);
-                      break;
-                  case 4:
-                      DestMnemonic = $"${((DestSrc.Offset < 0) ? " -" : " +")}0x{Math.Abs(DestSrc.Offset).ToString("X")} (0x{((long)BytePointer + DestSrc.Offset).ToString("X")})";
-                      break;
-              }
-              //  +192/mod*/
-
-            //  return $"{OpcodeInst.ToString()} {DestMnemonic} {((SourceMnemonic == "") ? " " : SourceMnemonic)}";
+            Opcodes.MyOpcode OpcodeInst = OpcodeLookup.OpcodeTable[1][bFetched].Invoke();                   
             OpcodeInst.Disassemble(out string Assembly);
             return $"{Assembly}";
         }

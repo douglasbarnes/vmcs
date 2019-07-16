@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static debugger.RegisterGroup;
 using static debugger.Opcodes;
 using static debugger.MultiDefinitionDecoder;
 using static debugger.Util.Opcode;
@@ -228,18 +227,18 @@ namespace debugger
                 { 0xB1, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.C) , IsImmediate=true, Is8Bit=true})},
                 { 0xB2, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.D) , IsImmediate=true, Is8Bit=true})},
                 { 0xB3, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.B) , IsImmediate=true, Is8Bit=true})},
-                { 0xB7, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.AH), IsImmediate=true, Is8Bit=true})},
-                { 0xB4, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.CH), IsImmediate=true, Is8Bit=true})},
-                { 0xB5, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DH), IsImmediate=true, Is8Bit=true})},
-                { 0xB6, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.BH), IsImmediate=true, Is8Bit=true})},
+                { 0xB4, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.AH), IsImmediate=true, Is8Bit=true})},
+                { 0xB5, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.CH), IsImmediate=true, Is8Bit=true})},
+                { 0xB6, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DH), IsImmediate=true, Is8Bit=true})},
+                { 0xB7, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.BH), IsImmediate=true, Is8Bit=true})},
                 { 0xB8, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.A) , IsImmediate=true})},
                 { 0xB9, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.C) , IsImmediate=true})},
                 { 0xBA, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.D) , IsImmediate=true})},
                 { 0xBB, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.B) , IsImmediate=true})},
-                { 0xBC, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.AH), IsImmediate=true})},
-                { 0xBD, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.CH), IsImmediate=true})},
-                { 0xBE, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DH), IsImmediate=true})},
-                { 0xBF, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.BH), IsImmediate=true})},
+                { 0xBC, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.SP), IsImmediate=true})},
+                { 0xBD, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.BP), IsImmediate=true})},
+                { 0xBE, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.SI), IsImmediate=true})},
+                { 0xBF, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DI), IsImmediate=true})},
 
                 { 0xC6, () => new Mov(new OpcodeInput{ DecodedModRM=ModRMDecode(), IsImmediate=true, Is8Bit=true})},
                 { 0xC7, () => new Mov(new OpcodeInput{ DecodedModRM=ModRMDecode(), IsImmediate=true})},
@@ -291,8 +290,8 @@ namespace debugger
         public static MyOpcode Decode(byte bOpcode)
         {
             MultiDefOutput = ModRMDecode();
-            ulong _tmpsrc = MultiDefOutput.Source; //swap because
-              MultiDefOutput.Source = MultiDefOutput.Dest;
+            ulong _tmpsrc = MultiDefOutput.SourceReg; //swap because
+              MultiDefOutput.SourceReg = MultiDefOutput.DestPtr;
      //         MultiDefOutput.Dest = _tmpsrc;
             return MasterDecodeDict[bOpcode][(byte)_tmpsrc].Invoke();
         }
@@ -350,7 +349,7 @@ namespace debugger
             public Mov(OpcodeInput Input) : base("MOV", (Input.Is8Bit) ? RegisterCapacity.B : GetRegCap())
             {                
                 //initialisation
-                if (!Input.IsImmediate) { Input.DecodedModRM = ModRMDecode(); }
+                //if (!Input.IsImmediate) { Input.DecodedModRM = ModRMDecode(); }
                 StoredInput = Input;
                 //
                 SourceBytes = FetchDynamic(StoredInput).SourceBytes;
@@ -468,7 +467,7 @@ namespace debugger
                     SetRegister(ByteCode.D, Bitwise.Subarray(Result, (int)CurrentCapacity).ToArray()); // lower to a=
                 } else 
                 {
-                    SetRegister((ByteCode)StoredInput.DecodedModRM.Source, Bitwise.Cut(Result, (int)CurrentCapacity)); // higher bytes to d, never a ptr dont use dynamic
+                    SetRegister((ByteCode)StoredInput.DecodedModRM.SourceReg, Bitwise.Cut(Result, (int)CurrentCapacity)); // higher bytes to d, never a ptr dont use dynamic
                 } //copy into source, source isnt source here. choppy workaround in x86_64, because ptr is never dest of imul 2+oprand op, so source and dest are swapped here
                 SetFlags(Result, FlagMode.Mul, SourceBytes, DestBytes);
             }
@@ -547,11 +546,11 @@ namespace debugger
                     DecodedModRM = (!Relative) ? ModRMDecode()
                     : new ModRM()
                     {
-                        Dest = BitConverter.ToUInt64(Bitwise.SignExtend(FetchNext(Bytes), 8), 0),
+                        DestPtr = BitConverter.ToUInt64(Bitwise.SignExtend(FetchNext(Bytes), 8), 0),
                         Mod = 4,
                     }
                 };
-                StoredInput.DecodedModRM.Offset = (long)StoredInput.DecodedModRM.Dest;
+                StoredInput.DecodedModRM.Offset = (long)StoredInput.DecodedModRM.DestPtr;
             }
             public override void Execute()
             {
@@ -611,7 +610,7 @@ namespace debugger
                         if (!(!Eflags.Parity)) { return; }
                         break;
                 }
-                BytePointer = StoredInput.DecodedModRM.Dest;
+                BytePointer = StoredInput.DecodedModRM.DestPtr;
             }
         }
  

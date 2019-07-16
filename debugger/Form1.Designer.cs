@@ -1,4 +1,5 @@
-﻿namespace debugger
+﻿using static debugger.SelfDebug;
+namespace debugger
 {
     partial class Form1
     {
@@ -43,13 +44,25 @@
             this.eflags = new System.Windows.Forms.ListBox();
             this.disassembly = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.debugToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.runTestcaseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.allToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.baseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.sIBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.sIBToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.opcodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mOVToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aDDToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.movToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.groupBox1.SuspendLayout();
+            this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
             // generalregs
             // 
             this.generalregs.FormattingEnabled = true;
-            this.generalregs.Location = new System.Drawing.Point(777, 199);
+            this.generalregs.Location = new System.Drawing.Point(674, 207);
             this.generalregs.Name = "generalregs";
             this.generalregs.SelectionMode = System.Windows.Forms.SelectionMode.None;
             this.generalregs.Size = new System.Drawing.Size(341, 82);
@@ -57,7 +70,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(777, 395);
+            this.button1.Location = new System.Drawing.Point(674, 414);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 2;
@@ -68,7 +81,7 @@
             // specialregs
             // 
             this.specialregs.FormattingEnabled = true;
-            this.specialregs.Location = new System.Drawing.Point(777, 86);
+            this.specialregs.Location = new System.Drawing.Point(674, 119);
             this.specialregs.Name = "specialregs";
             this.specialregs.SelectionMode = System.Windows.Forms.SelectionMode.None;
             this.specialregs.Size = new System.Drawing.Size(341, 82);
@@ -101,7 +114,7 @@
             // 
             this.groupBox1.Controls.Add(this.IsDec);
             this.groupBox1.Controls.Add(this.radioButton2);
-            this.groupBox1.Location = new System.Drawing.Point(777, 37);
+            this.groupBox1.Location = new System.Drawing.Point(674, 43);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(262, 43);
             this.groupBox1.TabIndex = 6;
@@ -110,7 +123,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(861, 395);
+            this.button2.Location = new System.Drawing.Point(758, 414);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 9;
@@ -120,7 +133,7 @@
             // 
             // gotoMemSrc
             // 
-            this.gotoMemSrc.Location = new System.Drawing.Point(131, 464);
+            this.gotoMemSrc.Location = new System.Drawing.Point(74, 461);
             this.gotoMemSrc.MaxLength = 18;
             this.gotoMemSrc.Name = "gotoMemSrc";
             this.gotoMemSrc.Size = new System.Drawing.Size(140, 20);
@@ -136,7 +149,7 @@
             this.Bytes});
             this.memviewer.Font = new System.Drawing.Font("Consolas", 11.25F);
             this.memviewer.HideSelection = false;
-            this.memviewer.Location = new System.Drawing.Point(92, 490);
+            this.memviewer.Location = new System.Drawing.Point(38, 490);
             this.memviewer.Name = "memviewer";
             this.memviewer.Size = new System.Drawing.Size(586, 365);
             this.memviewer.TabIndex = 14;
@@ -156,7 +169,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(92, 467);
+            this.label1.Location = new System.Drawing.Point(35, 464);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(33, 13);
             this.label1.TabIndex = 15;
@@ -165,7 +178,7 @@
             // eflags
             // 
             this.eflags.FormattingEnabled = true;
-            this.eflags.Location = new System.Drawing.Point(777, 307);
+            this.eflags.Location = new System.Drawing.Point(674, 295);
             this.eflags.Name = "eflags";
             this.eflags.SelectionMode = System.Windows.Forms.SelectionMode.None;
             this.eflags.Size = new System.Drawing.Size(341, 82);
@@ -176,7 +189,7 @@
             this.disassembly.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1});
             this.disassembly.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.disassembly.Location = new System.Drawing.Point(82, 37);
+            this.disassembly.Location = new System.Drawing.Point(38, 43);
             this.disassembly.Name = "disassembly";
             this.disassembly.Size = new System.Drawing.Size(596, 411);
             this.disassembly.TabIndex = 17;
@@ -188,11 +201,101 @@
             this.columnHeader1.Text = "Disassembly";
             this.columnHeader1.Width = 550;
             // 
+            // menuStrip1
+            // 
+            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.debugToolStripMenuItem});
+            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.Size = new System.Drawing.Size(1685, 24);
+            this.menuStrip1.TabIndex = 19;
+            this.menuStrip1.Text = "menuStrip1";
+            // 
+            // debugToolStripMenuItem
+            // 
+            this.debugToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.runTestcaseToolStripMenuItem});
+            this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
+            this.debugToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
+            this.debugToolStripMenuItem.Text = "Debug";
+            // 
+            // runTestcaseToolStripMenuItem
+            // 
+            this.runTestcaseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.allToolStripMenuItem,
+            this.baseToolStripMenuItem,
+            this.opcodeToolStripMenuItem});
+            this.runTestcaseToolStripMenuItem.Name = "runTestcaseToolStripMenuItem";
+            this.runTestcaseToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.runTestcaseToolStripMenuItem.Text = "Run testcase";
+            // 
+            // allToolStripMenuItem
+            // 
+            this.allToolStripMenuItem.Name = "allToolStripMenuItem";
+            this.allToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.allToolStripMenuItem.Text = "All";
+            this.allToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
+            // baseToolStripMenuItem
+            // 
+            this.baseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.sIBToolStripMenuItem,
+            this.sIBToolStripMenuItem1});
+            this.baseToolStripMenuItem.Name = "baseToolStripMenuItem";
+            this.baseToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.baseToolStripMenuItem.Text = "Internal";
+            // 
+            // sIBToolStripMenuItem
+            // 
+            this.sIBToolStripMenuItem.Name = "sIBToolStripMenuItem";
+            this.sIBToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.sIBToolStripMenuItem.Text = "All internals";
+            this.sIBToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
+            // sIBToolStripMenuItem1
+            // 
+            this.sIBToolStripMenuItem1.Name = "sIBToolStripMenuItem1";
+            this.sIBToolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            this.sIBToolStripMenuItem1.Text = "SIB";
+            this.sIBToolStripMenuItem1.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
+            // opcodeToolStripMenuItem
+            // 
+            this.opcodeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.mOVToolStripMenuItem,
+            this.aDDToolStripMenuItem,
+            this.movToolStripMenuItem1});
+            this.opcodeToolStripMenuItem.Name = "opcodeToolStripMenuItem";
+            this.opcodeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.opcodeToolStripMenuItem.Text = "Opcode";
+            // 
+            // mOVToolStripMenuItem
+            // 
+            this.mOVToolStripMenuItem.Name = "mOVToolStripMenuItem";
+            this.mOVToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.mOVToolStripMenuItem.Text = "All opcodes";
+            this.mOVToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
+            // aDDToolStripMenuItem
+            // 
+            this.aDDToolStripMenuItem.Name = "aDDToolStripMenuItem";
+            this.aDDToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.aDDToolStripMenuItem.Text = "ADD";
+            this.aDDToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
+            // movToolStripMenuItem1
+            // 
+            this.movToolStripMenuItem1.Name = "movToolStripMenuItem1";
+            this.movToolStripMenuItem1.Size = new System.Drawing.Size(136, 22);
+            this.movToolStripMenuItem1.Text = "MOV";
+            this.movToolStripMenuItem1.Click += new System.EventHandler(this.OnTestcaseSelected);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1685, 867);
+            this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.disassembly);
             this.Controls.Add(this.eflags);
             this.Controls.Add(this.label1);
@@ -203,11 +306,14 @@
             this.Controls.Add(this.specialregs);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.generalregs);
+            this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
             this.Text = "Form1";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.menuStrip1.ResumeLayout(false);
+            this.menuStrip1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -229,6 +335,17 @@
         private System.Windows.Forms.ListBox eflags;
         private System.Windows.Forms.ListView disassembly;
         private System.Windows.Forms.ColumnHeader columnHeader1;
+        private System.Windows.Forms.MenuStrip menuStrip1;
+        private System.Windows.Forms.ToolStripMenuItem debugToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem runTestcaseToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem allToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem baseToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem sIBToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem opcodeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem mOVToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem aDDToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem sIBToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem movToolStripMenuItem1;
     }
 }
 
