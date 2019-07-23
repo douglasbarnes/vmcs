@@ -51,14 +51,14 @@ namespace debugger
         private void Form1_Load(object sender, EventArgs e)
         {
             var ins = new MemorySpace(new byte[]
-{ 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 });
+            { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 });
             VM.VMSettings settings = new VM.VMSettings()
             {
                 UndoHistoryLength = 5,
                 RunCallback = RefreshAll
             };
             VMInstance = new VM(settings, ins);
-            ListViewDisassembly.BreakpointsSource = VMInstance.Breakpoints;
+            ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
             RefreshAll();            
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
@@ -70,7 +70,7 @@ namespace debugger
         {
             VMInstance.RunAsync(Step);
         }
- 
+
         //refresh methods
         private void RefreshRegisters()
         {
@@ -109,11 +109,11 @@ namespace debugger
                 if (_currentline.Length >= 48 || _currentaddr + 16 < address.Key)
                 {
                     if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
-                    memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
+                    memviewer.Items.Add(new ListViewItem(new string[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
 
                     if (_currentaddr + 16 < address.Key)
                     {
-                        memviewer.Items.Add(new ListViewItem(new[] { $"[+{(address.Key - _currentaddr).ToString("X")}]", "" }));
+                        memviewer.Items.Add(new ListViewItem(new string[] { $"[+{(address.Key - _currentaddr).ToString("X")}]", "" }));
                     }
 
                     _currentline = new StringBuilder();
@@ -131,7 +131,7 @@ namespace debugger
         {
             using (Disassembler DisassemblerInstance = new Disassembler(VMInstance.Handle))
             {
-                ListViewDisassembly.AddressedItems = DisassemblerInstance.StepAll().Result;
+                ListViewDisassembly.AddParsed(DisassemblerInstance.StepAll().Result);           
             }                
         }
         private async void RefreshAll()
@@ -201,10 +201,7 @@ namespace debugger
         {
             MessageBox.Show(sender.ToString());
         }
-        private void Reset_Click(object sender, EventArgs e)
-        {
-
-        }
+        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
         //Format methods
         private FormatType SelectedFormatType = FormatType.Hex;        
         private void MenuFormatChanged(object sender, EventArgs e)

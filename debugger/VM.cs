@@ -23,6 +23,12 @@ namespace debugger
         {
             Handle = new Handle(inputName, inputContext);
         }
+        protected RegisterCapacity CurrentCapacity { get => GetContext().CurrentCapacity; }
+        protected FlagSet Flags { get => GetContext().Flags; }
+        protected List<PrefixByte> PrefixBuffer { get => GetContext().PrefixBuffer; }
+        protected ulong InstructionPointer { get => GetContext().InstructionPointer; }
+        protected MemorySpace Memory { get => GetContext().Memory; }
+        protected Context GetContext() => ContextHandler.CloneContext(Handle); 
         public void RegisterBreakpoint(ulong Address)
         { //overwrites
             ContextHandler.FetchContext(Handle).Breakpoints.Add(Address);
@@ -38,8 +44,7 @@ namespace debugger
             Status Result = await RunTask;
             RunComplete.Invoke();
             return Result;
-        }
-        protected internal Context GetContext() { return ContextHandler.CloneContext(Handle); }
+        }        
         public Dictionary<string, ulong> GetRegisters(byte RegisterSize)
         {
             if (new byte[] { 1, 2, 4, 8 }.Contains(RegisterSize))
@@ -75,6 +80,7 @@ namespace debugger
         {
             ContextHandler.RemoveContext(Handle);
         }
+        
     }
     public class VM : EmulatorBase
     {
@@ -83,7 +89,7 @@ namespace debugger
             public int UndoHistoryLength;
             public Action RunCallback;
         }
-        
+        private readonly MemorySpace SavedMemory;
         private List<Context> CachedContexts;
        
         public VMSettings CurrentSettings;
@@ -100,6 +106,22 @@ namespace debugger
             CurrentSettings = inputSettings;
             RegisterBreakpoint(inputMemory.SegmentMap[".main"].LastAddr);
             RunComplete += CurrentSettings.RunCallback;
+            SavedMemory = inputMemory;
+        }
+        public void Reset()
+        {
+            Handle.Invoke(() => 
+            {
+                Context VMContext = ContextHandler.FetchContext(Handle);
+                VMContext.InstructionPointer = SavedMemory.EntryPoint;
+                VMContext.Memory = SavedMemory;
+                VMContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
+                {
+                            { ByteCode.SP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) },
+                            { ByteCode.BP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) }
+                });
+                
+            });            
         }
     }   
 
@@ -133,20 +155,24 @@ namespace debugger
                 HandleID = GetNextHandleID;
                 ContextHandler.AddContext(this, inputContext);
             }
+            public void Invoke(Action toExecute) // dont invoke run
+            {
+                WaitNotBusy();
+                IsBusy = true;
+                toExecute.Invoke();
+                IsBusy = false;
+            }
             public static bool operator !=(Handle input1, Handle input2)
             {
                 return input1.HandleID != input2.HandleID;
             }
             public static bool operator ==(Handle input1, Handle input2)
             {
-                return input1.HandleID == input2.HandleID;}
+                return input1.HandleID == input2.HandleID;
+            }
         }            
         public class Context
         {            
-            public struct ContextDescriptor
-            {
-                public bool IsDebugging;
-            }
             public FlagSet Flags = new FlagSet();
             public MemorySpace Memory;
             public RegisterGroup Registers;
@@ -154,11 +180,10 @@ namespace debugger
             public List<ulong> Breakpoints = new List<ulong>();
             public List<PrefixByte> PrefixBuffer = new List<PrefixByte>();
             public RegisterCapacity CurrentCapacity;
-            public ContextDescriptor ContextInfo;
             public Context Clone()
             {
                 return (Context)MemberwiseClone();
-            }
+            }            
         }
         public static class ContextHandler
         {            
@@ -197,7 +222,7 @@ namespace debugger
                 }// could zero everything here if wanted to
                 
             }
-            internal static Context FetchContext(Handle contextHandle) //returns you actual context, dangerous, you can do things with it 
+            public static Context FetchContext(Handle contextHandle) //returns actual instance 
             {
                 return (contextHandle == CurrentHandle) ? CurrentContext : StoredContexts[contextHandle];
             }                   
@@ -207,20 +232,21 @@ namespace debugger
             }
             public static Status Run(Handle contextHandle, bool step)
             {
-                WaitNotBusy();
-                if (CurrentHandle != contextHandle)
+                Status Result = new Status();
+                contextHandle.Invoke(() =>
                 {
-                    SwitchContext(contextHandle);
-                }
-                IsBusy = true;
-                Status Result = Execute(step);
-                IsBusy = false;
+                    if (CurrentHandle != contextHandle)
+                    {
+                        SwitchContext(contextHandle);
+                    }
+                    Result = new Func<Status>(() => Execute(step)).Invoke();
+                });  
                 return Result;
             }
         }
         private static int _handleID = 0;
-        private static int GetNextHandleID { get { _handleID++; return _handleID; } set { _handleID = value; } }
-        private static readonly Handle EmptyHandle = new Handle("None", new Context());
+        private static int GetNextHandleID { get { _handleID++; return _handleID; } set { _handleID = value; } }    
+        public static readonly Handle EmptyHandle = new Handle("None", new Context());
         private static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext = ContextHandler.FetchContext(CurrentHandle);
 
@@ -251,11 +277,12 @@ namespace debugger
                 }
             } }
         private static long _busy = 0;        
-        private static Status Execute(bool step = false)
+        private static Status Execute(bool step)
         {             
             byte OpcodeWidth = 1;
             Opcode CurrentOpcode= null;
-            while (!CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
+            string TempLastDisas = "";
+            while (true)
             {
                 byte Fetched = FetchNext();
                 if (Fetched == 0x0F)
@@ -272,13 +299,19 @@ namespace debugger
                     CurrentOpcode.Execute();
                     OpcodeWidth = 1;
                     CurrentContext.PrefixBuffer = new List<PrefixByte>();
-                    if (step)
+                    TempLastDisas = CurrentOpcode.Disassemble();
+                    if(step)
                     {
-                        return new Status { LastDisassembled = CurrentOpcode.Disassemble() };
+                        break;
                     }
-                }                
-            }            
-            return new Status { LastDisassembled=CurrentOpcode.Disassemble() };
+                }  
+                
+                if(CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
+                {
+                    break;
+                }
+            }
+            return new Status { LastDisassembled = TempLastDisas };
         }
         public static byte[] Fetch(ulong _addr, int _length=1)
         {
@@ -532,6 +565,7 @@ namespace debugger
         {
             AddressMap = _inputmemory;
         }
+        public MemorySpace Clone() => (MemorySpace)MemberwiseClone();
     }
     public class RegisterGroup
     {      

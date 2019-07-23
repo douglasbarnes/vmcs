@@ -76,12 +76,13 @@ namespace debugger
             this.LabelOverflow = new debugger.CustomControls.FlagLabel();
             this.LabelCarry = new debugger.CustomControls.FlagLabel();
             this.ListViewDisassembly = new debugger.CustomControls.DisassemblyListView();
-            this.AddressColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.DisassemblyBorder = new debugger.CustomControls.BorderedPanel();
+            this.DisassemblyPadding = new System.Windows.Forms.Panel();
             this.menuStrip1.SuspendLayout();
             this.PanelRegisters.SuspendLayout();
             this.PanelFlags.SuspendLayout();
             this.DisassemblyBorder.SuspendLayout();
+            this.DisassemblyPadding.SuspendLayout();
             this.SuspendLayout();
             // 
             // gotoMemSrc
@@ -532,33 +533,27 @@ namespace debugger
             // 
             // ListViewDisassembly
             // 
-            this.ListViewDisassembly.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(18)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
+            this.ListViewDisassembly.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
             this.ListViewDisassembly.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.ListViewDisassembly.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.AddressColumn});
             this.ListViewDisassembly.DrawingLayer = debugger.FormSettings.Layer.Background;
             this.ListViewDisassembly.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ListViewDisassembly.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.ListViewDisassembly.FullRowSelect = true;
             this.ListViewDisassembly.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
             this.ListViewDisassembly.HideSelection = false;
-            this.ListViewDisassembly.Location = new System.Drawing.Point(3, 16);
+            this.ListViewDisassembly.Location = new System.Drawing.Point(0, 0);
+            this.ListViewDisassembly.MultiSelect = false;
             this.ListViewDisassembly.Name = "ListViewDisassembly";
             this.ListViewDisassembly.OwnerDraw = true;
-            this.ListViewDisassembly.Size = new System.Drawing.Size(593, 392);
+            this.ListViewDisassembly.Size = new System.Drawing.Size(627, 394);
             this.ListViewDisassembly.TabIndex = 17;
             this.ListViewDisassembly.TextEmphasis = debugger.FormSettings.Emphasis.High;
             this.ListViewDisassembly.UseCompatibleStateImageBehavior = false;
             this.ListViewDisassembly.View = System.Windows.Forms.View.Details;
             // 
-            // AddressColumn
-            // 
-            this.AddressColumn.Text = "Disassembly";
-            this.AddressColumn.Width = 691;
-            // 
             // DisassemblyBorder
             // 
-            this.DisassemblyBorder.Controls.Add(this.ListViewDisassembly);
+            this.DisassemblyBorder.Controls.Add(this.DisassemblyPadding);
             this.DisassemblyBorder.DrawingLayer = debugger.FormSettings.Layer.Background;
             this.DisassemblyBorder.Location = new System.Drawing.Point(38, 43);
             this.DisassemblyBorder.Name = "DisassemblyBorder";
@@ -567,15 +562,23 @@ namespace debugger
             this.DisassemblyBorder.Tag = "Disassembly";
             this.DisassemblyBorder.TextEmphasis = debugger.FormSettings.Emphasis.High;
             // 
+            // DisassemblyPadding
+            // 
+            this.DisassemblyPadding.Controls.Add(this.ListViewDisassembly);
+            this.DisassemblyPadding.Location = new System.Drawing.Point(3, 14);
+            this.DisassemblyPadding.Name = "DisassemblyPadding";
+            this.DisassemblyPadding.Size = new System.Drawing.Size(593, 394);
+            this.DisassemblyPadding.TabIndex = 18;
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(1460, 867);
-            this.Controls.Add(this.DisassemblyBorder);
             this.Controls.Add(this.PanelFlags);
             this.Controls.Add(this.PanelRegisters);
+            this.Controls.Add(this.DisassemblyBorder);
             this.Controls.Add(this.ButtonReset);
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.label1);
@@ -595,6 +598,7 @@ namespace debugger
             this.PanelFlags.ResumeLayout(false);
             this.PanelFlags.PerformLayout();
             this.DisassemblyBorder.ResumeLayout(false);
+            this.DisassemblyPadding.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -646,8 +650,8 @@ namespace debugger
         private CustomControls.StepButton ButtonRun;
         private CustomControls.StepButton ButtonReset;
         private CustomControls.DisassemblyListView ListViewDisassembly;
-        private System.Windows.Forms.ColumnHeader AddressColumn;
         private CustomControls.BorderedPanel DisassemblyBorder;
+        private System.Windows.Forms.Panel DisassemblyPadding;
     }
 }
 

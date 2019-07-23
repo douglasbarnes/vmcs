@@ -20,20 +20,33 @@ namespace debugger
             public ulong Address;
             public AddressState AddressInfo;
         }
+        private Handle TargetHandle;
+        private Context TargetContext { get => ContextHandler.CloneContext(TargetHandle); }
         public Disassembler(Handle targetHandle) : base("Disassembler", ContextHandler.CloneContext(targetHandle))
         {
-
+            TargetHandle = targetHandle;
         }
         public async Task<List<DisassembledItem>> Step(ulong count)
         {            
             List<DisassembledItem> Output = new List<DisassembledItem>();
             for (ulong i = 0; i < count; i++)
             {
+                string ExtraInfo;
+                if(InstructionPointer == TargetContext.InstructionPointer)
+                {
+                    ExtraInfo = "←RIP";
+                } else
+                {
+                    ExtraInfo = "    ";
+                }
+                ulong CurrentAddr = 0;
+                Handle.Invoke(() => CurrentAddr = GetContext().InstructionPointer);
                 Output.Add(new DisassembledItem()
                 {
-                    Address = InstructionPointer,
-                    DisassembledLine = $"{Util.Core.FormatNumber(InstructionPointer, FormatType.Hex)}    {(await RunAsync(true)).LastDisassembled}"
-                });
+                    Address = CurrentAddr,                                         // } 1 space (←rip/4 spaces) 15 spaces {                    
+                    DisassembledLine = $"{Util.Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {(await RunAsync(true)).LastDisassembled}"
+                }); ;
+               
             }
             return Output;
         }

@@ -8,6 +8,7 @@ using System.Drawing;
 using static debugger.FormSettings;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using System.Collections.Specialized;
 
 namespace debugger
 {
@@ -24,6 +25,7 @@ namespace debugger
             public Emphasis TextEmphasis { get; set; }
             public CustomPanel(Layer drawingLayer, Emphasis textEmphasis) : base()
             {
+                DoubleBuffered = true;
                 DrawingLayer = drawingLayer;
                 TextEmphasis = textEmphasis;
             }
@@ -39,15 +41,15 @@ namespace debugger
                 GraphicsHandler.DrawRectangle(new Pen(LayerBrush), Bounds);
                 GraphicsHandler.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), Bounds);
                 //Prevent strikethough of text, constants here are exact, they make it look nice
-                int Offset = TextRenderer.MeasureText((string)Tag, BaseUI.BaseFont).Width;
+                int Offset = TextRenderer.MeasureText(Tag.ToString(), BaseUI.BaseFont).Width;
                 GraphicsHandler.DrawLine(new Pen(BaseUI.BackgroundColour), new Point(Bounds.Location.X + 11, Bounds.Location.Y), new Point(Bounds.Location.X + Offset + 14, Bounds.Location.Y));
                 Bounds.X += 15;
                 Bounds.Y -= 7;
                 Bounds.Width += 15;
                 Bounds.Height += 15;
                 //GraphicsHandler.DrawString((string)Tag, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);          
-                GraphicsHandler.DrawString((string)Tag, BaseUI.BaseFont, LayerBrush, Bounds);
-                GraphicsHandler.DrawString((string)Tag, BaseUI.BaseFont, ElevatedTransparentOverlays[(int)DrawingLayer+1], Bounds);
+                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, LayerBrush, Bounds);
+                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, ElevatedTransparentOverlays[(int)DrawingLayer+1], Bounds);
             }
         }
         public abstract class CustomLabel : Label, IMyCustomControl
@@ -148,8 +150,8 @@ namespace debugger
             //https://docs.microsoft.com/en-gb/windows/win32/controls/cookbook-overview
             [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
             public static extern int SetWindowTheme(IntPtr LVHandle, string keepEmpty1, string keepEmpty2);
-            public List<Disassembler.DisassembledItem> AddressedItems = new List<Disassembler.DisassembledItem>();
-            public BindingList<ulong> BreakpointsSource = new BindingList<ulong>();
+            public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
+
             private SolidBrush[] ItemColours = new SolidBrush[]
             {
                 LayerBrush,
@@ -158,18 +160,23 @@ namespace debugger
             public DisassemblyListView() : base(Layer.Background, Emphasis.High, Emphasis.Medium)
             {
                 DoubleBuffered = true;
+                Columns.Add(new ColumnHeader() { Width = 692 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
                 SendToBack();
-                Items.Add("");
-                SelectedIndexChanged += (sender, args) => 
+                SelectedIndexChanged += (sender, args) =>
                 {
-                    ulong Address = AddressedItems[SelectedItems[0].Index].Address;
-                    if (BreakpointsSource.Contains(Address))
+                    if(SelectedItems.Count > 0)
                     {
-                        BreakpointsSource.Remove(Address);
-                    } else
-                    {
-                        BreakpointsSource.Add(Address);
-                    }                                      
+                        ulong Address = Convert.ToUInt64(Items[SelectedItems[0].Index].SubItems[1].Text);
+                        if (BreakpointSource.Contains(Address))
+                        {
+                            BreakpointSource.Remove(Address);
+                        }
+                        else
+                        {
+                            BreakpointSource.Add(Address);
+                        }
+                        SelectedItems.Clear();
+                    }                                                       
                 };
             }
             protected override void OnHandleCreated(EventArgs e)
@@ -179,21 +186,27 @@ namespace debugger
             }
             protected override void OnDrawItem(DrawListViewItemEventArgs e)
             {
-                if(AddressedItems.Count() > 0)
+                e.Graphics.FillRectangle(ItemColours[(BreakpointSource.Contains(Convert.ToUInt64(e.Item.SubItems[1].Text)) ? 1 : 0)], e.Bounds);
+                Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);               
+                string[] SortedText = Util.Core.SeparateString(e.Item.Text.Substring(2, 16), "0", StopAtFirstDifferent: true);
+                e.Graphics.DrawString($"  {SortedText[0]}{e.Item.Text.Substring(18)}", BaseUI.BaseFont, TextBrushes[2], HeightCenteredBounds);
+                e.Graphics.DrawString($"0x{SortedText[1]}", BaseUI.BaseFont, TextBrushes[3], HeightCenteredBounds);            
+            }
+
+            public void AddParsed(List<Disassembler.DisassembledItem> ParsedLines)
+            {
+                List<ListViewItem> Output = new List<ListViewItem>();
+                foreach (Disassembler.DisassembledItem Line in ParsedLines)
+                {                   
+                    Output.Add(new ListViewItem(new string[] { Line.DisassembledLine, Line.Address.ToString() }));
+                }
+                Invoke(new Action(() =>
                 {
-                    if (e.ItemIndex == 0) { Items.Clear(); Items.Add(""); }
-                    if (AddressedItems.Count() - 1 > e.ItemIndex) { Items.Add(""); }
-                    //keep going if there is another item
-                    //http://prntscr.com/oibinm not great, but it isn't the part slowing this down
-
-                    Disassembler.DisassembledItem Line = AddressedItems[e.ItemIndex];
-                    e.Graphics.FillRectangle(ItemColours[(BreakpointsSource.Contains(Line.Address) ? 1 : 0)], e.Bounds);
-                    Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
-
-                    string[] SortedText = Util.Core.SeparateString(Line.DisassembledLine.Substring(2, 18), "0", StopAtFirstDifferent: true);
-                    e.Graphics.DrawString($"  {SortedText[0]}{Line.DisassembledLine.Substring(18)}", BaseUI.BaseFont, TextBrushes[2], HeightCenteredBounds);
-                    e.Graphics.DrawString($"0x{SortedText[1]}", BaseUI.BaseFont, TextBrushes[3], HeightCenteredBounds);
-                }                
+                    BeginUpdate();
+                    Items.Clear();
+                    Items.AddRange(Output.ToArray());
+                    EndUpdate();
+                }));
             }
         }
     }
