@@ -9,6 +9,14 @@ namespace debugger
 {
     public class Primitives
     {
+        public enum FormatType
+        {
+            Hex,
+            Decimal,
+            SignedDecimal,
+            String
+        }
+
         public struct OpcodeInput
         {
             internal ModRM DecodedModRM;          
@@ -41,10 +49,10 @@ namespace debugger
         }
         public enum RegisterCapacity
         {
-            B = 1,
-            X = 2,
-            E = 4,
-            R = 8
+            Byte = 1,
+            Word = 2,
+            Dword = 4,
+            Qword = 8
         }
         public struct ModRM
         {
@@ -191,7 +199,7 @@ namespace debugger
                     }
                 }
                 byte[] baResult = GetBytes(sOutput);
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baInput1, baInput2);
+                OpcodeUtil.SetFlags(baResult, OpcodeUtil.FlagMode.Logic, baInput1, baInput2);
                 return baResult;
             }
             public static byte[] Xor(byte[] baInput1, byte[] baInput2)
@@ -213,7 +221,7 @@ namespace debugger
                     }
                 }
                 byte[] baResult = GetBytes(sOutput);
-                Opcode.SetFlags(baResult, Opcode.FlagMode.Logic, baInput1, baInput2);
+                OpcodeUtil.SetFlags(baResult, OpcodeUtil.FlagMode.Logic, baInput1, baInput2);
                 return baResult;
             }
             public static byte[] Add(byte[] baInput1, byte[] baInput2, bool bCarry, int Size)
@@ -338,10 +346,6 @@ namespace debugger
                  
                 return blBuffer.ToArray();
             }
-            public static byte[] SignExtend(byte[] baInput, RegisterCapacity _regcap)
-            {
-                return SignExtend(baInput, (byte)_regcap);
-            }
             public static string SignExtend(string sInput, int bLength)
             {
                 string sBuffer = "";
@@ -357,13 +361,84 @@ namespace debugger
                 Array.Resize(ref Input, Length);
                 return Input;
             }
-            public static byte[] ZeroExtend(byte[] baInput, RegisterCapacity _regcap)
+        }
+        public static class Core
+        {
+            public static bool ListsEqual(List<string> input1, List<string> input2)
             {
-                return ZeroExtend(baInput, (byte)_regcap);
+                if(input1.Count() != input2.Count()) { return false; }
+                for (int i = 0; i < input1.Count; i++)
+                {
+                    if(input1[i] != input2[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
 
+            public static string[] SeparateString(string inputString, string testFor, bool StopAtFirstDifferent=false)
+            { 
+                if(inputString.Contains(testFor))
+                {
+                    string Base = inputString;
+                    string Separated = "";
+                    int InsertIndex = Base.IndexOf(testFor);
+                    while(InsertIndex != -1)
+                    {
+                        Base = Base.Remove(InsertIndex, testFor.Length).Insert(InsertIndex, RepeatString(" ", testFor.Length));
+                        Separated += string.Join("", RepeatString(" ", InsertIndex-Separated.Length)) + testFor;
+                        int LastIndex = InsertIndex;
+                        InsertIndex = Base.IndexOf(testFor);
+                        if (StopAtFirstDifferent && InsertIndex != LastIndex+1) {
+                            break;
+                        } else
+                        {
+                            
+                        }
+                    }
+                    
+                    return new string[] { Base, Separated };
+                }
+                else
+                {
+                    return new string[] { inputString, ""};
+                }
+
+            }
+            public static string FormatNumber(ulong Number, FormatType formatType)
+            {
+                string Output;
+                switch (formatType)
+                {
+                    case FormatType.Hex:
+                        Output = $"0x{Number.ToString("X").PadLeft(16, '0')}";
+                        break;
+                    case FormatType.String:
+                        byte[] Bytes = BitConverter.GetBytes(Number);
+                        Output = Encoding.ASCII.GetString(Bytes);
+                        break;
+                    case FormatType.SignedDecimal:
+                        Output = Convert.ToInt64(Number).ToString();
+                        break;
+                    default: //dec
+                        Output = Convert.ToUInt64(Number).ToString();
+                        break;
+                }
+                return Output;
+            }
+
+            public static string RepeatString(string inputString, int count)
+            {//faster than enumerable.repeat
+                string Output = "";
+                for (int i = 0; i < count; i++)
+                {
+                    Output += inputString;
+                }
+                return Output;
+            }
         }
-        public class Opcode
+        public class OpcodeUtil
         {
             public enum FlagMode
             {
@@ -379,50 +454,56 @@ namespace debugger
                 switch (fm)
                 {
                     case FlagMode.Add:
-                        Eflags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
+                        Flags.Carry = (!baResult.IsGreater(baInput1)); // if result < input(val decreased)
                         baResult = Bitwise.Cut(baResult, (int)CurrentCapacity); // must be after carry                                                            
-                        Eflags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        Flags.Overflow = (baInput1.IsNegative() == baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                         // negative + negative should never be positive, vice versa
                         break;
                     case FlagMode.Sub:
-                        Eflags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
+                        Flags.Carry = (baResult.IsGreater(baInput1)); // if result > input(val increased)
                         baResult = Bitwise.Cut(baResult, (int)CurrentCapacity); // must be after carry
-                        Eflags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        Flags.Overflow = (baInput1.IsNegative() != baInput2.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         // if sign of added numbers != sign of result AND both operands had the same sign, there was an overflow
                         // negative + negative should never be positive, vice versa
                         break;
                     case FlagMode.Mul:
-                        Eflags.Carry = (baResult != Bitwise.ZeroExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
-                        Eflags.Overflow = (baResult != Bitwise.SignExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
+                        Flags.Carry = (baResult != Bitwise.ZeroExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
+                        Flags.Overflow = (baResult != Bitwise.SignExtend(Bitwise.Cut(baResult, (int)CurrentCapacity), (byte)CurrentCapacity));
                         //if this^^ is false, EDX = sign extension of EAX, we didn't overflow into the EDX register       
                         // take half the output, sign extend it, if they aren't the same we need to use two registers to store it
                         // dont know how this plays out with 64bit regs
                         break;
                     case FlagMode.Logic:
-                        Eflags.Carry = false;
-                        Eflags.Overflow = false;
+                        Flags.Carry = false;
+                        Flags.Overflow = false;
                         break;
                     case FlagMode.Inc:
-                        Eflags.Overflow = (!baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        Flags.Overflow = (!baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         break;
                     case FlagMode.Dec:
-                        Eflags.Overflow = (baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
+                        Flags.Overflow = (baInput1.IsNegative() && baResult.IsNegative() != baInput1.IsNegative());
                         break;
                 }
-                Eflags.Sign = (baResult.IsNegative()); //+=false -=true
-                Eflags.Zero = baResult.IsZero();
-                Eflags.Parity = Bitwise.GetBits(baResult[0]).Count(x => x == 1) % 2 == 0; //parity: even no of 1 bits              
+                Flags.Sign = baResult.IsNegative(); //+=false -=true
+                Flags.Zero = baResult.IsZero();
+                Flags.Parity = Bitwise.GetBits(baResult[0]).Count(x => x == 1) % 2 == 0; //parity: even no of 1 bits       
             }
 
-            public static RegisterCapacity GetRegCap(RegisterCapacity defaultreg = RegisterCapacity.E)
+            public static RegisterCapacity GetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.Dword)
             {
-                PrefixByte[] _prefixes = ControlUnit.Prefixes.ToArray();
-                RegisterCapacity _regcap;
-                if (_prefixes.Contains(PrefixByte.REXW)) { _regcap = RegisterCapacity.R; }
-                else if (_prefixes.Contains(PrefixByte.SIZEOVR)) { _regcap = RegisterCapacity.X; }
-                else { _regcap = defaultreg; }
-                return _regcap;
+                if (PrefixBuffer.Contains(PrefixByte.REXW))
+                {
+                    return RegisterCapacity.Qword;
+                }
+                else if (PrefixBuffer.Contains(PrefixByte.SIZEOVR))
+                {
+                    return RegisterCapacity.Word;
+                }
+                else
+                {
+                    return defaultCapacity;
+                }
             }
 
             public struct DynamicResult
@@ -431,122 +512,126 @@ namespace debugger
                 public byte[] DestBytes;
             }
 
+             /*Dynamic functions turn..
+              *  byte[] baResult;
+                 byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
+                 byte[] baDestData;
 
-            /*Dynamic functions turn..
-             *  byte[] baResult;
-                byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
-                byte[] baDestData;
-                
-                if (DestSrc.IsAddress)
-                {
-                    ulong lDestAddr = DestSrc.lDest;
-                    baDestData = ControlUnit.Fetch(lDestAddr, ControlUnit.CurrentCapacity);
-                    baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
-                    if (IsSwap)
-                    {
-                        ControlUnit.SetRegister(bcSrcReg, baResult);
-                    }
-                    else
-                    {
-                        ControlUnit.SetMemory(lDestAddr, baResult);
-                    }
-                }
-                else
-                {
-                    ByteCode bcDestReg = (ByteCode)DestSrc.lDest;
-                    baDestData = ControlUnit.FetchRegister(bcDestReg);
-                    baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
-                    if (IsSwap)
-                    {
-                        ControlUnit.SetRegister(bcSrcReg, baResult);
-                    }
-                    else
-                    {
-                        ControlUnit.SetRegister(bcDestReg, baResult);
-                    }
-                }
-             * ...into
-             * byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
-               byte[] baDestData = FetchDynamic(DestSrc);
-               SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity), IsSwap);
-             * 
-             * allows operations on modrm bytes directly at the cost of more arguments in constructors
-             * 
-             * 
-             */
-            public static void SetDynamic(OpcodeInput Input, byte[] baData)
-            {
-                if(Input.IsSwap)
-                {
-                    if(Input.DecodedModRM.Mod != 3)//not register->reg
-                    {
-                        SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
-                    } else
-                    {
-                        SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
-                    }
-                } else
-                {
-                    if(Input.DecodedModRM.Mod != 3)
-                    {
-                        SetMemory(Input.DecodedModRM.DestPtr, baData);
-                    } else
-                    {
-                        SetRegister((ByteCode)Input.DecodedModRM.DestPtr, baData, HigherBit:(CurrentCapacity==RegisterCapacity.B && Input.DecodedModRM.RM > 0x3));
-                    }
-                }
-            }
+                 if (DestSrc.IsAddress)
+                 {
+                     ulong lDestAddr = DestSrc.lDest;
+                     baDestData = ControlUnit.Fetch(lDestAddr, ControlUnit.CurrentCapacity);
+                     baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
+                     if (IsSwap)
+                     {
+                         ControlUnit.SetRegister(bcSrcReg, baResult);
+                     }
+                     else
+                     {
+                         ControlUnit.SetMemory(lDestAddr, baResult);
+                     }
+                 }
+                 else
+                 {
+                     ByteCode bcDestReg = (ByteCode)DestSrc.lDest;
+                     baDestData = ControlUnit.FetchRegister(bcDestReg);
+                     baResult = Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity);
+                     if (IsSwap)
+                     {
+                         ControlUnit.SetRegister(bcSrcReg, baResult);
+                     }
+                     else
+                     {
+                         ControlUnit.SetRegister(bcDestReg, baResult);
+                     }
+                 }
+              * ...into
+              * byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
+                byte[] baDestData = FetchDynamic(DestSrc);
+                SetDynamic(DestSrc, Bitwise.Add(baSrcData, baDestData, ControlUnit.CurrentCapacity), IsSwap);
+              * 
+              * allows operations on modrm bytes directly at the cost of more arguments in constructors
+              * 
+              * 
+              */
+             public static void SetDynamic(OpcodeInput Input, byte[] baData)
+             {
+                 if (Input.IsSwap)
+                 {
+                     if (Input.DecodedModRM.Mod != 3)//not register->reg
+                     {
+                         SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
+                     }
+                     else
+                     {
+                         SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
+                     }
+                 }
+                 else
+                 {
+                     if (Input.DecodedModRM.Mod != 3)
+                     {
+                         SetMemory(Input.DecodedModRM.DestPtr, baData);
+                     }
+                     else
+                     {
+                         SetRegister((ByteCode)Input.DecodedModRM.DestPtr, baData, HigherBit: (CurrentCapacity == RegisterCapacity.Byte && Input.DecodedModRM.RM > 0x3));
+                     }
+                 }
+             }
 
-            //works with r/m/imm
-            public static DynamicResult FetchDynamic(OpcodeInput Input, bool PreventSignExtend=false)
-            {
-                DynamicResult Output = new DynamicResult();
-                if(Input.IsSwap)
-                {
-                    if (Input.DecodedModRM.Mod != 3)
-                    {
-                        Output.SourceBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
-                    }
-                    else
-                    {
-                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
-                    }
-                    Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg);
-                } else
-                {
-                    if (Input.IsImmediate)
-                    {
-                        if (Input.IsSignExtendedByte)
-                        {
-                            Output.SourceBytes = Bitwise.SignExtend(FetchNext(1), ((byte)CurrentCapacity));
-                        }
-                        else if (CurrentCapacity == RegisterCapacity.R)
-                        {
-                            //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
-                            Output.SourceBytes = (PreventSignExtend) ? Bitwise.ZeroExtend(FetchNext(4), 8) : Bitwise.SignExtend(FetchNext(4), 8);
-                        }
-                        else
-                        {
-                            Output.SourceBytes = FetchNext((byte)CurrentCapacity);
-                        }
-                    }
-                    else
-                    {
-                        Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg);
-                    }          
-                    
-                    if(Input.DecodedModRM.Mod != 3)
-                    {
-                        Output.DestBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
-                    } else
-                    {
-                        Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
-                    }
-                    
-                }
-                return Output;                        
-            }
+             //works with r/m/imm
+             public static DynamicResult FetchDynamic(OpcodeInput Input, bool PreventSignExtend = false)
+             {
+                 DynamicResult Output = new DynamicResult();
+                 if (Input.IsSwap)
+                 {
+                     if (Input.DecodedModRM.Mod != 3)
+                     {
+                         Output.SourceBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
+                     }
+                     else
+                     {
+                         Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
+                     }
+                     Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg, CurrentCapacity);
+                 }
+                 else
+                 {
+                     if (Input.IsImmediate)
+                     {
+                         if (Input.IsSignExtendedByte)
+                         {
+                             Output.SourceBytes = Bitwise.SignExtend(FetchNext(1), ((byte)CurrentCapacity));
+                         }
+                         else if (CurrentCapacity == RegisterCapacity.Qword)
+                         {
+                             //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
+                             Output.SourceBytes = (PreventSignExtend) ? Bitwise.ZeroExtend(FetchNext(4), 8) : Bitwise.SignExtend(FetchNext(4), 8);
+                         }
+                         else
+                         {
+                             Output.SourceBytes = FetchNext((byte)CurrentCapacity);
+                         }
+                     }
+                     else
+                     {
+                         Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg, CurrentCapacity);
+                     }
 
+                     if (Input.DecodedModRM.Mod != 3)
+                     {
+                         Output.DestBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
+                     }
+                     else
+                     {
+                         Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
+                     }
+
+                 }
+                 return Output;
+             }
+            
             public static ModRM FromDest(ByteCode Dest)
             {
                 return new ModRM { DestPtr = (ulong)Dest, Mod=3, RM=(byte)Dest};
@@ -554,26 +639,25 @@ namespace debugger
 
             
         }
-
         public static class Disassembly
         {
             public static List<Dictionary<RegisterCapacity, string>> RegisterMnemonics = new List<Dictionary<RegisterCapacity, string>>
             {
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RAX" }, { RegisterCapacity.E, "EAX" },{ RegisterCapacity.X, "AX" },{ RegisterCapacity.B, "AL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RCX" }, { RegisterCapacity.E, "ECX" },{ RegisterCapacity.X, "CX" },{ RegisterCapacity.B, "CL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RDX" }, { RegisterCapacity.E, "EDX" },{ RegisterCapacity.X, "DX" },{ RegisterCapacity.B, "DL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RBX" }, { RegisterCapacity.E, "EBX" },{ RegisterCapacity.X, "BX" },{ RegisterCapacity.B, "BL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RSP" }, { RegisterCapacity.E, "ESP" },{ RegisterCapacity.X, "SP" },{ RegisterCapacity.B, "AH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RBP" }, { RegisterCapacity.E, "EBP" },{ RegisterCapacity.X, "BP" },{ RegisterCapacity.B, "CH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RSI" }, { RegisterCapacity.E, "ESI" },{ RegisterCapacity.X, "SI" },{ RegisterCapacity.B, "DH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.R, "RDI" }, { RegisterCapacity.E, "EDI" },{ RegisterCapacity.X, "DI" },{ RegisterCapacity.B, "BH" }}
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RAX" }, { RegisterCapacity.Dword, "EAX" },{ RegisterCapacity.Word, "AX" },{ RegisterCapacity.Byte, "AL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RCX" }, { RegisterCapacity.Dword, "ECX" },{ RegisterCapacity.Word, "CX" },{ RegisterCapacity.Byte, "CL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RDX" }, { RegisterCapacity.Dword, "EDX" },{ RegisterCapacity.Word, "DX" },{ RegisterCapacity.Byte, "DL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RBX" }, { RegisterCapacity.Dword, "EBX" },{ RegisterCapacity.Word, "BX" },{ RegisterCapacity.Byte, "BL" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RSP" }, { RegisterCapacity.Dword, "ESP" },{ RegisterCapacity.Word, "SP" },{ RegisterCapacity.Byte, "AH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RBP" }, { RegisterCapacity.Dword, "EBP" },{ RegisterCapacity.Word, "BP" },{ RegisterCapacity.Byte, "CH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RSI" }, { RegisterCapacity.Dword, "ESI" },{ RegisterCapacity.Word, "SI" },{ RegisterCapacity.Byte, "DH" }},
+                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.Qword, "RDI" }, { RegisterCapacity.Dword, "EDI" },{ RegisterCapacity.Word, "DI" },{ RegisterCapacity.Byte, "BH" }}
             };
             public static Dictionary<RegisterCapacity, string> PointerMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
             {
-                {RegisterCapacity.B, "BYTE"},
-                {RegisterCapacity.X, "WORD"},
-                {RegisterCapacity.E, "DWORD"},
-                {RegisterCapacity.R, "QWORD"}
+                {RegisterCapacity.Byte, "BYTE"},
+                {RegisterCapacity.Word, "WORD"},
+                {RegisterCapacity.Dword, "DWORD"},
+                {RegisterCapacity.Qword, "QWORD"}
             };
             public static string DisassembleSIB(SIB Input, int Mod)
             {
@@ -602,10 +686,6 @@ namespace debugger
             }
 
             //{dest}, {src}{+/-}{offset}
-            struct DisassembledObject
-            {
-
-            }
             public static string[] DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
             {
                 if (Input.IsSwap)
@@ -646,7 +726,10 @@ namespace debugger
                 }
                 
             }
+            public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap)
+            {
+                return RegisterMnemonics[(byte)Register][RegCap];
+            }
         }
-
     }
 }

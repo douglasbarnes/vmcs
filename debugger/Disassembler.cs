@@ -7,49 +7,43 @@ using static debugger.Primitives;
 using static debugger.ControlUnit;
 namespace debugger
 {
-    class Disassembler
+    public class Disassembler : EmulatorBase
     {
-        public ulong DisassemblerPointer = 0;
-        private Dictionary<ulong, byte> Memory;
-        public Disassembler(Dictionary<ulong, byte> _memory)
+        public struct DisassembledItem
         {
-            Memory = _memory;
-            DisassemblerPointer = 0x100000;
-        }
-
-        public Dictionary<ulong, string> Step(int Count)
-        {
-            ulong SavedBytePointer = BytePointer;
-            DisassemblerPointer = BytePointer;
-            Dictionary<ulong, string> AddressMnemonicPairs = new Dictionary<ulong, string>();          
-            for (int i = 0; i < Count; i++)
+            [Flags]
+            public enum AddressState
             {
-                ulong Address = DisassemblerPointer;
-                byte bFetched = (Memory.ContainsKey(DisassemblerPointer)) ? Memory[DisassemblerPointer] : (byte)0x90;
-                BytePointer++;
-                if(Enum.IsDefined(typeof(PrefixByte), (int)bFetched))
-                {
-                    Prefixes.Add((PrefixByte)bFetched); i--;
-                }
-                else
-                {
-                    AddressMnemonicPairs.Add(Address, DisassembleLine(bFetched));
-                    Prefixes = new List<PrefixByte>();
-                }
-                DisassemblerPointer = BytePointer;
+                Default = 0,
             }
-            BytePointer = SavedBytePointer;
-            return AddressMnemonicPairs;
+            public string DisassembledLine;
+            public ulong Address;
+            public AddressState AddressInfo;
         }
-
-        public string DisassembleLine(byte bFetched)
+        public Disassembler(Handle targetHandle) : base("Disassembler", ContextHandler.CloneContext(targetHandle))
         {
-            ulong First = BytePointer;
-            Opcodes.MyOpcode OpcodeInst = OpcodeLookup.OpcodeTable[1][bFetched].Invoke();                   
-            OpcodeInst.Disassemble(out string Assembly);
-            return $"{Assembly}";
-        }
 
+        }
+        public async Task<List<DisassembledItem>> Step(ulong count)
+        {            
+            List<DisassembledItem> Output = new List<DisassembledItem>();
+            for (ulong i = 0; i < count; i++)
+            {
+                Output.Add(new DisassembledItem()
+                {
+                    Address = InstructionPointer,
+                    DisassembledLine = $"{Util.Core.FormatNumber(InstructionPointer, FormatType.Hex)}    {(await RunAsync(true)).LastDisassembled}"
+                });
+            }
+            return Output;
+        }
+        public async Task<List<DisassembledItem>> StepAll()
+        {
+
+            Context DisasContext = ContextHandler.FetchContext(Handle);
+            DisasContext.InstructionPointer = DisasContext.Memory.EntryPoint;
+            return await Step(DisasContext.Memory.SegmentMap[".main"].LastAddr - DisasContext.Memory.EntryPoint);
+        }
     }
 
 }
