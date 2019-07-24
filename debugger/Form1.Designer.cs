@@ -55,7 +55,7 @@ namespace debugger
             this.MenuFormatSigned = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuFormatUnsigned = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuFormatString = new System.Windows.Forms.ToolStripMenuItem();
-            this.PanelRegisters = new debugger.CustomControls.BorderedPanel();
+            this.PanelRegisters = new debugger.CustomControls.RegisterPanel();
             this.RDXLABEL = new debugger.CustomControls.RegisterLabel();
             this.RCXLABEL = new debugger.CustomControls.RegisterLabel();
             this.RBXLABEL = new debugger.CustomControls.RegisterLabel();
@@ -141,7 +141,7 @@ namespace debugger
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            this.menuStrip1.Size = new System.Drawing.Size(1460, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(1070, 24);
             this.menuStrip1.TabIndex = 19;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -317,9 +317,9 @@ namespace debugger
             this.RDXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RDXLABEL.Location = new System.Drawing.Point(4, 190);
             this.RDXLABEL.Name = "RDXLABEL";
-            this.RDXLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RDXLABEL.Size = new System.Drawing.Size(146, 13);
             this.RDXLABEL.TabIndex = 8;
-            this.RDXLABEL.Text = "label3";
+            this.RDXLABEL.Text = "REG : 0x0000000000000000";
             this.RDXLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RCXLABEL
@@ -328,9 +328,9 @@ namespace debugger
             this.RCXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RCXLABEL.Location = new System.Drawing.Point(4, 170);
             this.RCXLABEL.Name = "RCXLABEL";
-            this.RCXLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RCXLABEL.Size = new System.Drawing.Size(146, 13);
             this.RCXLABEL.TabIndex = 7;
-            this.RCXLABEL.Text = "label2";
+            this.RCXLABEL.Text = "REG : 0x0000000000000000";
             this.RCXLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RBXLABEL
@@ -339,9 +339,9 @@ namespace debugger
             this.RBXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RBXLABEL.Location = new System.Drawing.Point(4, 150);
             this.RBXLABEL.Name = "RBXLABEL";
-            this.RBXLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RBXLABEL.Size = new System.Drawing.Size(146, 13);
             this.RBXLABEL.TabIndex = 6;
-            this.RBXLABEL.Text = "label8";
+            this.RBXLABEL.Text = "REG : 0x0000000000000000";
             this.RBXLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RAXLABEL
@@ -350,9 +350,9 @@ namespace debugger
             this.RAXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RAXLABEL.Location = new System.Drawing.Point(4, 130);
             this.RAXLABEL.Name = "RAXLABEL";
-            this.RAXLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RAXLABEL.Size = new System.Drawing.Size(146, 13);
             this.RAXLABEL.TabIndex = 5;
-            this.RAXLABEL.Text = "label7";
+            this.RAXLABEL.Text = "REG : 0x0000000000000000";
             this.RAXLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RDILABEL
@@ -361,9 +361,9 @@ namespace debugger
             this.RDILABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RDILABEL.Location = new System.Drawing.Point(4, 110);
             this.RDILABEL.Name = "RDILABEL";
-            this.RDILABEL.Size = new System.Drawing.Size(35, 13);
+            this.RDILABEL.Size = new System.Drawing.Size(146, 13);
             this.RDILABEL.TabIndex = 4;
-            this.RDILABEL.Text = "label6";
+            this.RDILABEL.Text = "REG : 0x0000000000000000";
             this.RDILABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RSILABEL
@@ -372,9 +372,9 @@ namespace debugger
             this.RSILABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RSILABEL.Location = new System.Drawing.Point(4, 90);
             this.RSILABEL.Name = "RSILABEL";
-            this.RSILABEL.Size = new System.Drawing.Size(35, 13);
+            this.RSILABEL.Size = new System.Drawing.Size(146, 13);
             this.RSILABEL.TabIndex = 3;
-            this.RSILABEL.Text = "label5";
+            this.RSILABEL.Text = "REG : 0x0000000000000000";
             this.RSILABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RBPLABEL
@@ -383,9 +383,9 @@ namespace debugger
             this.RBPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RBPLABEL.Location = new System.Drawing.Point(4, 70);
             this.RBPLABEL.Name = "RBPLABEL";
-            this.RBPLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RBPLABEL.Size = new System.Drawing.Size(146, 13);
             this.RBPLABEL.TabIndex = 2;
-            this.RBPLABEL.Text = "label4";
+            this.RBPLABEL.Text = "REG : 0x0000000000000000";
             this.RBPLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RSPLABEL
@@ -394,9 +394,9 @@ namespace debugger
             this.RSPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RSPLABEL.Location = new System.Drawing.Point(4, 50);
             this.RSPLABEL.Name = "RSPLABEL";
-            this.RSPLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RSPLABEL.Size = new System.Drawing.Size(146, 13);
             this.RSPLABEL.TabIndex = 1;
-            this.RSPLABEL.Text = "label3";
+            this.RSPLABEL.Text = "REG : 0x0000000000000000";
             this.RSPLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // RIPLABEL
@@ -405,9 +405,9 @@ namespace debugger
             this.RIPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
             this.RIPLABEL.Location = new System.Drawing.Point(4, 30);
             this.RIPLABEL.Name = "RIPLABEL";
-            this.RIPLABEL.Size = new System.Drawing.Size(35, 13);
+            this.RIPLABEL.Size = new System.Drawing.Size(146, 13);
             this.RIPLABEL.TabIndex = 0;
-            this.RIPLABEL.Text = "label2";
+            this.RIPLABEL.Text = "REG : 0x0000000000000000";
             this.RIPLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // ButtonStep
@@ -575,7 +575,7 @@ namespace debugger
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(1460, 867);
+            this.ClientSize = new System.Drawing.Size(1070, 867);
             this.Controls.Add(this.PanelFlags);
             this.Controls.Add(this.PanelRegisters);
             this.Controls.Add(this.DisassemblyBorder);
@@ -629,7 +629,7 @@ namespace debugger
         private System.Windows.Forms.ToolStripMenuItem MenuFormatSigned;
         private System.Windows.Forms.ToolStripMenuItem MenuFormatUnsigned;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
-        private CustomControls.BorderedPanel PanelRegisters;
+        private CustomControls.RegisterPanel PanelRegisters;
         private CustomControls.BorderedPanel PanelFlags;
         private CustomControls.FlagLabel LabelOverflow;
         private CustomControls.FlagLabel LabelCarry;

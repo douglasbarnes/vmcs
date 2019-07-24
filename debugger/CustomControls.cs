@@ -56,33 +56,13 @@ namespace debugger
         {
             public Layer DrawingLayer { get; set; }
             public Emphasis TextEmphasis { get; set; }
-            public string DisabledSubstring = "";
-            public bool DisableEntire = false;
             public CustomLabel(Emphasis textLayer) : base()
             {
                 TextEmphasis = textLayer;
             }
             protected override void OnPaint(PaintEventArgs e)
-            {
-                Rectangle Bounds = e.ClipRectangle;
-                if (Text.Contains(DisabledSubstring) && DisabledSubstring != "") // assume it wont happen often, so do indexof in the case it does rather than testing for -1 every time
-                {                 
-                    
-                    if(DisableEntire)
-                    {
-                        e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)Emphasis.Disabled], Bounds);
-                    }
-                    else
-                    {
-                        string[] SortedText = Util.Core.SeparateString(Text, DisabledSubstring);
-                        e.Graphics.DrawString(SortedText[0], BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
-                        e.Graphics.DrawString(SortedText[1], BaseUI.BaseFont, TextBrushes[(int)Emphasis.Disabled], Bounds);
-                    }                    
-                }
-                else
-                {
-                    e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
-                }
+            {         
+                Util.Drawing.DrawFormattedText(Text, e.Graphics, e.ClipRectangle, TextEmphasis);
             }
         }
         public abstract class CustomListview : ListView, IMyCustomControl
@@ -125,21 +105,37 @@ namespace debugger
             public BorderedPanel() : base(Layer.Background, Emphasis.High)
             {
             }
-
-            protected override void OnPaint(PaintEventArgs e)
+        }
+        public class RegisterPanel : CustomPanel
+        {
+            public int RegSize { get; private set; } = 8;
+            public Action OnRegSizeChanged = () => { };
+            public RegisterPanel() : base(Layer.Background, Emphasis.High)
             {
-                BringToFront();
-                base.OnPaint(e);                             
             }
+            protected override void OnMouseDoubleClick(MouseEventArgs e)
+            {
+                NextRegSize();
+            }
+            public void NextRegSize()
+            {
+                RegSize = (RegSize == 1) ? 8 : RegSize / 2;
+                OnRegSizeChanged.Invoke();
+            }
+            
         }
         public class RegisterLabel : CustomLabel
-        {          
-            public RegisterLabel() : base(Emphasis.High) { DisabledSubstring = "0x0000000000000000"; DisableEntire = true; }
-
+        {
+            public RegisterLabel() : base(Emphasis.High) { }
+            protected override void OnMouseDoubleClick(MouseEventArgs e)
+            {
+                ((RegisterPanel)Parent).NextRegSize();
+                base.OnMouseDoubleClick(e);
+            }
         }
         public class FlagLabel : CustomLabel
         {
-            public FlagLabel() : base(Emphasis.High) { DisabledSubstring = "False"; }
+            public FlagLabel() : base(Emphasis.High) { }
         }
         public class StepButton : CustomButton
         {
@@ -151,6 +147,7 @@ namespace debugger
             [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
             public static extern int SetWindowTheme(IntPtr LVHandle, string keepEmpty1, string keepEmpty2);
             public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
+            
 
             private SolidBrush[] ItemColours = new SolidBrush[]
             {
@@ -188,11 +185,11 @@ namespace debugger
             {
                 e.Graphics.FillRectangle(ItemColours[(BreakpointSource.Contains(Convert.ToUInt64(e.Item.SubItems[1].Text)) ? 1 : 0)], e.Bounds);
                 Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);               
-                string[] SortedText = Util.Core.SeparateString(e.Item.Text.Substring(2, 16), "0", StopAtFirstDifferent: true);
+                string[] SortedText = Util.Core.SeparateString(e.Item.Text.Substring(2, 16), "0", stopAtFirstDifferent: true);
                 e.Graphics.DrawString($"  {SortedText[0]}{e.Item.Text.Substring(18)}", BaseUI.BaseFont, TextBrushes[2], HeightCenteredBounds);
                 e.Graphics.DrawString($"0x{SortedText[1]}", BaseUI.BaseFont, TextBrushes[3], HeightCenteredBounds);            
             }
-
+            
             public void AddParsed(List<Disassembler.DisassembledItem> ParsedLines)
             {
                 List<ListViewItem> Output = new List<ListViewItem>();

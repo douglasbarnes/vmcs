@@ -23,19 +23,13 @@ namespace debugger
         {
             Handle = new Handle(inputName, inputContext);
         }
-        protected RegisterCapacity CurrentCapacity { get => GetContext().CurrentCapacity; }
-        protected FlagSet Flags { get => GetContext().Flags; }
-        protected List<PrefixByte> PrefixBuffer { get => GetContext().PrefixBuffer; }
-        protected ulong InstructionPointer { get => GetContext().InstructionPointer; }
-        protected MemorySpace Memory { get => GetContext().Memory; }
-        protected Context GetContext() => ContextHandler.CloneContext(Handle); 
         public void RegisterBreakpoint(ulong Address)
         { //overwrites
-            ContextHandler.FetchContext(Handle).Breakpoints.Add(Address);
+            Handle.DeepCopy().Breakpoints.Add(Address);
         }
         public virtual Status Run(bool Step = false)
         {
-            return ContextHandler.Run(Handle, Step);
+            return Handle.Run(Step);
         }
         public virtual async Task<Status> RunAsync(bool Step = false)
         {
@@ -45,12 +39,12 @@ namespace debugger
             RunComplete.Invoke();
             return Result;
         }        
-        public Dictionary<string, ulong> GetRegisters(byte RegisterSize)
+        public Dictionary<string, ulong> GetRegisters(RegisterCapacity RegisterSize)
         {
-            if (new byte[] { 1, 2, 4, 8 }.Contains(RegisterSize))
+            if (Enum.IsDefined(typeof(RegisterCapacity), RegisterSize))
             {
-                Context VMContext = ContextHandler.CloneContext(Handle);
-                Dictionary<string, ulong> Registers = VMContext.Registers.Format((RegisterCapacity)RegisterSize);
+                Context VMContext = Handle.ShallowCopy();
+                Dictionary<string, ulong> Registers = VMContext.Registers.Format(RegisterSize);
                 Registers.Add("RIP", VMContext.InstructionPointer);
                 return Registers;
             }
@@ -61,7 +55,7 @@ namespace debugger
         }
         public Dictionary<string, bool> GetFlags()
         {
-            FlagSet VMFlags = ContextHandler.CloneContext(Handle).Flags;
+            FlagSet VMFlags = Handle.ShallowCopy().Flags;
             return new Dictionary<string, bool>()
                 {
                 {"CF", VMFlags.Carry },
@@ -74,11 +68,11 @@ namespace debugger
         }
         public MemorySpace GetMemory()
         {
-            return ContextHandler.CloneContext(Handle).Memory;
+            return Handle.ShallowCopy().Memory;
         }
         public void Dispose()
         {
-            ContextHandler.RemoveContext(Handle);
+            Handle.Dispose();
         }
         
     }
@@ -93,7 +87,7 @@ namespace debugger
         private List<Context> CachedContexts;
        
         public VMSettings CurrentSettings;
-        public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(GetContext().Breakpoints); }
+        public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(Handle.DeepCopy().Breakpoints); }
         public VM(VMSettings inputSettings, MemorySpace inputMemory) : base("VM", new Context() {
             InstructionPointer = inputMemory.EntryPoint,
             Memory = inputMemory,
@@ -112,7 +106,7 @@ namespace debugger
         {
             Handle.Invoke(() => 
             {
-                Context VMContext = ContextHandler.FetchContext(Handle);
+                Context VMContext = Handle.DeepCopy();
                 VMContext.InstructionPointer = SavedMemory.EntryPoint;
                 VMContext.Memory = SavedMemory;
                 VMContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
@@ -147,13 +141,21 @@ namespace debugger
         }        
         public struct Handle
         {
+            private static Dictionary<Handle, Context> StoredContexts = new Dictionary<Handle, Context>();
             public readonly string HandleName;
             public readonly int HandleID;
             public Handle(string handleName, Context inputContext)
             {
                 HandleName = handleName;
                 HandleID = GetNextHandleID;
-                ContextHandler.AddContext(this, inputContext);
+                if (StoredContexts.ContainsKey(this))
+                {
+                    StoredContexts[this] = inputContext;
+                }
+                else
+                {
+                    StoredContexts.Add(this, inputContext);
+                }
             }
             public void Invoke(Action toExecute) // dont invoke run
             {
@@ -161,6 +163,34 @@ namespace debugger
                 IsBusy = true;
                 toExecute.Invoke();
                 IsBusy = false;
+            }
+            public Context ShallowCopy() => StoredContexts[this].Clone();
+            public Context DeepCopy() => StoredContexts[this];
+            public Status Run(bool step)
+            {
+                Status Result = new Status();                
+                WaitNotBusy();
+                IsBusy = true;               
+                if (CurrentHandle != this)
+                {
+                    if(CurrentHandle != EmptyHandle)
+                    {
+                        StoredContexts[CurrentHandle] = CurrentContext;
+                    }
+                    
+                    CurrentHandle = this;
+                }
+                Result = new Func<Status>(() => Execute(step)).Invoke();                
+                IsBusy = false;
+                return Result;
+            }
+            public void Dispose()
+            {
+                if (CurrentHandle == this)
+                {
+                    CurrentHandle = EmptyHandle;
+                }// could zero everything here if wanted to
+                StoredContexts.Remove(this);
             }
             public static bool operator !=(Handle input1, Handle input2)
             {
@@ -173,82 +203,39 @@ namespace debugger
         }            
         public class Context
         {            
-            public FlagSet Flags = new FlagSet();
+            public FlagSet Flags;
             public MemorySpace Memory;
             public RegisterGroup Registers;
             public ulong InstructionPointer;
             public List<ulong> Breakpoints = new List<ulong>();
             public List<PrefixByte> PrefixBuffer = new List<PrefixByte>();
-            public RegisterCapacity CurrentCapacity;
+            public RegisterCapacity CurrentCapacity;            
+            public Context()
+            {
+                Flags = new FlagSet();
+            }
+
+            private Context(Context toClone)
+            {
+                Flags = toClone.Flags;
+                Memory = toClone.Memory;
+                InstructionPointer = toClone.InstructionPointer;
+                Breakpoints = toClone.Breakpoints;
+                PrefixBuffer = toClone.PrefixBuffer;
+                CurrentCapacity = toClone.CurrentCapacity;
+                Registers = toClone.Registers.Clone();
+            }
+
             public Context Clone()
             {
-                return (Context)MemberwiseClone();
-            }            
-        }
-        public static class ContextHandler
-        {            
-            private static Dictionary<Handle, Context> StoredContexts = new Dictionary<Handle, Context>();                      
-            private static void SetContext(Handle ContextName)
-            {
-                CurrentContext = StoredContexts[ContextName];                
+                return new Context(this);
             }
-            public static void AddContext(Handle contextHandle, Context context)
-            {
-                if(StoredContexts.ContainsKey(contextHandle))
-                {
-                    StoredContexts[contextHandle] = context;
-                }
-                else
-                {
-                    StoredContexts.Add(contextHandle, context);
-                }               
-            }
-            private static void SwitchContext(Handle contextHandle)
-            {
-                if (CurrentHandle == EmptyHandle)
-                {
-                    StoredContexts[CurrentHandle] = CurrentContext;
-
-                }                                                  
-                SetContext(contextHandle);
-                CurrentHandle = contextHandle;               
-            }
-            public static void RemoveContext(Handle contextHandle)
-            {
-                StoredContexts.Remove(contextHandle);
-                if(CurrentHandle == contextHandle)
-                {
-                    CurrentHandle = EmptyHandle;
-                }// could zero everything here if wanted to
-                
-            }
-            public static Context FetchContext(Handle contextHandle) //returns actual instance 
-            {
-                return (contextHandle == CurrentHandle) ? CurrentContext : StoredContexts[contextHandle];
-            }                   
-            public static Context CloneContext(Handle contextHandle)
-            {
-                return FetchContext(contextHandle).Clone();
-            }
-            public static Status Run(Handle contextHandle, bool step)
-            {
-                Status Result = new Status();
-                contextHandle.Invoke(() =>
-                {
-                    if (CurrentHandle != contextHandle)
-                    {
-                        SwitchContext(contextHandle);
-                    }
-                    Result = new Func<Status>(() => Execute(step)).Invoke();
-                });  
-                return Result;
-            }
-        }
+        }    
         private static int _handleID = 0;
         private static int GetNextHandleID { get { _handleID++; return _handleID; } set { _handleID = value; } }    
         public static readonly Handle EmptyHandle = new Handle("None", new Context());
         private static Handle CurrentHandle = EmptyHandle;
-        private static Context CurrentContext = ContextHandler.FetchContext(CurrentHandle);
+        private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }
 
         public static RegisterCapacity CurrentCapacity { get => CurrentContext.CurrentCapacity; set => CurrentContext.CurrentCapacity = value; }
         public static FlagSet Flags { get => CurrentContext.Flags; }
@@ -565,7 +552,6 @@ namespace debugger
         {
             AddressMap = _inputmemory;
         }
-        public MemorySpace Clone() => (MemorySpace)MemberwiseClone();
     }
     public class RegisterGroup
     {      
@@ -578,12 +564,13 @@ namespace debugger
             }
             public Register(byte[] Input)
             {
-                Data = Input;
+                Data = Input;               
             }
             public Register(ulong Input)
             {
                 Data = BitConverter.GetBytes(Input);
             }
+            
             public byte this[int i] => this[i];
             public static implicit operator byte[] (Register R)
             {
@@ -594,14 +581,24 @@ namespace debugger
             {
                 return new Register(Input);
             }
+
+            private Register(Register toCopy)
+            {
+                byte[] CopyBuffer = new byte[8];
+                Array.Copy(toCopy.Data, CopyBuffer, 8);
+                Data = new Register(CopyBuffer);
+            }
+            public Register Clone()
+            {
+                return new Register(this);
+            }
         }
         public RegisterGroup()
-        {//there isn't a great way/clean to do this, enumerable.repeat returns x instances of the same object e.g list will be 8 pointers to one reg
+        {//there isn't a great way/clean to do this, enumerable.repeat returns x shallow copies of the same object e.g list will be 8 pointers to one reg
             RegTable = new List<Register>() { new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register() }; // 8 regs, 0 = eax, 1=ecx,2=edx,3=ebx,4=esp,5=ebp,6=esi,7=edi
         }
         public RegisterGroup(Dictionary<ByteCode,Register> Input)
         { // 8 regs
-            RegTable = new List<Register>();
             for (int RegValue = 0; RegValue < 8; RegValue++)
             { 
                 if(Input.TryGetValue((ByteCode)RegValue, out Register Current))
@@ -614,7 +611,20 @@ namespace debugger
                 }
             }
         }
-        private readonly List<Register> RegTable;
+        private RegisterGroup(RegisterGroup toClone)
+        {
+            for (int i = 0; i < toClone.RegTable.Count(); i++)
+            {
+                var a = toClone.RegTable[i].Clone();
+                RegTable.Add(a);
+            }
+        }
+
+        public RegisterGroup Clone()
+        {
+            return new RegisterGroup(this);
+        }
+        private readonly List<Register> RegTable = new List<Register>();
         protected internal byte[] Fetch(byte RegCode, byte Size)
         {
             return Bitwise.Cut(RegTable[RegCode], Size);

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static debugger.Opcodes;
-using static debugger.MultiDefinitionDecoder;
 using static debugger.Util.OpcodeUtil;
 using static debugger.Util;
 using static debugger.ControlUnit;
@@ -17,27 +16,40 @@ namespace debugger
         public static Dictionary<PrefixByte, string> PrefixTable = new Dictionary<PrefixByte, string>();
         public static Dictionary<byte, Dictionary<byte, Func<Opcode>>> OpcodeTable = new Dictionary<byte, Dictionary<byte, Func<Opcode>>>();
 
-        private static void _addPrefixes()
+        public static ModRM SubopcodeOutput;
+        //byte = opcode, Dict<byte = displacement(increment doesnt matter), action = thing to do>
+        // opcodes with one operand e.g inc eax (increment eax) don't use the REG bits in modRM, so the regbits can be used to make extra instructions instead
+        // so we can have one "opcode byte" that has meanings depending on the REG bits
+        // reg bit starts at the 8 dec val position in a string of bits e.g "01[100]111" [REG] so each offset is -8 each time
+        private static Dictionary<byte, Dictionary<int, Func<Opcode>>> SubopcodeDict = new Dictionary<byte, Dictionary<int, Func<Opcode>>>();
+        public static Opcode Decode(byte bOpcode)
+        {
+            SubopcodeOutput = ModRMDecode();
+            ulong _tmpsrc = SubopcodeOutput.SourceReg; //swap because
+            SubopcodeOutput.SourceReg = SubopcodeOutput.DestPtr;
+            return SubopcodeDict[bOpcode][(byte)_tmpsrc].Invoke();
+        }
+        private static void AddPrefixes()
         {
             PrefixTable.Add(PrefixByte.REXW, "REXW");
             PrefixTable.Add(PrefixByte.ADDR32, "ADDR32");
         }
 
-        private static void _addMultiDefinitionDecoders()
+        private static void AddSubOpcodes()
         {
             //0x80
             Dictionary<int, Func<Opcode>> _80 = new Dictionary<int, Func<Opcode>>
             {
-                { 0, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true}, UseCarry:false)},
-                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true})},
-                { 2, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true}, UseCarry:true)},
-                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true}, UseBorrow:true)},
+                { 0, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true}, UseCarry:false)},
+                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true})},
+                { 2, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true}, UseCarry:true)},
+                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true}, UseBorrow:true)},
              //   { 4, () => new AndImm(MultiDefOutput) { Is8Bit=true } },
-                { 5,() => new Sub(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true}, UseBorrow:false)},
+                { 5,() => new Sub(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true}, UseBorrow:false)},
              //   { 6, () => new XorImm(MultiDefOutput) { Is8Bit=true } },
-                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=MultiDefOutput, Is8Bit=true, IsImmediate=true})},
+                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=SubopcodeOutput, Is8Bit=true, IsImmediate=true})},
             };       
-            MasterDecodeDict.Add(0x80, _80);
+            SubopcodeDict.Add(0x80, _80);
             //or
             //adc
             //sbb
@@ -48,74 +60,73 @@ namespace debugger
             //0x81
             Dictionary<int, Func<Opcode>> _81 = new Dictionary<int, Func<Opcode>>
             {
-                { 0, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true}, UseCarry:false)},
-                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true})},
-                { 2, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true}, UseCarry:true)},
-                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true}, UseBorrow:true)},
+                { 0, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true}, UseCarry:false)},
+                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true})},
+                { 2, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true}, UseCarry:true)},
+                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true}, UseBorrow:true)},
             //   { 4,  () => new AndImm(MultiDefOutput) },
-                { 5,  () => new Sub(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true}, UseBorrow:false)},
+                { 5,  () => new Sub(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true}, UseBorrow:false)},
             //   { 6,  () => new XorImm(MultiDefOutput) },
-                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true})},
+                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true})},
             };
-            MasterDecodeDict.Add(0x81, _81);
+            SubopcodeDict.Add(0x81, _81);
 
             //0x82 no longer x86_64
 
             //0x83
             Dictionary<int, Func<Opcode>> _83 = new Dictionary<int, Func<Opcode>>
             {
-                { 0, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true, IsSignExtendedByte=true}, UseCarry:false)},
-                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true, IsSignExtendedByte=true})},
-                { 2, () => new Add(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true, IsSignExtendedByte=true}, UseCarry:true)},
-                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true, IsSignExtendedByte=true}, UseBorrow:true)},
+                { 0, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true, IsSignExtendedByte=true}, UseCarry:false)},
+                { 1, () => new  Or(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true, IsSignExtendedByte=true})},
+                { 2, () => new Add(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true, IsSignExtendedByte=true}, UseCarry:true)},
+                { 3, () => new Sub(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true, IsSignExtendedByte=true}, UseBorrow:true)},
             //   { 4, () => new AndImm(MultiDefOutput) { IsSwap=true } },
             //   { 5, () => new SubImm(MultiDefOutput, SignExtend:true) },
             //   { 6, () => new XorImm(MultiDefOutput, SignExtend:true) },
-                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=MultiDefOutput, IsImmediate=true, IsSignExtendedByte=true })},
+                { 7, () => new Cmp(new OpcodeInput{ DecodedModRM=SubopcodeOutput, IsImmediate=true, IsSignExtendedByte=true })},
             };
-            MasterDecodeDict.Add(0x83, _83);
+            SubopcodeDict.Add(0x83, _83);
 
             //0xf6
             Dictionary<int, Func<Opcode>> _F6 = new Dictionary<int, Func<Opcode>>
             {
-                { 4, () => new Mul(new OpcodeInput{DecodedModRM = MultiDefOutput, Is8Bit=true},Oprands:1)},
-                { 5, () => new Mul(new OpcodeInput{DecodedModRM = MultiDefOutput, Is8Bit=true, IsSigned=true}, Oprands:1)},
-                { 6, () => new Div(new OpcodeInput{DecodedModRM = MultiDefOutput, Is8Bit=true})},
-                { 7, () => new Div(new OpcodeInput{DecodedModRM = MultiDefOutput, Is8Bit=true, IsSigned=true})}
+                { 4, () => new Mul(new OpcodeInput{DecodedModRM = SubopcodeOutput, Is8Bit=true},Oprands:1)},
+                { 5, () => new Mul(new OpcodeInput{DecodedModRM = SubopcodeOutput, Is8Bit=true, IsSigned=true}, Oprands:1)},
+                { 6, () => new Div(new OpcodeInput{DecodedModRM = SubopcodeOutput, Is8Bit=true})},
+                { 7, () => new Div(new OpcodeInput{DecodedModRM = SubopcodeOutput, Is8Bit=true, IsSigned=true})}
             };
-            MasterDecodeDict.Add(0xF6, _F6);
+            SubopcodeDict.Add(0xF6, _F6);
 
             //0xf7
             Dictionary<int, Func<Opcode>> _F7 = new Dictionary<int, Func<Opcode>>
             {
-                { 4, () => new Mul(new OpcodeInput{DecodedModRM = MultiDefOutput}, Oprands:1) },
-                { 5, () => new Mul(new OpcodeInput{DecodedModRM = MultiDefOutput, IsSigned=true}, Oprands:1)},
-                { 6, () => new Div(new OpcodeInput{DecodedModRM = MultiDefOutput}) },
-                { 7, () => new Div(new OpcodeInput{DecodedModRM = MultiDefOutput, IsSigned=true})}
+                { 4, () => new Mul(new OpcodeInput{DecodedModRM = SubopcodeOutput}, Oprands:1) },
+                { 5, () => new Mul(new OpcodeInput{DecodedModRM = SubopcodeOutput, IsSigned=true}, Oprands:1)},
+                { 6, () => new Div(new OpcodeInput{DecodedModRM = SubopcodeOutput}) },
+                { 7, () => new Div(new OpcodeInput{DecodedModRM = SubopcodeOutput, IsSigned=true})}
             };
 
-            MasterDecodeDict.Add(0xF7, _F7);
+            SubopcodeDict.Add(0xF7, _F7);
 
             //0xfe
             Dictionary<int, Func<Opcode>> _FE = new Dictionary<int, Func<Opcode>>
             {
               //  { 0, () => new Inc(MultiDefOutput) { Is8Bit=true } },
             };
-            MasterDecodeDict.Add(0xFE, _FE);
+            SubopcodeDict.Add(0xFE, _FE);
             //0xff
             Dictionary<int, Func<Opcode>> _FF = new Dictionary<int, Func<Opcode>>
             {
                // { 0, () => new Inc(MultiDefOutput) },
                 { 4, () => new Jmp(Relative:false, Bytes:8) },
-                { 6, () => new Push(new OpcodeInput{DecodedModRM = MultiDefOutput}) }
+                { 6, () => new Push(new OpcodeInput{DecodedModRM = SubopcodeOutput}) }
             };
-            MasterDecodeDict.Add(0xFF, _FF);
+            SubopcodeDict.Add(0xFF, _FF);
         }
-
         static OpcodeLookup()
         {
-            _addPrefixes();
-            _addMultiDefinitionDecoders();
+            AddPrefixes();
+            AddSubOpcodes();
             OpcodeTable.Add(1, new Dictionary<byte, Func<Opcode>>()
             {
                 { 0x00, () => new Add(new OpcodeInput{ DecodedModRM = ModRMDecode(), Is8Bit=true}, UseCarry:false)},
@@ -275,24 +286,6 @@ namespace debugger
             });
         }
     }
-
-    public static class MultiDefinitionDecoder
-    {
-        public static ModRM MultiDefOutput;
-        //byte = opcode, Dict<byte = displacement(increment doesnt matter), action = thing to do>
-        // opcodes with one operand e.g inc eax (increment eax) don't use the REG bits in modRM, so the regbits can be used to make extra instructions instead
-        // so we can have one "opcode byte" that has meanings depending on the REG bits
-        // reg bit starts at the 8 dec val position in a string of bits e.g "01[100]111" [REG] so each offset is -8 each time
-        public static Dictionary<byte, Dictionary<int, Func<Opcode>>> MasterDecodeDict = new Dictionary<byte, Dictionary<int, Func<Opcode>>>();
-        public static Opcode Decode(byte bOpcode)
-        {
-            MultiDefOutput = ModRMDecode();
-            ulong _tmpsrc = MultiDefOutput.SourceReg; //swap because
-            MultiDefOutput.SourceReg = MultiDefOutput.DestPtr;
-            return MasterDecodeDict[bOpcode][(byte)_tmpsrc].Invoke();
-        }
-    }
-
     public class Opcodes
     {
         public abstract class Opcode
@@ -301,11 +294,7 @@ namespace debugger
 
             internal readonly string Mnemonic;
             internal OpcodeInput StoredInput;
-            //shortcuts, easier to read
-            public override string ToString()
-            {
-                return Mnemonic;
-            }          
+            //shortcuts, easier to read          
             public Opcode(string OpcodeMnemonic, RegisterCapacity OpcodeCapacity)
             {
                 Mnemonic = OpcodeMnemonic;

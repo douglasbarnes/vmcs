@@ -10,9 +10,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static debugger.FormSettings;
-using static debugger.CustomControls;
 using static debugger.Primitives;
-using static debugger.Util.Core;
+using static debugger.Util;
 namespace debugger
 {  
     public partial class MainForm : Form
@@ -32,26 +31,29 @@ namespace debugger
                 BackgroundControl.BackColor = BaseUI.BackgroundColour;
                 if (BackgroundControl.HasChildren)
                 {
-                    
+
                     BackgroundControl.ForeColor = SurfaceShades[1];
-                    foreach(Control NestedControl in BackgroundControl.Controls)
+                    foreach (Control NestedControl in BackgroundControl.Controls)
                     {
                         NestedControl.BackColor = BaseUI.BackgroundColour;
                         NestedControl.ForeColor = SurfaceShades[2];
-                        
+
                     }
-                } else
+                }
+                else
                 {
                     BackgroundControl.ForeColor = SurfaceShades[0];
-                }             
+                }
             }
-           
         }
         VM VMInstance;
         private void Form1_Load(object sender, EventArgs e)
         {
             var ins = new MemorySpace(new byte[]
-            { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 });
+           // { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 }
+            { 0xB8, 0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xBA, 0xDD, 0xDD, 0xDD, 0xDD }
+
+            );
             VM.VMSettings settings = new VM.VMSettings()
             {
                 UndoHistoryLength = 5,
@@ -59,6 +61,7 @@ namespace debugger
             };
             VMInstance = new VM(settings, ins);
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
+            PanelRegisters.OnRegSizeChanged += RefreshRegisters;
             RefreshAll();            
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
@@ -74,30 +77,63 @@ namespace debugger
         //refresh methods
         private void RefreshRegisters()
         {
-            Registers = VMInstance.GetRegisters(8); //qword regs
-            foreach (var Register in Registers)
+            RegisterCapacity RegCap = RegisterCapacity.Qword;
+            Registers = VMInstance.GetRegisters(RegCap); //qword regs
+            PanelRegisters.Invoke(new Action(() => RegCap = (RegisterCapacity)PanelRegisters.RegSize));
+            string[] ParsedRegValues = new string[9];
+            for (int i = 0; i < ParsedRegValues.Length; i++)
             {
-                foreach(RegisterLabel Label in PanelRegisters.Controls)
+                string Value;
+                if(i == 0)
                 {
-                    if(Label.Name == $"{Register.Key}LABEL")
+                    Value = Core.FormatNumber(Registers["RIP"], SelectedFormatType);
+                    if (SelectedFormatType == FormatType.Hex)
                     {
-                        Label.Invoke((Action)(() => {Label.Text = $"{Register.Key} : {FormatNumber(Register.Value, SelectedFormatType)}"; Label.Refresh(); }));
+                        Value = Value.Insert(2, "%").Insert(0, "%");
                     }
                 }
-            }      
+                else if (RegCap == RegisterCapacity.Byte & i > 4)
+                {
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-5)], SelectedFormatType);
+                    if (SelectedFormatType == FormatType.Hex)
+                    {
+                        Value = Value.Insert(16, "%").Insert(14, "%").Insert(0, "%");
+                    }
+                } else
+                {                          
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-1)], SelectedFormatType);
+                    if (SelectedFormatType == FormatType.Hex)
+                    {
+                        Value = Value.Insert(2 + 16 - ((byte)RegCap * 2), "%").Insert(0, "%");
+                    }
+                }                
+                ParsedRegValues[i] = Value;
+            }
+            Invoke(new Action(() =>
+            {
+                Label[] LabelOrder = new Label[] { RIPLABEL, RSPLABEL, RBPLABEL, RSILABEL, RDILABEL, RAXLABEL, RBXLABEL, RCXLABEL, RDXLABEL };
+                for (int i = 0; i < LabelOrder.Length; i++)
+                {
+                    string Mnemonic = (i == 0) ? "RIP" : Disassembly.DisassembleRegister((ByteCode)i-1, RegCap);
+                    LabelOrder[i].Text = $"{Mnemonic}{(((byte)RegCap < 4 & i != 0) ? " " : "")} : {ParsedRegValues[i]}";
+                }
+                PanelRegisters.Refresh();           //extra space so stuff stays in line
+            })); 
         }
         private void RefreshFlags()
-        {
-            
+        {            
             Dictionary<string, bool> FetchedFlags = VMInstance.GetFlags();
-            LabelCarry.Text =    $"Carry    : {FetchedFlags["CF"].ToString()}";
-            LabelOverflow.Text = $"Overflow : {FetchedFlags["OF"].ToString()}";
-            LabelSign.Text =     $"Sign     : {FetchedFlags["SF"].ToString()}";
-            //col2
-            LabelZero.Text =     $"Zero      : {(!FetchedFlags["ZF"]).ToString()}";
-            LabelParity.Text =   $"Parity    : {FetchedFlags["PF"].ToString()}";
-            LabelAuxiliary.Text =$"Auxiliary : {FetchedFlags["AF"].ToString()}";
-        }
+            Invoke(new Action(() =>
+            {
+                LabelCarry.Text = $"Carry    : {FetchedFlags["CF"].ToString()}";
+                LabelOverflow.Text = $"Overflow : {FetchedFlags["OF"].ToString()}";
+                LabelSign.Text = $"Sign     : {FetchedFlags["SF"].ToString()}";
+                //col2
+                LabelZero.Text = $"Zero      : {FetchedFlags["ZF"].ToString()}";
+                LabelParity.Text = $"Parity    : {FetchedFlags["PF"].ToString()}";
+                LabelAuxiliary.Text = $"Auxiliary : {FetchedFlags["AF"].ToString()}";
+            }));            
+        } // DO "FALSE" DISABLE
         private void RefreshMemory()
         {
             SortedDictionary<ulong, byte> _memory = new SortedDictionary<ulong, byte>((Dictionary<ulong,byte>)VMInstance.GetMemory());
@@ -147,6 +183,7 @@ namespace debugger
             {
                 new Task(() => RefreshDisassembly()),
                 new Task(() => RefreshRegisters()),
+                new Task(() => RefreshFlags())
             };
             RefreshTasks.ForEach(x => x.Start());
             await Task.WhenAll(RefreshTasks);
@@ -256,7 +293,8 @@ namespace debugger
             Imminent = 0,
             High = 1,
             Medium = 2,
-            Disabled = 3
+            Disabled = 3,
+            Ignored = 4
         }
         public enum Layer
         {
@@ -310,12 +348,14 @@ namespace debugger
                 BaseUI.SurfaceColour,
                 Color.FromArgb(220, BaseUI.SurfaceColour), // ~87%
                 Color.FromArgb(153, BaseUI.SurfaceColour), // 60%
-                Color.FromArgb(97, BaseUI.SurfaceColour) // ~38%
+                Color.FromArgb(97, BaseUI.SurfaceColour), // ~38%
+                Color.FromArgb(17, BaseUI.SurfaceColour) // 20%
             };
             TextBrushes = SurfaceShades.Select(x => new SolidBrush(x)).ToList();
 
             PrimaryBrush = new SolidBrush(BaseUI.PrimaryColour);
             
         }
+        
     }
 }

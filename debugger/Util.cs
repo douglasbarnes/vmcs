@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static debugger.ControlUnit;
 using static debugger.Primitives;
+using static debugger.FormSettings;
+using System.Text.RegularExpressions;
 namespace debugger
 {
     public class Primitives
@@ -376,43 +379,38 @@ namespace debugger
                 }
                 return true;
             }
-
-            public static string[] SeparateString(string inputString, string testFor, bool StopAtFirstDifferent=false)
-            { 
-                if(inputString.Contains(testFor))
-                {
-                    string Base = inputString;
+            public static string[] SeparateString(string inputString, string testFor, bool stopAtFirstDifferent = false) => SeparateString(inputString, new string[] { testFor }, stopAtFirstDifferent);
+            public static string[] SeparateString(string inputString, string[] testFor, bool stopAtFirstDifferent=false) // output {inputstring with stuff removed, (strings of separated testFors)
+            {
+                string[] Output = new string[testFor.Length+1];
+                Output[0] = inputString; //base
+                for (int i = 0; i < testFor.Length; i++)
+                {                    
                     string Separated = "";
-                    int InsertIndex = Base.IndexOf(testFor);
-                    while(InsertIndex != -1)
-                    {
-                        Base = Base.Remove(InsertIndex, testFor.Length).Insert(InsertIndex, RepeatString(" ", testFor.Length));
-                        Separated += string.Join("", RepeatString(" ", InsertIndex-Separated.Length)) + testFor;
+                    int InsertIndex = Output[0].IndexOf(testFor[i]);
+                    while (InsertIndex != -1 && testFor[i] != "")
+                    {                       
+                        Output[0] = Output[0].Remove(InsertIndex, testFor[i].Length).Insert(InsertIndex, RepeatString(" ", testFor[i].Length));
+                        Separated += string.Join("", RepeatString(" ", InsertIndex - Separated.Length)) + testFor[i];
                         int LastIndex = InsertIndex;
-                        InsertIndex = Base.IndexOf(testFor);
-                        if (StopAtFirstDifferent && InsertIndex != LastIndex+1) {
-                            break;
-                        } else
+                        InsertIndex = Output[0].IndexOf(testFor[i]);
+                        if (stopAtFirstDifferent && InsertIndex != LastIndex + 1)
                         {
-                            
+                            break;
                         }
                     }
-                    
-                    return new string[] { Base, Separated };
+                    Output[i+1] = Separated;
                 }
-                else
-                {
-                    return new string[] { inputString, ""};
-                }
+                return Output;
 
             }
-            public static string FormatNumber(ulong Number, FormatType formatType)
+            public static string FormatNumber(ulong Number, FormatType formatType, int Padding=16)
             {
                 string Output;
                 switch (formatType)
                 {
                     case FormatType.Hex:
-                        Output = $"0x{Number.ToString("X").PadLeft(16, '0')}";
+                        Output = $"0x{Number.ToString("X").PadLeft(Padding, '0')}";
                         break;
                     case FormatType.String:
                         byte[] Bytes = BitConverter.GetBytes(Number);
@@ -427,7 +425,6 @@ namespace debugger
                 }
                 return Output;
             }
-
             public static string RepeatString(string inputString, int count)
             {//faster than enumerable.repeat
                 string Output = "";
@@ -436,6 +433,48 @@ namespace debugger
                     Output += inputString;
                 }
                 return Output;
+            }
+        }
+        public static class Drawing
+        {
+            private static string FormatModifiers = "!\"£$%";
+            public static void DrawFormattedText(string text, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis=Emphasis.Medium)
+            {
+                string[] Output = new string[5];
+                string Position = "";
+                Stack<int> ModifierHistory = new Stack<int>();
+                ModifierHistory.Push((int)defaultEmphasis);
+                bool Escaped = false;
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if(Escaped & !"!\"£$%".Contains(text[i]))
+                    {
+                        Output[ModifierHistory.Peek()] += "\\";
+                                              
+                    }
+
+                    if(FormatModifiers.Contains(text[i]) & !Escaped)
+                    {
+                        if(FormatModifiers.IndexOf(text[i]) == ModifierHistory.Peek())
+                        {
+                            ModifierHistory.Pop();
+                        }
+                        else
+                        {
+                            ModifierHistory.Push(FormatModifiers.IndexOf(text[i]));
+                        }
+                    }
+                    else if(text[i] == '\\' & !Escaped)
+                    {
+                        Escaped = true;
+                    }
+                    else
+                    {
+                        Escaped = false;
+                        graphicsHandler.DrawString(Position + text[i], BaseUI.BaseFont, TextBrushes[ModifierHistory.Peek()], bounds);
+                        Position += " ";
+                    }
+                }               
             }
         }
         public class OpcodeUtil
@@ -726,7 +765,7 @@ namespace debugger
                 }
                 
             }
-            public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap)
+            public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap=RegisterCapacity.Qword)
             {
                 return RegisterMnemonics[(byte)Register][RegCap];
             }
