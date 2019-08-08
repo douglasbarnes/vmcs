@@ -473,6 +473,7 @@ namespace debugger
             this.LabelAuxiliary.Name = "LabelAuxiliary";
             this.LabelAuxiliary.Size = new System.Drawing.Size(35, 13);
             this.LabelAuxiliary.TabIndex = 5;
+            this.LabelAuxiliary.Tag = "Auxiliary";
             this.LabelAuxiliary.Text = "label2";
             this.LabelAuxiliary.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
@@ -484,6 +485,7 @@ namespace debugger
             this.LabelParity.Name = "LabelParity";
             this.LabelParity.Size = new System.Drawing.Size(35, 13);
             this.LabelParity.TabIndex = 4;
+            this.LabelParity.Tag = "Parity";
             this.LabelParity.Text = "label2";
             this.LabelParity.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
@@ -495,6 +497,7 @@ namespace debugger
             this.LabelSign.Name = "LabelSign";
             this.LabelSign.Size = new System.Drawing.Size(35, 13);
             this.LabelSign.TabIndex = 3;
+            this.LabelSign.Tag = "Sign";
             this.LabelSign.Text = "label2";
             this.LabelSign.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
@@ -506,6 +509,7 @@ namespace debugger
             this.LabelZero.Name = "LabelZero";
             this.LabelZero.Size = new System.Drawing.Size(35, 13);
             this.LabelZero.TabIndex = 2;
+            this.LabelZero.Tag = "Zero";
             this.LabelZero.Text = "label2";
             this.LabelZero.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
@@ -517,6 +521,7 @@ namespace debugger
             this.LabelOverflow.Name = "LabelOverflow";
             this.LabelOverflow.Size = new System.Drawing.Size(35, 13);
             this.LabelOverflow.TabIndex = 1;
+            this.LabelOverflow.Tag = "Overflow";
             this.LabelOverflow.Text = "label2";
             this.LabelOverflow.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
@@ -528,6 +533,7 @@ namespace debugger
             this.LabelCarry.Name = "LabelCarry";
             this.LabelCarry.Size = new System.Drawing.Size(35, 13);
             this.LabelCarry.TabIndex = 0;
+            this.LabelCarry.Tag = "Carry";
             this.LabelCarry.Text = "label2";
             this.LabelCarry.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 

@@ -1,8 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Testcases>
-    <Testcase name="add">
-        <Hex>B810000000BB20000000BAAA0000006789144500000000678914450001000067891443678994430001000089944500010000</Hex>
-    </Testcase>
-    
-    
-</Testcases>

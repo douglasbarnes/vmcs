@@ -60,7 +60,7 @@ namespace debugger
         public async Task<List<DisassembledItem>> StepAll()
         {
             Context DisasContext = Handle.ShallowCopy();
-            return await Step(DisasContext.Memory.EntryPoint, DisasContext.Memory.SegmentMap[".main"].LastAddr);
+            return await Step(DisasContext.Memory.EntryPoint, DisasContext.Memory.SegmentMap[".main"].End);
         }
     }
 

@@ -62,7 +62,7 @@ namespace debugger
             }
             protected override void OnPaint(PaintEventArgs e)
             {         
-                Util.Drawing.DrawFormattedText(Text, e.Graphics, e.ClipRectangle, TextEmphasis);
+                Util.Drawing.DrawFormattedText(Text, e.Graphics, bounds:e.ClipRectangle, defaultEmphasis:TextEmphasis);
             }
         }
         public abstract class CustomListview : ListView, IMyCustomControl
@@ -135,7 +135,7 @@ namespace debugger
         }
         public class FlagLabel : CustomLabel
         {
-            public FlagLabel() : base(Emphasis.High) { }
+            public FlagLabel() : base(Emphasis.Medium) { }
         }
         public class StepButton : CustomButton
         {

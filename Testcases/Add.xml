@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="add">
+    <Hex>04106605002005000003004805000000409080C31080C7106681C3001081C3000003004881C300000040906683C3F083C1F290B810000000BB00200000B900000030BA0000000000042466015C2401014C240302042466035C2401034C2403480354240390B800000000BB00000000B900000000BA1122333300D06601D301D190</Hex>
+    <Checkpoint tag="Immediate A" position_hex="11">
+        <Register id="A" size="1">10</Register>
+        <Register id="A" size="2">2010</Register>
+        <Register id="A" size="4">40032010</Register>
+    </Checkpoint>
+    <Checkpoint tag="Immediate" position_hex="2A">
+        <Register id="B" size="1">10</Register>
+        <Register id="B" size="2">2010</Register>
+        <Register id="B" size ="8">40032010</Register>          
+    </Checkpoint>
+    <Checkpoint tag="Sign extended byte" position_hex="3F">
+        <Register id="B" size="2">FFF0</Register>
+        <Register id="C" size="4">FFFFFFF3</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg into memory" position_hex="53">
+        <Memory offset_register="SP" length="1">10</Memory>
+        <Memory offset_register="SP" offset="1" length="2">2000</Memory>
+        <Memory offset_register="SP" offset="3" length="4">30000000</Memory>
+    </Checkpoint>
+    <Checkpoint tag="Memory into reg" position_hex="83">
+        <Register id="A" size="1">22</Register>
+        <Register id="B" size="1">4444</Register>
+        <Register id="C" size="4">66666666</Register>
+        <Register id="A" size="1">66666666</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg to reg" position_hex="9f">
+        <Register id="A" size="1">11</Register>
+        <Register id="B" size="2">2211</Register>
+        <Register id="C" size="4">33332211</Register>
+    </Checkpoint>
+</Testcase>   

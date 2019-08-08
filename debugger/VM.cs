@@ -3,29 +3,27 @@ using System.Collections.Generic;
 using System.Linq;
 using static debugger.ControlUnit;
 using System.Threading;
-using System.Collections.Concurrent;
 using static debugger.Opcodes;
 using static debugger.Util;
 using static debugger.Primitives;
 using static debugger.RegisterGroup;
 using System.ComponentModel;
-using System.Collections;
 using System.Threading.Tasks;
 
 namespace debugger
 {
     public abstract class EmulatorBase : IDisposable
     {
-        public readonly Handle Handle;
+        protected internal readonly Handle Handle;
         public event Action RunComplete = () => { };
-       // protected ulong InstructionPointer { get => ContextHandler.CloneContext(Handle).InstructionPointer; }
         public EmulatorBase(string inputName, Context inputContext) //new handle from context
         {
+            inputContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
+            {
+                { ByteCode.SP, new Register(inputContext.Memory.SegmentMap[".stack"].StartAddr) },
+                { ByteCode.BP, new Register(inputContext.Memory.SegmentMap[".stack"].StartAddr) },
+            });
             Handle = new Handle(inputName, inputContext);
-        }
-        public void RegisterBreakpoint(ulong Address)
-        { //overwrites
-            Handle.DeepCopy().Breakpoints.Add(Address);
         }
         public virtual Status Run(bool Step = false)
         {
@@ -39,31 +37,17 @@ namespace debugger
             RunComplete.Invoke();
             return Result;
         }        
-        public Dictionary<string, ulong> GetRegisters(RegisterCapacity RegisterSize)
-        {
-            if (Enum.IsDefined(typeof(RegisterCapacity), RegisterSize))
-            {
-                Context VMContext = Handle.ShallowCopy();
-                Dictionary<string, ulong> Registers = VMContext.Registers.Format(RegisterSize);
-                Registers.Add("RIP", VMContext.InstructionPointer);
-                return Registers;
-            }
-            else
-            {
-                throw new Exception();
-            }
-        }
         public Dictionary<string, bool> GetFlags()
         {
             FlagSet VMFlags = Handle.ShallowCopy().Flags;
             return new Dictionary<string, bool>()
                 {
-                {"CF", VMFlags.Carry },
-                {"PF", VMFlags.Parity },
-                {"AF", VMFlags.Adjust },
-                {"ZF", VMFlags.Zero },
-                {"SF", VMFlags.Sign },
-                {"OF", VMFlags.Overflow },
+                {"Carry", VMFlags.Carry         == FlagSet.FlagState.On},
+                {"Parity", VMFlags.Parity       == FlagSet.FlagState.On},
+                {"Auxiliary", VMFlags.Auxiliary == FlagSet.FlagState.On},
+                {"Zero", VMFlags.Zero           == FlagSet.FlagState.On},
+                {"Sign", VMFlags.Sign           == FlagSet.FlagState.On},
+                {"Overflow", VMFlags.Overflow   == FlagSet.FlagState.On},
                 };
         }
         public MemorySpace GetMemory()
@@ -88,34 +72,44 @@ namespace debugger
        
         public VMSettings CurrentSettings;
         public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(Handle.DeepCopy().Breakpoints); }
-        public VM(VMSettings inputSettings, MemorySpace inputMemory) : base("VM", new Context() {
+        public VM(VMSettings inputSettings, MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             InstructionPointer = inputMemory.EntryPoint,
-            Memory = inputMemory,
             Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
             {
                 { ByteCode.SP, new Register(inputMemory.SegmentMap[".stack"].StartAddr) },
-                { ByteCode.BP, new Register(inputMemory.SegmentMap[".stack"].StartAddr) } }),
-            })
+                { ByteCode.BP, new Register(inputMemory.SegmentMap[".stack"].StartAddr) } }),          
+            })            
         {
             CurrentSettings = inputSettings;
-            RegisterBreakpoint(inputMemory.SegmentMap[".main"].LastAddr);
             RunComplete += CurrentSettings.RunCallback;
             SavedMemory = inputMemory;
         }
         public void Reset()
         {
-            Handle.Invoke(() => 
+            Handle.Invoke(() =>
             {
                 Context VMContext = Handle.DeepCopy();
-                VMContext.InstructionPointer = SavedMemory.EntryPoint;
                 VMContext.Memory = SavedMemory;
+                VMContext.InstructionPointer = SavedMemory.EntryPoint;
                 VMContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
-                {
-                            { ByteCode.SP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) },
-                            { ByteCode.BP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) }
-                });
-                
+                    {
+                                { ByteCode.SP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) },
+                                { ByteCode.BP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) }
+                    });
+                VMContext.Flags = new FlagSet();
             });            
+        }
+        public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
+        {
+            Context Cloned = Handle.ShallowCopy();
+            Dictionary<ByteCode, byte[]> Registers = Cloned.Registers.FetchAll();
+            Dictionary<string, ulong> ParsedRegisters = new Dictionary<string, ulong>();
+            foreach (var Reg in Registers)
+            {
+                ParsedRegisters.Add(Disassembly.DisassembleRegister(Reg.Key, registerSize), BitConverter.ToUInt64(Reg.Value,0));
+            }
+            ParsedRegisters.Add("RIP", Cloned.InstructionPointer);
+            return ParsedRegisters;
         }
     }   
 
@@ -123,12 +117,34 @@ namespace debugger
     {
         public class FlagSet
         {
-            public bool Carry   =false;
-            public bool Parity  =false;
-            public bool Adjust  =false;
-            public bool Zero    =false; // zero = false
-            public bool Sign    =false; // false = positive
-            public bool Overflow=false; // true = overflow
+            public enum FlagState
+            {
+                Off,
+                On,
+                Undefined
+            }
+            public FlagState Carry = FlagState.Undefined;            
+            public FlagState Auxiliary = FlagState.Undefined;            
+            public FlagState Overflow = FlagState.Undefined; // true = overflow
+            public FlagState Zero = FlagState.Undefined; // zero = false
+            public FlagState Sign = FlagState.Undefined; // false = positive
+            public FlagState Parity = FlagState.Undefined;
+            public FlagSet() { }
+            public FlagSet(byte[] input) //Auto calculate zf/sf/pf
+            {
+                Zero = input.IsZero() ? FlagState.On : FlagState.Off;
+                Sign = input.IsNegative() ? FlagState.On : FlagState.Off;
+                Parity = Bitwise.GetBits(input).Count(x => x == 1) % 2 == 0 ? FlagState.On : FlagState.Off; //parity: even no of 1 bits       
+            }            
+            public FlagSet DeepCopy() => new FlagSet()
+            {//enums are value types
+                Carry = Carry,
+                Auxiliary = Auxiliary,
+                Overflow = Overflow,
+                Zero = Zero,
+                Sign = Sign,
+                Parity = Parity
+            };
         }
         public struct Status
         {
@@ -164,7 +180,7 @@ namespace debugger
                 toExecute.Invoke();
                 IsBusy = false;
             }
-            public Context ShallowCopy() => StoredContexts[this].Clone();
+            public Context ShallowCopy() => StoredContexts[this].DeepCopy();
             public Context DeepCopy() => StoredContexts[this];
             public Status Run(bool step)
             {
@@ -203,45 +219,40 @@ namespace debugger
         }            
         public class Context
         {            
-            public FlagSet Flags;
+            public FlagSet Flags = new FlagSet();
             public MemorySpace Memory;
-            public RegisterGroup Registers;
+            public RegisterGroup Registers = new RegisterGroup();
             public ulong InstructionPointer;
-            public List<ulong> Breakpoints = new List<ulong>();
-            public List<PrefixByte> PrefixBuffer = new List<PrefixByte>();
-            public RegisterCapacity CurrentCapacity;            
-            public Context()
+            public List<ulong> Breakpoints = new List<ulong>();       
+            public Context(MemorySpace memory)
             {
-                Flags = new FlagSet();
+                Memory = memory;
+                InstructionPointer = Memory.EntryPoint;              
             }
 
             private Context(Context toClone)
             {
-                Flags = toClone.Flags;
-                Memory = toClone.Memory;
-                InstructionPointer = toClone.InstructionPointer;
-                Breakpoints = toClone.Breakpoints;
-                PrefixBuffer = toClone.PrefixBuffer;
-                CurrentCapacity = toClone.CurrentCapacity;
-                Registers = toClone.Registers.Clone();
+                Flags = toClone.Flags.DeepCopy();
+                Memory = toClone.Memory.DeepCopy();
+                InstructionPointer = toClone.InstructionPointer; // val type
+                Breakpoints = toClone.Breakpoints.DeepCopy();
+                Registers = toClone.Registers.DeepCopy();
             }
-
-            public Context Clone()
+            public Context DeepCopy()
             {
                 return new Context(this);
             }
         }    
         private static int _handleID = 0;
         private static int GetNextHandleID { get { _handleID++; return _handleID; } set { _handleID = value; } }    
-        public static readonly Handle EmptyHandle = new Handle("None", new Context());
+        public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })));
         private static Handle CurrentHandle = EmptyHandle;
-        private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }
-
-        public static RegisterCapacity CurrentCapacity { get => CurrentContext.CurrentCapacity; set => CurrentContext.CurrentCapacity = value; }
+        private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }        
         public static FlagSet Flags { get => CurrentContext.Flags; }
-        public static List<PrefixByte> PrefixBuffer { get => CurrentContext.PrefixBuffer; }
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; set => CurrentContext.InstructionPointer = value; }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
+        public static List<PrefixByte> PrefixBuffer { get; private set; } = new List<PrefixByte>();
+        public static RegisterCapacity CurrentCapacity { get; set; }
         private static void WaitNotBusy()
         {
             while(Interlocked.Read(ref _busy) == 1)
@@ -269,7 +280,7 @@ namespace debugger
             byte OpcodeWidth = 1;
             Opcode CurrentOpcode= null;
             string TempLastDisas = "";
-            while (true)
+            while (CurrentContext.InstructionPointer != CurrentContext.Memory.End)
             {
                 byte Fetched = FetchNext();
                 if (Fetched == 0x0F)
@@ -278,77 +289,65 @@ namespace debugger
                 }
                 else if (Enum.IsDefined(typeof(PrefixByte), (int)Fetched))
                 {
-                    CurrentContext.PrefixBuffer.Add((PrefixByte)Fetched);
+                    PrefixBuffer.Add((PrefixByte)Fetched);
                 }
                 else
                 {
                     CurrentOpcode = OpcodeLookup.OpcodeTable[OpcodeWidth][Fetched].Invoke();
                     CurrentOpcode.Execute();
                     OpcodeWidth = 1;
-                    CurrentContext.PrefixBuffer = new List<PrefixByte>();
+                    PrefixBuffer = new List<PrefixByte>();
                     TempLastDisas = CurrentOpcode.Disassemble();
-                    if(step)
+                    if(step || CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
                     {
                         break;
                     }
-                }  
-                
-                if(CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
-                {
-                    break;
                 }
             }
             return new Status { LastDisassembled = TempLastDisas };
         }
-        public static byte[] Fetch(ulong _addr, int _length=1)
+        public static byte[] Fetch(ulong address, int length=1)
         {
-            byte[] baOutput = new byte[_length];
-            for (byte i = 0; i < _length; i++)
+            byte[] output = new byte[length];
+            for (byte i = 0; i < length; i++)
             {
-                if (CurrentContext.Memory.ContainsAddr(_addr+i))
-                {
-                    baOutput[i] = CurrentContext.Memory[_addr + i];
-                } else
-                {
-                    baOutput[i] = 0x90;//CHANGE THIS WHEN WE DO STUFF PROPERLY
-                }
+                output[i] = CurrentContext.Memory[address + i];
             }
-            return baOutput;
-        } 
-        public static byte[] FetchRegister(ByteCode bcByteCode, RegisterCapacity _regcap)
-        {
-            return CurrentContext.Registers.Fetch((byte)bcByteCode, (byte)_regcap);
+            return output;
         }
-        public static void SetRegister(ByteCode RegisterCode, byte[] Data, bool HigherBit=false)
+        public static byte[] FetchRegister(ByteCode register, RegisterCapacity size)
         {
-            if(HigherBit)
+            if (size == RegisterCapacity.BYTE && (int)register > 3)
             {
-                RegisterCode -= 0x4;
-                CurrentContext.Registers.Set((byte)RegisterCode, new byte[] { CurrentContext.Registers.Fetch((byte)RegisterCode, 2)[0], Data[0]});
+                return Bitwise.Subarray(CurrentContext.Registers[register-4, RegisterCapacity.WORD], 1);
             } else
             {
-                if(Data.Length >= 4) { Data = Bitwise.ZeroExtend(Data, 8); }
-                CurrentContext.Registers.Set((byte)RegisterCode, Data);
+                return CurrentContext.Registers[register, size];
             }
-            
         }
-        public static void SetRegister(ByteCode bcByteCode, dynamic InputNumber)
+        public static void SetRegister(ByteCode register, byte[] data)
         {
-            SetRegister(bcByteCode, BitConverter.GetBytes(InputNumber));
-        }
-        public static void SetMemory(ulong Address, byte[] InputData)
-        {
-            for (uint iOffset = 0; iOffset < InputData.Length; iOffset++)
+            data = Bitwise.Cut(data, (int)CurrentCapacity);
+            if(CurrentCapacity == RegisterCapacity.BYTE && (int)register > 3) // setting higher bit of word reg
+            { // e.g AH has the same integer value as SP(SP has no higher bit register) so when 0b101 is accessed with byte width we need to sub 4 to get the normal reg code for that reg then set higher bit ourselves 
+                CurrentContext.Registers[register-4, RegisterCapacity.WORD] = new byte[] { CurrentContext.Registers[register-4, RegisterCapacity.BYTE][0], data[0] };
+            } else
             {
-                if (CurrentContext.Memory.ContainsAddr(Address + iOffset))
-                {
-                    CurrentContext.Memory[Address + iOffset] = InputData[iOffset];
-                } else
-                {
-                    CurrentContext.Memory.Set(Address+iOffset, InputData[iOffset]);
-                }
+                if(data.Length == 4) { data = Bitwise.ZeroExtend(data, 8); }
+                CurrentContext.Registers[register, (RegisterCapacity)data.Length] = data;
+            }            
+        }
+        public static void SetMemory(ulong address, byte[] data)
+        {
+            for (uint iOffset = 0; iOffset < data.Length; iOffset++)
+            {
+                CurrentContext.Memory[address + iOffset] = data[iOffset];
             }
             
+        }
+        public static void SetFlags(FlagSet input)
+        {
+            CurrentContext.Flags = input;
         }
         public static byte FetchNext()
         {
@@ -356,10 +355,10 @@ namespace debugger
             CurrentContext.InstructionPointer++;
             return bFetched;           
         }
-        public static byte[] FetchNext(byte bLength)
+        public static byte[] FetchNext(byte count)
         {
-            byte[] baOutput = new byte[bLength];
-            for (int i = 0; i < bLength; i++)
+            byte[] baOutput = new byte[count];
+            for (int i = 0; i < count; i++)
             {
                 baOutput[i] = FetchNext();
             }
@@ -376,29 +375,29 @@ namespace debugger
             Output.Mod = Convert.ToByte(sBits.Substring(0, 2), 2); // pointer, offset pointer, or reg
             //Output.Reg = Convert.ToByte(sBits.Substring(2, 3), 2); //reg =src
             Output.SourceReg = Convert.ToByte(sBits.Substring(2, 3), 2);
-            Output.RM = Convert.ToByte(sBits.Substring(5, 3), 2); // rm = dest
+            Output.Reg = Convert.ToByte(sBits.Substring(5, 3), 2); // rm = dest
 
            
             if (Output.Mod == 3)
             {
                 // direct register
-                Output.DestPtr = Output.RM;
+                Output.DestPtr = Output.Reg;
             }
             else
             {
                 Output.Offset = 0;
-                if(Output.Mod == 0 && Output.RM == 5) //special case, rip relative imm32
+                if(Output.Mod == 0 && Output.Reg == 5) //special case, rip relative imm32
                 {
                     Output.DestPtr = CurrentContext.InstructionPointer + BitConverter.ToUInt32(FetchNext(4), 0);
                 }
-                else if (Output.RM == 4)//sib! sib always after modrm 
+                else if (Output.Reg == 4)//sib! sib always after modrm 
                 {
                     Output.DecodedSIB = SIBDecode(Output.Mod);
                     Output.Offset += Output.DecodedSIB.OffsetValue;
                     Output.DestPtr += Output.DecodedSIB.ResultNoOffset;
                 } else
                 {
-                    Output.DestPtr += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.RM, RegisterCapacity.Qword), 0);
+                    Output.DestPtr += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Reg, RegisterCapacity.QWORD), 0);
                 }
 
                 //any immediate
@@ -437,16 +436,16 @@ namespace debugger
                 Scale    = (byte)Math.Pow(2, Convert.ToByte(SIBbits.Substring(0, 2), 2)),  // scale
                 ScaledIndex = Convert.ToByte(SIBbits.Substring(2, 3), 2),
                 Base  = Convert.ToByte(SIBbits.Substring(5, 3), 2),
-                PointerSize = (CurrentContext.PrefixBuffer.Contains(PrefixByte.ADDR32) ? RegisterCapacity.Dword : RegisterCapacity.Qword)
+                PointerSize = (PrefixBuffer.Contains(PrefixByte.ADDR32) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD)
             };
             if (Output.ScaledIndex != 4)//4 == none
             {
                 Output.ScaledIndexValue = Output.Scale * BitConverter.ToUInt64(Bitwise.SignExtend(FetchRegister((ByteCode)Output.ScaledIndex, Output.PointerSize),8),0);
             }            
 
-            if (Output.Base != 5) // 5 = ptr or ebp+ptr
+            if (Output.Base != 5) // 5 = ptr or rbp+ptr
             {
-                Output.BaseValue += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Base, RegisterCapacity.Qword), 0);
+                Output.BaseValue += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Base, RegisterCapacity.QWORD), 0);
             } else
             {                                                                       // mod1 = imm8 else imm32
                 Output.OffsetValue += BitConverter.ToInt64(Bitwise.SignExtend(FetchNext( (byte)((Mod == 1) ? 1 : 4) ), 8), 0);
@@ -464,42 +463,29 @@ namespace debugger
     {      
         private Dictionary<ulong, byte> AddressMap = new Dictionary<ulong, byte>();
         public Dictionary<string, Segment> SegmentMap = new Dictionary<string, Segment>();
-        public ulong Size;
         public ulong EntryPoint;
-        public ulong LastAddr;       
+        public ulong End;       
         public class Segment
         {
             public ulong StartAddr;
-            public ulong LastAddr;
+            public ulong End;
             public byte[] baData = null;
         }
         public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressMap;
-        public MemorySpace(Dictionary<ulong, byte> _inputmemory)
+        public MemorySpace(Dictionary<ulong, byte> memory, Dictionary<string, Segment> segmap)
         {
-            AddressMap = _inputmemory;
-            Size = (ulong)_inputmemory.LongCount();
-            ulong _tmphighest = 0;
-            ulong _tmplowest = ulong.MaxValue;
-            foreach (ulong Address in _inputmemory.Keys)
-            {
-                if(Address > _tmphighest)
-                {
-                    _tmphighest = Address;
-                }
-                if(Address < _tmplowest)
-                {
-                    _tmplowest = Address;
-                }
-            }
-            LastAddr = _tmphighest;
-            EntryPoint = _tmplowest;
-        } //NEEDS UPDATING DON TUSE
-        public MemorySpace(byte[] _rawinputmemory)
+            AddressMap = memory;
+            SegmentMap = segmap;
+            EntryPoint = segmap[".main"].StartAddr;
+            End = segmap[".main"].End;
+        } 
+        public MemorySpace(byte[] memory)
         {
-            EntryPoint = 0x100000;
-            SegmentMap.Add(".main", new Segment() { StartAddr = EntryPoint, LastAddr = EntryPoint + (ulong)_rawinputmemory.LongLength, baData = _rawinputmemory });           
-            SegmentMap.Add(".heap", new Segment() { StartAddr = 0x400001, LastAddr = 0x0 });
-            SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, LastAddr = 0x0 });
+            EntryPoint = 0;
+            End = (ulong)memory.LongLength;
+            SegmentMap.Add(".main", new Segment() { StartAddr = EntryPoint, End = EntryPoint + (ulong)memory.LongLength, baData = memory });           
+            SegmentMap.Add(".heap", new Segment() { StartAddr = 0x400001, End = 0x0 });
+            SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, End = 0x0 });
 
             foreach (Segment seg in SegmentMap.Values)
             {
@@ -509,7 +495,7 @@ namespace debugger
                 }
                 else
                 {
-                    for (ulong i = 0; i < (seg.LastAddr-seg.StartAddr); i++)
+                    for (ulong i = 0; i < (seg.End-seg.StartAddr); i++)
                     {
                         AddressMap.Add(i + seg.StartAddr, seg.baData[i]);
                     }
@@ -517,44 +503,38 @@ namespace debugger
                 
             }            
         }     
-        public bool ContainsAddr(ulong lAddress)
+        private MemorySpace(MemorySpace toClone)
         {
-            return (AddressMap.ContainsKey(lAddress)) ? true : false;
+            AddressMap = toClone.AddressMap.DeepCopy();
+            SegmentMap = toClone.SegmentMap.DeepCopy();
+            EntryPoint = toClone.EntryPoint;
+            End = toClone.End;
         }
-        public void Set(string sSegName, ulong lOffset, byte bData)
+        public MemorySpace DeepCopy()
         {
-            Set(SegmentMap[sSegName].StartAddr + lOffset, bData);
+            return new MemorySpace(this);
         }
-        public void Set(ulong lAddress, byte bData)
-        {
-            if (ContainsAddr(lAddress))
-            {
-                AddressMap[lAddress] = bData;
-            } else
-            {
-                AddressMap.Add(lAddress, bData);
-            }
-            
-        }
-        public byte this[ulong Address]
+        public byte this[ulong address]
         {
             get
             {
-                return AddressMap[Address];
+                return AddressMap.ContainsKey(address) ? AddressMap[address] : (byte)0x00;
             }
-
             set
             {
-                AddressMap[Address] = value;
+                if(AddressMap.ContainsKey(address))
+                {
+                    AddressMap[address] = value;
+                }
+                else
+                {
+                    AddressMap.Add(address, value);
+                }
             }
-        }
-        public void Map(Dictionary<ulong, byte> _inputmemory)
-        {
-            AddressMap = _inputmemory;
         }
     }
     public class RegisterGroup
-    {      
+    {
         public class Register
         {
             private byte[] Data;
@@ -564,15 +544,14 @@ namespace debugger
             }
             public Register(byte[] Input)
             {
-                Data = Input;               
+                Data = Input;
             }
             public Register(ulong Input)
             {
                 Data = BitConverter.GetBytes(Input);
             }
-            
-            public byte this[int i] => this[i];
-            public static implicit operator byte[] (Register R)
+
+            public static implicit operator byte[](Register R)
             {
                 return R.Data;
             }
@@ -581,12 +560,9 @@ namespace debugger
             {
                 return new Register(Input);
             }
-
             private Register(Register toCopy)
             {
-                byte[] CopyBuffer = new byte[8];
-                Array.Copy(toCopy.Data, CopyBuffer, 8);
-                Data = new Register(CopyBuffer);
+                Data = toCopy.Data.DeepCopy();
             }
             public Register Clone()
             {
@@ -595,58 +571,50 @@ namespace debugger
         }
         public RegisterGroup()
         {//there isn't a great way/clean to do this, enumerable.repeat returns x shallow copies of the same object e.g list will be 8 pointers to one reg
-            RegTable = new List<Register>() { new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register() }; // 8 regs, 0 = eax, 1=ecx,2=edx,3=ebx,4=esp,5=ebp,6=esi,7=edi
+            Registers = new List<Register>() { new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register(), new Register() }; // 8 regs, 0 = eax, 1=ecx,2=edx,3=ebx,4=esp,5=ebp,6=esi,7=edi
         }
-        public RegisterGroup(Dictionary<ByteCode,Register> Input)
+        public RegisterGroup(Dictionary<ByteCode, Register> Input)
         { // 8 regs
             for (int RegValue = 0; RegValue < 8; RegValue++)
-            { 
-                if(Input.TryGetValue((ByteCode)RegValue, out Register Current))
+            {
+                if (Input.TryGetValue((ByteCode)RegValue, out Register Current))
                 {
-                    RegTable.Add(Current);
+                    Registers.Add(Current);
                 }
                 else
                 {
-                    RegTable.Add(new Register());
+                    Registers.Add(new Register());
                 }
             }
         }
         private RegisterGroup(RegisterGroup toClone)
         {
-            for (int i = 0; i < toClone.RegTable.Count(); i++)
+            for (int i = 0; i < toClone.Registers.Count(); i++)
             {
-                var a = toClone.RegTable[i].Clone();
-                RegTable.Add(a);
+                Registers.Add(toClone.Registers[i].Clone());
             }
         }
-
-        public RegisterGroup Clone()
+        private readonly List<Register> Registers = new List<Register>();
+        public byte[] this[ByteCode register, RegisterCapacity size]
         {
-            return new RegisterGroup(this);
+            get => Bitwise.Cut(Registers[(int)register], (int)size);
+            set => Array.Copy(value, 0, Registers[(int)register], 0, (int)size);
         }
-        private readonly List<Register> RegTable = new List<Register>();
-        protected internal byte[] Fetch(byte RegCode, byte Size)
+        public RegisterGroup DeepCopy()
         {
-            return Bitwise.Cut(RegTable[RegCode], Size);
+            var a = new RegisterGroup(this);
+            return a;
         }
-        protected internal void Set(byte RegCode, byte[] Input)
+        public Dictionary<ByteCode, byte[]> FetchAll()
         {
-            if(!new int[] { 1,2,4,8 }.Contains(Input.Length))
+            RegisterGroup Cloned = DeepCopy();
+            Dictionary<ByteCode, byte[]> Output = new Dictionary<ByteCode, byte[]>();
+            for (int register = 0; register < Cloned.Registers.Count(); register++)
             {
-                throw new Exception();
+                Output.Add((ByteCode)register, Cloned.Registers[register]);
             }
-            Array.Copy(Input, 0, RegTable[RegCode], 0, Input.Length); // set lower (input.length) bytes of regtable[..] with 0 offset
+            return Output;
         }
-        public Dictionary<string, ulong> Format(RegisterCapacity RegCap)
-        {
-            Dictionary<string, ulong> Parsed = new Dictionary<string, ulong>();
-            for (byte i_Reg = 0; i_Reg < 8; i_Reg++)
-            {
-                byte[] RegisterValue = (RegCap == RegisterCapacity.Qword) ? (byte[])RegTable[i_Reg] : Bitwise.SignExtend(Bitwise.Cut(RegTable[i_Reg], (byte)RegCap), 8);
-                string RegisterMnemonic = Disassembly.DisassembleRegister((ByteCode)i_Reg, RegCap);
-                Parsed.Add(RegisterMnemonic, BitConverter.ToUInt64(RegisterValue, 0));
-            }
-            return Parsed;
-        }
+        
     } 
 }

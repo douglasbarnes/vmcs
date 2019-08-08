@@ -51,9 +51,14 @@ namespace debugger
         {
             var ins = new MemorySpace(new byte[]
            // { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 }
-            { 0xB8, 0xAA, 0xAA, 0xAA, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xB9, 0xCC, 0xCC, 0xCC, 0xCC, 0xBA, 0xDD, 0xDD, 0xDD, 0xDD }
+//{ 0xB8, 0xA3, 0x10, 0x00, 0x00, 0xBB, 0x2F, 0x43, 0x20, 0x00, 0xF7, 0xE3, 0x69, 0xC0, 0x35, 0x02, 0x03, 0x00, 0x69, 0xC0, 0x23, 0x21, 0x00, 0x00 }
+{ 0x04, 0x10, 0x66, 0x05, 0x00, 0x20, 0x05, 0x00, 0x00, 0x03, 0x00, 0x48, 0x05, 0x00, 0x00, 0x00, 0x40, 0x90, 0x80, 0xC3, 0x10, 0x80, 0xC7, 0x10, 0x66, 0x81, 0xC3, 0x00, 0x10, 0x81, 0xC3, 0x00, 0x00, 0x03, 0x00, 0x48, 0x81, 0xC3, 0x00, 0x00, 0x00, 0x40, 0x90, 0x66, 0x83, 0xC2, 0xF0, 0x83, 0xC1, 0xF2, 0x90, 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x00, 0x20, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x30, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x24, 0x66, 0x01, 0x5C, 0x24, 0x01, 0x01, 0x4C, 0x24, 0x03, 0x02, 0x04, 0x24, 0x66, 0x03, 0x5C, 0x24, 0x01, 0x03, 0x4C, 0x24, 0x03, 0x48, 0x03, 0x54, 0x24, 0x03, 0x90, 0xB8, 0x00, 0x00, 0x00, 0x00, 0xBB, 0x00, 0x00, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x11, 0x22, 0x33, 0x33, 0x00, 0xD0, 0x66, 0x01, 0xD3, 0x01, 0xD1, 0x90 }
 
-            );
+
+
+
+
+);
             VM.VMSettings settings = new VM.VMSettings()
             {
                 UndoHistoryLength = 5,
@@ -77,14 +82,14 @@ namespace debugger
         //refresh methods
         private void RefreshRegisters()
         {
-            RegisterCapacity RegCap = RegisterCapacity.Qword;
+            RegisterCapacity RegCap = RegisterCapacity.QWORD;
             Registers = VMInstance.GetRegisters(RegCap); //qword regs
             PanelRegisters.Invoke(new Action(() => RegCap = (RegisterCapacity)PanelRegisters.RegSize));
             string[] ParsedRegValues = new string[9];
             for (int i = 0; i < ParsedRegValues.Length; i++)
             {
                 string Value;
-                if(i == 0)
+                if(i == 0) //always format rip the same
                 {
                     Value = Core.FormatNumber(Registers["RIP"], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
@@ -92,7 +97,7 @@ namespace debugger
                         Value = Value.Insert(2, "%").Insert(0, "%");
                     }
                 }
-                else if (RegCap == RegisterCapacity.Byte & i > 4)
+                else if (RegCap == RegisterCapacity.BYTE & i > 4) //higher bit reg
                 {
                     Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-5)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
@@ -100,7 +105,7 @@ namespace debugger
                         Value = Value.Insert(16, "%").Insert(14, "%").Insert(0, "%");
                     }
                 } else
-                {                          
+                {      //anything else                     
                     Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-1)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
                     {
@@ -123,17 +128,18 @@ namespace debugger
         private void RefreshFlags()
         {            
             Dictionary<string, bool> FetchedFlags = VMInstance.GetFlags();
+            
             Invoke(new Action(() =>
             {
-                LabelCarry.Text = $"Carry    : {FetchedFlags["CF"].ToString()}";
-                LabelOverflow.Text = $"Overflow : {FetchedFlags["OF"].ToString()}";
-                LabelSign.Text = $"Sign     : {FetchedFlags["SF"].ToString()}";
-                //col2
-                LabelZero.Text = $"Zero      : {FetchedFlags["ZF"].ToString()}";
-                LabelParity.Text = $"Parity    : {FetchedFlags["PF"].ToString()}";
-                LabelAuxiliary.Text = $"Auxiliary : {FetchedFlags["AF"].ToString()}";
+                Label[] LabelOrder = new Label[] { LabelCarry, LabelOverflow, LabelSign, LabelZero, LabelParity, LabelAuxiliary };
+                for (int i = 0; i < LabelOrder.Length; i++)
+                {
+                    string Flag = LabelOrder[i].Tag.ToString();
+                    LabelOrder[i].Text = $"{Flag.PadRight(9)}: ";
+                    LabelOrder[i].Text += (FetchedFlags[Flag] == true) ? "True" : "$False$";
+                }
             }));            
-        } // DO "FALSE" DISABLE
+        } 
         private void RefreshMemory()
         {
             SortedDictionary<ulong, byte> _memory = new SortedDictionary<ulong, byte>((Dictionary<ulong,byte>)VMInstance.GetMemory());
@@ -236,7 +242,7 @@ namespace debugger
         }
         private void OnTestcaseSelected(object sender, EventArgs e)
         {
-            MessageBox.Show(sender.ToString());
+            TestHandler.ExecuteTestcase(sender.ToString());
         }
         private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
         //Format methods
@@ -280,14 +286,10 @@ namespace debugger
             }
         }
         //
-        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            Environment.Exit(0);
-        }
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
     }
     public static class FormSettings
-    {
-        
+    {        
         public enum Emphasis
         {
             Imminent = 0,
