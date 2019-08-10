@@ -59,12 +59,12 @@ namespace debugger
         public struct ModRM
         {
             public ulong DestPtr;
-            public ulong SourceReg;
+            public ulong Reg;
             //for disas only
             public long Offset;
             public byte Mod; // first 2
            // public byte Reg; // next 3
-            public byte Reg; // last 3
+            public byte Mem; // last 3
             public SIB DecodedSIB;
             public ModRM ChangeSource(ulong newSource)
             {
@@ -73,9 +73,9 @@ namespace debugger
                     DestPtr = DestPtr,
                     Offset = Offset,
                     Mod = Mod,
-                    Reg = Reg,
+                    Mem = Mem,
                     DecodedSIB = DecodedSIB,
-                    SourceReg = newSource
+                    Reg = newSource
                 };
             }
         }
@@ -151,6 +151,12 @@ namespace debugger
         }
         public static class Bitwise
         {
+            public static byte[] ReverseEndian(byte[] input)
+            {
+                byte[] Buffer = input.DeepCopy(); // MIGHT be unnecessary, depends on whether reverse sets the array to a new value(unlikely, no ref keyword) iterates each value
+                Array.Reverse(Buffer);
+                return Buffer;
+            }
             public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
             public static byte[] Trim(byte[] input)
             {
@@ -632,12 +638,6 @@ namespace debugger
                 }
             }
 
-            public struct DynamicResult
-            {
-                public byte[] SourceBytes;
-                public byte[] DestBytes;
-            }
-
              /*Dynamic functions turn..
               *  byte[] baResult;
                  byte[] baSrcData = ControlUnit.FetchRegister(bcSrcReg);
@@ -686,11 +686,11 @@ namespace debugger
                  {
                      if (Input.DecodedModRM.Mod != 3)//not register->reg
                      {
-                         SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
+                         SetRegister((ByteCode)Input.DecodedModRM.Reg, baData);
                      }
                      else
                      {
-                         SetRegister((ByteCode)Input.DecodedModRM.SourceReg, baData);
+                         SetRegister((ByteCode)Input.DecodedModRM.Reg, baData);
                      }
                  }
                  else
@@ -705,63 +705,64 @@ namespace debugger
                      }
                  }
              }
-
-             //works with r/m/imm
-             public static DynamicResult FetchDynamic(OpcodeInput Input, bool AllowImm64=false)
+                //works with r/m/imm
+             public static (byte[], byte[]) FetchDynamic(OpcodeInput input, RegisterCapacity? regCap=null, bool allowImm64=false)
              {
-                 DynamicResult Output = new DynamicResult();
-                 if (Input.IsSwap)
-                 {
-                     if (Input.DecodedModRM.Mod != 3)
-                     {
-                         Output.SourceBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
-                     }
-                     else
-                     {
-                         Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
-                     }
-                     Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg, CurrentCapacity);
-                 }
-                 else
-                 {
-                     if (Input.IsImmediate)
-                     {
-                        if (Input.IsSignExtendedByte)
-                        {
-                            Output.SourceBytes = Bitwise.SignExtend(FetchNext(1), ((byte)CurrentCapacity));
-                        }
-                       //else if (CurrentCapacity == RegisterCapacity.QWORD && !AllowImm64)
-                       //{
-                       //   //from intel manual V
-                       //    //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
-                       //    Output.SourceBytes = (ForceSignExtend) ? Bitwise.SignExtend(FetchNext(4), 8):Bitwise.ZeroExtend(FetchNext(4), 8);
-                       //} 
-                        else
-                        {
-                            Output.SourceBytes = FetchNext((byte)CurrentCapacity);
-                        }
-                     }
-                     else
-                     {
-                         Output.SourceBytes = FetchRegister((ByteCode)Input.DecodedModRM.SourceReg, CurrentCapacity);
-                     }
+                RegisterCapacity RegCap = regCap ?? CurrentCapacity;
+                byte[] Dest;
+                byte[] Source;
+                if (input.IsSwap)
+                {
+                    if (input.DecodedModRM.Mod != 3)
+                    {
+                        Source = Fetch(input.DecodedModRM.DestPtr, (int)RegCap);
+                    }
+                    else
+                    {
+                        Source = FetchRegister((ByteCode)input.DecodedModRM.DestPtr, RegCap);
+                    }
+                    Dest = FetchRegister((ByteCode)input.DecodedModRM.Reg, RegCap);
+                }
+                else
+                {
+                    if (input.IsImmediate)
+                    {
+                       if (input.IsSignExtendedByte)
+                       {
+                            Source = Bitwise.SignExtend(FetchNext(1), ((byte)RegCap));
+                       }
+                       else if (CurrentCapacity == RegisterCapacity.QWORD && !allowImm64)
+                       {
+                            //from intel manual V
+                            //REX.W + 0D id OR RAX, imm32 I Valid N.E. RAX OR imm32 (sign-extended). (in general, sign extend when goes from imm32 to r64
+                            Source = Bitwise.SignExtend(FetchNext(4), 8);
+                       } 
+                       else
+                       {
+                            Source = FetchNext((byte)RegCap);
+                       }
+                    }
+                    else
+                    {
+                        Source = FetchRegister((ByteCode)input.DecodedModRM.Reg, RegCap);
+                    }
 
-                     if (Input.DecodedModRM.Mod != 3)
-                     {
-                         Output.DestBytes = Fetch(Input.DecodedModRM.DestPtr, (int)CurrentCapacity);
-                     }
-                     else
-                     {
-                         Output.DestBytes = FetchRegister((ByteCode)Input.DecodedModRM.DestPtr, CurrentCapacity);
-                     }
+                    if (input.DecodedModRM.Mod != 3)
+                    {
+                        Dest = Fetch(input.DecodedModRM.DestPtr, (int)RegCap);
+                    }
+                    else
+                    {
+                        Dest = FetchRegister((ByteCode)input.DecodedModRM.DestPtr, RegCap);
+                    }
 
-                 }
-                 return Output;
+                }
+                return (Dest, Source);
              }
             
             public static ModRM FromDest(ByteCode Dest)
             {
-                return new ModRM { DestPtr = (ulong)Dest, Mod=3, Reg=(byte)Dest};
+                return new ModRM { DestPtr = (ulong)Dest, Mod=3, Mem=(byte)Dest};
             }
 
             
@@ -786,77 +787,100 @@ namespace debugger
                 {RegisterCapacity.DWORD, "DWORD"},
                 {RegisterCapacity.QWORD, "QWORD"}
             };
-            public static string DisassembleSIB(SIB Input, int Mod)
-            {
-                string Source = "";
-                if (Input.ScaledIndex != 4) // "none"
+            public static (int, string, string) DisassembleSIB(SIB input, int mod)
+            {   
+                string AdditionalReg = null;
+                if (input.Base != 5)
                 {
-                    Source += RegisterMnemonics[Input.ScaledIndex][Input.PointerSize];
-                    if (Input.Scale > 0) // dont show eax*1 etc
-                    {
-                        Source += $"*{Input.Scale}";
-                    }
+                    AdditionalReg = RegisterMnemonics[input.Base][input.PointerSize];
                 }
-
-                if (Input.Base == 5) //[*] ptr/ ptr+ebp
+                else if (mod > 0)
                 {
-                    if (Mod > 0)
-                    {
-                        Source += $"{RegisterMnemonics[(int)ByteCode.BP][Input.PointerSize]}";
-                    }                              
+                    AdditionalReg = RegisterMnemonics[(int)ByteCode.BP][input.PointerSize];
                 }
-                else
+                string BaseReg = null;
+                if(input.ScaledIndex != 4)
                 {
-                    Source += $"{RegisterMnemonics[Input.Base][Input.PointerSize]}";
+                    BaseReg = RegisterMnemonics[input.ScaledIndex][input.PointerSize];
                 }
-                return $"{Source}";
+                return (input.Scale, BaseReg, AdditionalReg);
             }
-
             //{dest}, {src}{+/-}{offset}
-            public static string[] DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
+            public static (string, string) DisassembleModRM(OpcodeInput Input, RegisterCapacity RegCap)
             {
                 if (Input.IsSwap)
                 {
-                    var _tmp = Input.DecodedModRM.SourceReg;
-                    Input.DecodedModRM.SourceReg = Input.DecodedModRM.Reg;
-                    Input.DecodedModRM.SourceReg = _tmp;
+                    var _tmp = Input.DecodedModRM.Reg;
+                    Input.DecodedModRM.Reg = Input.DecodedModRM.Mem;
+                    Input.DecodedModRM.Mem = (byte)_tmp;
                 }
-                string Dest = RegisterMnemonics[Input.DecodedModRM.Reg][RegCap];
-                string Source = RegisterMnemonics[(int)Input.DecodedModRM.SourceReg][RegCap];
-
-                if (Input.DecodedModRM.Reg == 4 && Input.DecodedModRM.Mod != 3) // sib conditions
+                Pointer DestPtr = new Pointer() { BaseReg = RegisterMnemonics[Input.DecodedModRM.Mem][RegCap] };
+                if(Input.DecodedModRM.Mem == 5 && Input.DecodedModRM.Mod == 0)
                 {
-                    Dest = DisassembleSIB(Input.DecodedModRM.DecodedSIB, Input.DecodedModRM.Mod);
+                    DestPtr.BaseReg = "RIP";
                 }
-
-                long OffsetSum = Input.DecodedModRM.Offset + Input.DecodedModRM.DecodedSIB.OffsetValue;
-                if (OffsetSum != 0)
+                else if (Input.DecodedModRM.Mem == 4 && Input.DecodedModRM.Mod != 3) // sib conditions
                 {
-                    if(Input.DecodedModRM.Mod != 0 && Input.DecodedModRM.Reg != 5) //disp32 or none filtered out
-                    {
-                        Dest += (Input.DecodedModRM.Offset < 0) ? "-" : "+";
-                    }
-                    Dest += $"0x{Math.Abs(Input.DecodedModRM.Offset).ToString("X")}";
+                    (DestPtr.Coefficient, DestPtr.BaseReg, DestPtr.AdditionalReg) = DisassembleSIB(Input.DecodedModRM.DecodedSIB, Input.DecodedModRM.Mod);
                 }
-
+                DestPtr.Offset = Input.DecodedModRM.Offset;
+                string Source = RegisterMnemonics[(int)Input.DecodedModRM.Reg][RegCap];
+                string Dest = DisassemblePointer(DestPtr);
                 if(Input.DecodedModRM.Mod != 3)
                 {
-                    Dest = $"{SizeMnemonics[RegCap]} PTR [{Dest}]";                   
+                    Dest = $"[{Dest}]";
                 }
-                
                 if (Input.IsSwap)
                 {
-                    return new string[] { Source, Dest };
+                    return (Source, Dest);
                 } else
                 {
-                    return new string[] { Dest, Source };
+                    return (Dest, Source);
                 }
-                
+
             }
-            public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap=RegisterCapacity.QWORD)
+            public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap)
             {
                 return RegisterMnemonics[(byte)Register][RegCap];
             }
-        }
+
+            public struct Pointer {
+                public long Offset;
+                public string BaseReg;
+                public string AdditionalReg;
+                public int Coefficient;
+                public RegisterCapacity? Size;
+            }
+            public static string DisassemblePointer(Pointer p)
+            {
+                string Output = "";
+                
+                Output += p.BaseReg;
+                if(p.Coefficient > 1)
+                {
+                    Output += $"*{p.Coefficient}";
+                }
+                if(p.AdditionalReg != null)
+                {
+                    Output += $"+{p.AdditionalReg}";
+                }
+                if(p.Offset != 0)
+                {
+                    if(p.BaseReg != null)
+                    {
+                        Output += p.Offset > 0 ? "+" : "-";
+                    }
+                    Output += $"0x{p.Offset.ToString("X")}";
+                }
+                if (p.Size != null)
+                {
+                    Output = $"{SizeMnemonics[p.Size.Value]} PTR [{Output}]";
+                }
+                return Output   ;
+            }
+              //  => $"[{(p.AdditionalReg == "" ? "" : $" +{p.AdditionalReg}")}{(p.Offset==0 && p.BaseReg != "" ? "" : $"{(p.Offset > 0 ? "+" : "-")}")}{p.Offset}]";
+        }       //                                              dont show coefficients of 1                 if there is an additionalReg, show it with an add   if the offset isnt 0 and there is a base reg, it has a sign        
+
+        
     }
 }

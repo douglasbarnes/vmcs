@@ -25,8 +25,8 @@ namespace debugger
         public static Opcode Decode(byte bOpcode)
         {
             SubopcodeOutput = ModRMDecode();
-            ulong Offset = SubopcodeOutput.SourceReg; //swap because
-            SubopcodeOutput.SourceReg = SubopcodeOutput.DestPtr;
+            ulong Offset = SubopcodeOutput.Reg; //swap because
+            SubopcodeOutput.Reg = SubopcodeOutput.DestPtr;
             return SubopcodeDict[bOpcode][(byte)Offset].Invoke();
         }
         private static void AddPrefixes()
@@ -201,7 +201,7 @@ namespace debugger
                 { 0x5E, () => new Pop(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DH)}) },
                 { 0x5F, () => new Pop(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.BH)}) },
 
-                { 0x63, () => new Movsx(new OpcodeInput{DecodedModRM = ModRMDecode()}) },
+                { 0x63, () => new Movx(new OpcodeInput{DecodedModRM = ModRMDecode()}, "MOVSXD", signExtend:true) },
                 //67 prefix
                 { 0x68, () => new Push(new OpcodeInput{ IsImmediate=true}, PushSize:32) }, // its always 32, weird
                 { 0x69, () => new  Mul(new OpcodeInput { DecodedModRM = ModRMDecode(), IsImmediate=true, IsSigned=true}, oprandCount:3) },
@@ -253,7 +253,7 @@ namespace debugger
                 { 0xBF, () => new Mov(new OpcodeInput{ DecodedModRM = FromDest(ByteCode.DI), IsImmediate=true})},
 
                 { 0xC6, () => new Mov(new OpcodeInput{ DecodedModRM=ModRMDecode(), IsImmediate=true, Is8Bit=true})},
-                { 0xC7, () => new Mov(new OpcodeInput{ DecodedModRM=ModRMDecode(), IsImmediate=true})},
+                { 0xC7, () => new Movx(new OpcodeInput{ DecodedModRM=ModRMDecode(), IsImmediate=true}, "MOV", signExtend:true)},
 
                 { 0xE3, () => new Jmp(Relative:true, Bytes:1, Opcode:"JRCXZ") },
 
@@ -285,8 +285,11 @@ namespace debugger
 
                 { 0xAF, () => new Mul(new OpcodeInput { DecodedModRM=ModRMDecode(), IsSigned=true}, oprandCount:2)},
 
-                { 0xBE, () => new Movsx(new OpcodeInput { DecodedModRM=ModRMDecode()})},
-                { 0xBF, () => new Movsx(new OpcodeInput { DecodedModRM=ModRMDecode()})},
+                { 0xB6, () => new Movx(new OpcodeInput { DecodedModRM=ModRMDecode(), Is8Bit=true},"MOVZX", signExtend:false)},
+                { 0xB7, () => new Movx(new OpcodeInput { DecodedModRM=ModRMDecode(), Is8Bit=true},"MOVZX", signExtend:false)},
+
+                { 0xBE, () => new Movx(new OpcodeInput { DecodedModRM=ModRMDecode(), Is8Bit=true},"MOVSX", signExtend:true)},
+                { 0xBF, () => new Movx(new OpcodeInput { DecodedModRM=ModRMDecode()},"MOVSX", signExtend:true)},
             });
         }
     }
@@ -305,25 +308,22 @@ namespace debugger
                 CurrentCapacity = OpcodeCapacity;
             }
             public abstract void Execute();
-            public virtual string Disassemble()
+            public virtual string[] Disassemble()
             {
-                string[] DisassembledModRM = Disassembly.DisassembleModRM(StoredInput, CurrentCapacity);
-                string Assembly = $"{Mnemonic} ";
+                (string Dest, string Source) = Disassembly.DisassembleModRM(StoredInput, CurrentCapacity);
                 Array.Resize(ref ImmediateBuffer, 8);
-                if (StoredInput.IsImmediate)
+                return new string[] 
                 {
-                    Assembly += $"{DisassembledModRM[0]}, 0x{BitConverter.ToUInt64(ImmediateBuffer,0).ToString("X")}";
-                } else
-                {
-                    Assembly += $"{DisassembledModRM[0]}, {DisassembledModRM[1]}";
-                }              
-                return Assembly;
+                  Mnemonic,
+                  Dest,
+                  (StoredInput.IsImmediate) ? $"0x{BitConverter.ToUInt64(ImmediateBuffer,0).ToString("X")}" : Source
+                };
             }
         }
         public class Nop : Opcode {
             public Nop() : base("NOP", RegisterCapacity.BYTE) { }
             public override void Execute() { }
-            public override string Disassemble() => Mnemonic;            
+            public override string[] Disassemble() => new string[] { Mnemonic };            
         }
         public class Mov : Opcode
         {
@@ -331,27 +331,35 @@ namespace debugger
             public Mov(OpcodeInput Input) : base("MOV", (Input.Is8Bit) ? RegisterCapacity.BYTE : GetRegCap())
             {                
                 StoredInput = Input;
-                SourceBytes = FetchDynamic(StoredInput, AllowImm64:CurrentCapacity==RegisterCapacity.QWORD).SourceBytes;
+                (_, SourceBytes) = FetchDynamic(StoredInput, allowImm64:CurrentCapacity==RegisterCapacity.QWORD);
                 ImmediateBuffer = SourceBytes; //set this anyway, use it if we want
             } // 0x88 ACCEPTS MOV R/M8, R8
             public override void Execute()
             {
                 SetDynamic(StoredInput, SourceBytes); // immediate should never swap 
-            }            
+            }      
         }
-        public class Movsx : Opcode
+        public class Movx : Opcode
         {
             readonly byte[] SourceBytes;
             readonly byte[] Result;
-            public Movsx(OpcodeInput input, string mnemonic="MOVSX") : base(mnemonic, GetRegCap())
+            public Movx(OpcodeInput input, string mnemonic, bool signExtend) : base(mnemonic, GetRegCap())
             {
+                input.IsSwap = true;
                 StoredInput = input;//c7 mov fits in nicely here 
-                SourceBytes = FetchRegister((ByteCode)input.DecodedModRM.Reg, (RegisterCapacity)((int)CurrentCapacity/2));
-                Result = Bitwise.SignExtend(SourceBytes, (byte)CurrentCapacity);
+                SourceBytes = (input.IsImmediate) ? FetchNext(4) : FetchDynamic(input, (RegisterCapacity)(((int)CurrentCapacity)/2)).Item2;
+                ImmediateBuffer = SourceBytes;
+                Result = (signExtend) ? Bitwise.SignExtend(SourceBytes, (byte)CurrentCapacity) : Bitwise.ZeroExtend(SourceBytes, (byte)CurrentCapacity);
             }
             public override void Execute()
-            {//movsx only does reg to reg
-                SetRegister((ByteCode)StoredInput.DecodedModRM.Mod, Result);
+            {//movx only does rm to reg, not memory. also is always swap
+                SetRegister((ByteCode)StoredInput.DecodedModRM.Reg, Result);
+            }
+            public override string[] Disassemble()
+            {
+                string[] Base = base.Disassemble();
+                (_, Base[2]) = Disassembly.DisassembleModRM(StoredInput, StoredInput.Is8Bit ? RegisterCapacity.BYTE : RegisterCapacity.WORD);
+                return Base;
             }
         }
         public class Add : Opcode // 01 32bit, 00 8bit,
@@ -365,10 +373,8 @@ namespace debugger
             public Add(OpcodeInput Input, bool UseCarry) : base( (UseCarry) ? "ADC" : "ADD", (Input.Is8Bit) ? RegisterCapacity.BYTE : GetRegCap())
             {
                 StoredInput = Input;
-                DynamicResult FetchedData = FetchDynamic(StoredInput);
-                ImmediateBuffer = FetchedData.SourceBytes;
-                SourceBytes = FetchedData.SourceBytes;
-                DestBytes = FetchedData.DestBytes;
+                (DestBytes, SourceBytes) = FetchDynamic(StoredInput);
+                ImmediateBuffer = SourceBytes;
 
                 ResultFlags = Bitwise.Add(DestBytes, SourceBytes, (int)CurrentCapacity, out Result, (Flags.Carry == FlagState.On && UseCarry));
             }
@@ -387,10 +393,8 @@ namespace debugger
             {
                 Input.DecodedModRM = ModRMDecode(FetchNext());
                 StoredInput = Input;
-                DynamicResult FetchedData = FetchDynamic(StoredInput);
-                SourceBytes = FetchedData.SourceBytes;
+                (DestBytes, SourceBytes) = FetchDynamic(StoredInput);
                 ImmediateBuffer = SourceBytes;
-                DestBytes = FetchedData.DestBytes;
                 //
                 Result = Bitwise.Or(DestBytes, SourceBytes);
             }
@@ -408,7 +412,7 @@ namespace debugger
             public Push(OpcodeInput Input, byte PushSize=0) : base("PUSH", (PrefixBuffer.Contains(PrefixByte.SIZEOVR)) ? RegisterCapacity.WORD : RegisterCapacity.QWORD)
             {
                 StoredInput = Input;
-                Result = FetchDynamic(Input).SourceBytes;        
+                (_, Result) = FetchDynamic(Input);        
             }
             public override void Execute()
             {                       //dont set size because rsp already gives default size 8
@@ -447,9 +451,7 @@ namespace debugger
             {
                 OprandCount = oprandCount;
                 StoredInput = input;
-                DynamicResult FetchedData = FetchDynamic(input);
-                DestBytes = FetchedData.DestBytes;
-                SourceBytes = FetchedData.SourceBytes;
+                (DestBytes, SourceBytes) = FetchDynamic(input);
                 ImmediateBuffer = SourceBytes;
                 //for immediate versions, sourcebytes and destbytes are the wrong way round. doesnt massively matter(because in the multidef form the dest is always eax, but the dest = 1st byte read)
                 ResultFlags = Bitwise.Multiply(DestBytes, SourceBytes, StoredInput.IsSigned, (int)CurrentCapacity, out Result); // fills 2 regs
@@ -465,7 +467,7 @@ namespace debugger
                     SetRegister(ByteCode.D, Bitwise.Subarray(Result, (int)CurrentCapacity)); // lower to a=
                 } else 
                 {
-                    SetRegister((ByteCode)StoredInput.DecodedModRM.SourceReg, Bitwise.Cut(Result, (int)CurrentCapacity)); // higher bytes to d, never a ptr dont use dynamic
+                    SetRegister((ByteCode)StoredInput.DecodedModRM.Reg, Bitwise.Cut(Result, (int)CurrentCapacity)); // higher bytes to d, never a ptr dont use dynamic
                 } //copy into source, source isnt source here. choppy workaround in x86_64, because ptr is never dest of imul 2+oprand op, so source and dest are swapped here
                 SetFlags(ResultFlags);
             }
@@ -481,10 +483,8 @@ namespace debugger
             public Sub(OpcodeInput Input, bool UseBorrow=false) : base((UseBorrow) ? "SBB" : "SUB", (Input.Is8Bit) ? RegisterCapacity.BYTE : GetRegCap())
             {
                 StoredInput = Input;
-                DynamicResult FetchedData = FetchDynamic(StoredInput);
-                ImmediateBuffer = FetchedData.SourceBytes;
-                SourceBytes = FetchedData.SourceBytes;
-                DestBytes = FetchedData.DestBytes;
+                (DestBytes, SourceBytes) = FetchDynamic(StoredInput);
+                ImmediateBuffer = SourceBytes;
 
                 ResultFlags = Bitwise.Subtract(DestBytes, SourceBytes, (int)CurrentCapacity, out Result, (Flags.Carry == FlagState.On && UseBorrow));
             }
@@ -502,12 +502,14 @@ namespace debugger
             //Prefixes REXW SIZEOVR
             readonly byte[] Quotient;
             readonly byte[] Modulo;
+            readonly byte[] SourceBytes;
+            readonly byte[] DestBytes;
             public Div(OpcodeInput Input) : base((Input.IsSigned) ? "IDIV" : "DIV", (Input.Is8Bit) ? RegisterCapacity.BYTE : GetRegCap())
             {
                 StoredInput = Input;
-                DynamicResult FetchedData = FetchDynamic(Input);
+                (DestBytes, SourceBytes) = FetchDynamic(StoredInput);
                 // always a reg, atleast for this opcode
-                Bitwise.Divide(FetchedData.DestBytes, FetchedData.SourceBytes, StoredInput.IsSigned, (int)CurrentCapacity, out Quotient, out Modulo);
+                Bitwise.Divide(DestBytes, SourceBytes, StoredInput.IsSigned, (int)CurrentCapacity, out Quotient, out Modulo);
             }
             public override void Execute()
             {
@@ -522,9 +524,7 @@ namespace debugger
             public Cmp(OpcodeInput Input) : base("CMP", (Input.Is8Bit) ? RegisterCapacity.BYTE : GetRegCap())// feels better and more general than to use IsEAX ?
             {
                 StoredInput = Input;
-                DynamicResult FetchedData = FetchDynamic(StoredInput);
-                SrcData = FetchedData.SourceBytes;
-                DestData = FetchedData.DestBytes;
+                (DestData, SrcData) = FetchDynamic(StoredInput);
             }
 
             public override void Execute()

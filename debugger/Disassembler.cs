@@ -51,11 +51,27 @@ namespace debugger
                 Output.Add(new DisassembledItem()
                 {
                     Address = CurrentAddr,                                         // } 1 space (←rip/4 spaces) 15 spaces {                    
-                    DisassembledLine = $"{Util.Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {(await RunAsync(true)).LastDisassembled}"
+                    DisassembledLine = $"{Util.Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {JoinDisassembled((await RunAsync(true)).LastDisassembled)}"
                 }); ;
 
             }
             return Output;
+        }
+        private string JoinDisassembled(string[] RawDisassembled)
+        {
+            if (RawDisassembled.Length < 3)
+            {
+                return string.Join(" ", RawDisassembled);
+            }
+            else
+            {
+                string Output = $"{RawDisassembled[0]} {RawDisassembled[1]}";
+                for (int i = 2; i < RawDisassembled.Length; i++)
+                {
+                    Output += ", " + RawDisassembled[i];
+                }
+                return Output;
+            }
         }
         public async Task<List<DisassembledItem>> StepAll()
         {

@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="mov">
+    <Hex>B0F166BBF2F2B9F3F333F348BAF4F444F4444444F49088042466895C24FE894C24FA48895424F290660FBED90FBFD1480FBECB0FBFCB480FBFD94863C390660FB6D90FB7D10FB6C30FB7CB480FB7D990</Hex>
+    <Checkpoint tag="Immediate" position_hex="15">
+        <Register id="A" size="1">f1</Register>
+        <Register id="B" size="2">f2f2</Register>
+        <Register id="C" size="4">f333f3f3</Register>
+        <Register id="D" size="8">F444F4F4F4444444</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg to mem" position_hex="27">
+        <Memory offset_register="SP">F1</Memory>
+        <Memory offset_register="SP" offset="FE">F2F2</Memory>
+        <Memory offset_register="SP" offset="FA">F3F333F3</Memory>
+        <Memory offset_register="SP" offset="F2">f4444444f444f4f4</Memory>
+    </Checkpoint>
+    <Checkpoint tag="Sign extension" position_hex="3d">
+        <Register id="A" size="8">fffffffffffffff3</Register>
+        <Register id="B" size="8">fffffffffffffff3</Register>
+        <Register id="C" size="4">fffffff3</Register>
+        <Register id="D" size="4">fffff3f3</Register>
+    </Checkpoint>
+    <Checkpoint tag="Zero extension" position_hex="4f">
+        <Register id="A" size="8">f3</Register>
+        <Register id="B" size="8">f3</Register>
+        <Register id="C" size="4">f3</Register>
+        <Register id="D" size="4">fff3</Register>
+    </Checkpoint>
+</Testcase>   

@@ -52,7 +52,7 @@ namespace debugger
             var ins = new MemorySpace(new byte[]
            // { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 }
 //{ 0xB8, 0xA3, 0x10, 0x00, 0x00, 0xBB, 0x2F, 0x43, 0x20, 0x00, 0xF7, 0xE3, 0x69, 0xC0, 0x35, 0x02, 0x03, 0x00, 0x69, 0xC0, 0x23, 0x21, 0x00, 0x00 }
-{ 0x04, 0x10, 0x66, 0x05, 0x00, 0x20, 0x05, 0x00, 0x00, 0x03, 0x00, 0x48, 0x05, 0x00, 0x00, 0x00, 0x40, 0x90, 0x80, 0xC3, 0x10, 0x80, 0xC7, 0x10, 0x66, 0x81, 0xC3, 0x00, 0x10, 0x81, 0xC3, 0x00, 0x00, 0x03, 0x00, 0x48, 0x81, 0xC3, 0x00, 0x00, 0x00, 0x40, 0x90, 0x66, 0x83, 0xC2, 0xF0, 0x83, 0xC1, 0xF2, 0x90, 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x00, 0x20, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x30, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x24, 0x66, 0x01, 0x5C, 0x24, 0x01, 0x01, 0x4C, 0x24, 0x03, 0x02, 0x04, 0x24, 0x66, 0x03, 0x5C, 0x24, 0x01, 0x03, 0x4C, 0x24, 0x03, 0x48, 0x03, 0x54, 0x24, 0x03, 0x90, 0xB8, 0x00, 0x00, 0x00, 0x00, 0xBB, 0x00, 0x00, 0x00, 0x00, 0xB9, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x11, 0x22, 0x33, 0x33, 0x00, 0xD0, 0x66, 0x01, 0xD3, 0x01, 0xD1, 0x90 }
+{ 0xB8, 0x00, 0x01, 0x00, 0x00, 0xBB, 0xFF, 0x00, 0x00, 0x00, 0x67, 0x89, 0x58, 0x50, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x85, 0x00, 0x00, 0x00, 0x20, 0x67, 0x89, 0x1C, 0xC3, 0x67, 0x89, 0x9C, 0x18, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x5C, 0x45, 0x10, 0x67, 0x8A, 0x4C, 0x45, 0x10, 0x90 }
 
 
 
@@ -66,6 +66,7 @@ namespace debugger
             };
             VMInstance = new VM(settings, ins);
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
+            ListViewDisassembly.BreakpointSource.ListChanged += (s, a) => Refresh();
             PanelRegisters.OnRegSizeChanged += RefreshRegisters;
             RefreshAll();            
         }
@@ -99,14 +100,14 @@ namespace debugger
                 }
                 else if (RegCap == RegisterCapacity.BYTE & i > 4) //higher bit reg
                 {
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-5)], SelectedFormatType);
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-5, RegisterCapacity.QWORD)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
                     {
                         Value = Value.Insert(16, "%").Insert(14, "%").Insert(0, "%");
                     }
                 } else
                 {      //anything else                     
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-1)], SelectedFormatType);
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-1, RegisterCapacity.QWORD)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
                     {
                         Value = Value.Insert(2 + 16 - ((byte)RegCap * 2), "%").Insert(0, "%");
@@ -145,29 +146,31 @@ namespace debugger
             SortedDictionary<ulong, byte> _memory = new SortedDictionary<ulong, byte>((Dictionary<ulong,byte>)VMInstance.GetMemory());
             ulong _currentaddr = _memory.First().Key;
             StringBuilder _currentline = new StringBuilder();
-            memviewer.Items.Clear();
-            foreach (var address in _memory)
-            {
-                if (_currentline.Length >= 48 || _currentaddr + 16 < address.Key)
+            memviewer.Invoke(new Action(( () => {
+                memviewer.Items.Clear();
+                foreach (var address in _memory)
                 {
-                    if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
-                    memviewer.Items.Add(new ListViewItem(new string[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
-
-                    if (_currentaddr + 16 < address.Key)
+                    if (_currentline.Length >= 48 || _currentaddr + 16 < address.Key)
                     {
-                        memviewer.Items.Add(new ListViewItem(new string[] { $"[+{(address.Key - _currentaddr).ToString("X")}]", "" }));
+                        if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
+                        memviewer.Items.Add(new ListViewItem(new string[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
+
+                        if (_currentaddr + 16 < address.Key)
+                        {
+                            memviewer.Items.Add(new ListViewItem(new string[] { $"[+{(address.Key - _currentaddr).ToString("X")}]", "" }));
+                        }
+
+                        _currentline = new StringBuilder();
+                        _currentaddr = address.Key;
                     }
+                    _currentline.Append(address.Value.ToString("X").PadLeft(2, '0') + " ");
 
-                    _currentline = new StringBuilder();
-                    _currentaddr = address.Key;
+
+
                 }
-                _currentline.Append(address.Value.ToString("X").PadLeft(2, '0') + " ");
-
-
-
-            }
-            if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
-            memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
+                if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
+                memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
+            })));                    
         }      
         private void RefreshDisassembly()
         {
@@ -183,14 +186,9 @@ namespace debugger
                 new Task(() => RefreshDisassembly()),
                 new Task(() => RefreshRegisters()),
                 new Task(() => RefreshMemory()),                
-                new Task(() => RefreshFlags()) };
-
-            RefreshTasks = new List<Task>
-            {
-                new Task(() => RefreshDisassembly()),
-                new Task(() => RefreshRegisters()),
                 new Task(() => RefreshFlags())
             };
+
             RefreshTasks.ForEach(x => x.Start());
             await Task.WhenAll(RefreshTasks);
             Invoke(new Action(() =>Refresh()));
@@ -242,7 +240,14 @@ namespace debugger
         }
         private void OnTestcaseSelected(object sender, EventArgs e)
         {
-            TestHandler.ExecuteTestcase(sender.ToString());
+            Task.Run(async () =>
+            {
+                (bool, string) Result = await TestHandler.ExecuteTestcase(sender.ToString());
+                if (MessageBox.Show($"Click No to see full results", sender.ToString() + (Result.Item1 ? " passed!" : " failed!"), MessageBoxButtons.YesNo) == DialogResult.No)
+                {
+                    MessageBox.Show(Result.Item2);
+                }
+            });            
         }
         private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
         //Format methods

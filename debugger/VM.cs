@@ -82,14 +82,14 @@ namespace debugger
         {
             CurrentSettings = inputSettings;
             RunComplete += CurrentSettings.RunCallback;
-            SavedMemory = inputMemory;
+            SavedMemory = inputMemory.DeepCopy();
         }
         public void Reset()
         {
             Handle.Invoke(() =>
             {
                 Context VMContext = Handle.DeepCopy();
-                VMContext.Memory = SavedMemory;
+                VMContext.Memory = SavedMemory.DeepCopy();
                 VMContext.InstructionPointer = SavedMemory.EntryPoint;
                 VMContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
                     {
@@ -153,7 +153,7 @@ namespace debugger
                 BreakpointReached
             }
             public ExitStatus ExitCode; // initialises to breakpoint reached
-            public string LastDisassembled;            
+            public string[] LastDisassembled;            
         }        
         public struct Handle
         {
@@ -279,7 +279,7 @@ namespace debugger
         {             
             byte OpcodeWidth = 1;
             Opcode CurrentOpcode= null;
-            string TempLastDisas = "";
+            string[] TempLastDisas = new string[0];
             while (CurrentContext.InstructionPointer != CurrentContext.Memory.End)
             {
                 byte Fetched = FetchNext();
@@ -371,58 +371,46 @@ namespace debugger
         public static ModRM ModRMDecode(byte bModRM)
         {
             ModRM Output = new ModRM();
-            string sBits = Bitwise.GetBits(bModRM);
-            Output.Mod = Convert.ToByte(sBits.Substring(0, 2), 2); // pointer, offset pointer, or reg
+            string Bits = Bitwise.GetBits(bModRM);
+            Output.Mod = Convert.ToByte(Bits.Substring(0, 2), 2); // pointer, offset pointer, or reg
             //Output.Reg = Convert.ToByte(sBits.Substring(2, 3), 2); //reg =src
-            Output.SourceReg = Convert.ToByte(sBits.Substring(2, 3), 2);
-            Output.Reg = Convert.ToByte(sBits.Substring(5, 3), 2); // rm = dest
+            Output.Reg = Convert.ToByte(Bits.Substring(2, 3), 2);
+            Output.Mem = Convert.ToByte(Bits.Substring(5, 3), 2); // rm = dest
 
            
             if (Output.Mod == 3)
             {
                 // direct register
-                Output.DestPtr = Output.Reg;
+                Output.DestPtr = Output.Mem;
             }
             else
             {
                 Output.Offset = 0;
-                if(Output.Mod == 0 && Output.Reg == 5) //special case, rip relative imm32
+                if(Output.Mod == 0 && Output.Mem == 5) //special case, rip relative imm32
                 {
-                    Output.DestPtr = CurrentContext.InstructionPointer + BitConverter.ToUInt32(FetchNext(4), 0);
+                    Output.DestPtr = CurrentContext.InstructionPointer;
+                    Output.Offset =  BitConverter.ToUInt32(FetchNext(4), 0);
                 }
-                else if (Output.Reg == 4)//sib! sib always after modrm 
+                else if (Output.Mem == 4)//sib! sib always after modrm 
                 {
                     Output.DecodedSIB = SIBDecode(Output.Mod);
-                    Output.Offset += Output.DecodedSIB.OffsetValue;
-                    Output.DestPtr += Output.DecodedSIB.ResultNoOffset;
-                } else
+                    Output.Offset = Output.DecodedSIB.OffsetValue;
+                    Output.DestPtr = Output.DecodedSIB.ResultNoOffset;
+                }
+                else
                 {
-                    Output.DestPtr += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Reg, RegisterCapacity.QWORD), 0);
+                    Output.DestPtr = BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Mem, RegisterCapacity.QWORD), 0);
                 }
 
                 //any immediate
                 if (Output.Mod == 1) //1B imm
                 {
-                    Output.Offset += FetchNext();
+                    Output.Offset += (sbyte)FetchNext();
                 }
                 else if (Output.Mod == 2) // 1W imm, mod1 rm5 is disp32
                 {
-                    Output.Offset += BitConverter.ToUInt32(FetchNext(4), 0);
+                    Output.Offset += BitConverter.ToInt32(FetchNext(4), 0);
                 }
-
-
-
-            //   if (Output.RM == 5) // disp32/rbp+disp
-            //   {
-            //       if (Output.Mod == 0) // either displacement32 if it is just a pointer(mod=00)
-            //       {
-            //           Output.Offset = BitConverter.ToUInt32(Fetch(BytePointer, 4), 0);
-            //       }
-            //       else // or ebp + disp, need to use SIb to get ebp without a displacement(mod!=00)
-            //       {
-            //           Output.DestPtr += BitConverter.ToUInt64(FetchRegister(ByteCode.BH, RegisterCapacity.R), 0);
-            //       }
-            //   }
                 Output.DestPtr += (ulong)Output.Offset;// set it to the offset because its easier for disassembler
             }
             
@@ -447,11 +435,13 @@ namespace debugger
             {
                 Output.BaseValue += BitConverter.ToUInt64(FetchRegister((ByteCode)Output.Base, RegisterCapacity.QWORD), 0);
             } else
-            {                                                                       // mod1 = imm8 else imm32
-                Output.OffsetValue += BitConverter.ToInt64(Bitwise.SignExtend(FetchNext( (byte)((Mod == 1) ? 1 : 4) ), 8), 0);
+            {    
                 if (Mod > 0) // mod1 mod2 = ebp+imm
                 {
                     Output.BaseValue += BitConverter.ToUInt64(Bitwise.SignExtend(FetchRegister(ByteCode.BP, Output.PointerSize),8),0);
+                } else
+                {
+                    Output.OffsetValue += BitConverter.ToUInt32(FetchNext(4),0);
                 }
                 
             }

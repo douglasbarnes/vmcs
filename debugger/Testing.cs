@@ -51,7 +51,7 @@ namespace debugger
             public long Offset;
             public byte[] ExpectedBytes;
         }
-        private Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
+        private static Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
         private class TestingEmulator : EmulatorBase
         {
             readonly TestcaseObject CurrentTestcase;
@@ -96,7 +96,7 @@ namespace debugger
                         }
                         if(testMem.Offset != 0)
                         {
-                            Mnemonic += $"0x{testMem.Offset.ToString("X")}";
+                            Mnemonic += $"0x{Math.Abs(testMem.Offset).ToString("X")}";
                         }
                         ExactAddress += (ulong)testMem.Offset;
                         bool CompareMemory = true;
@@ -107,7 +107,6 @@ namespace debugger
                             if (Snapshot.Memory[ExactAddress + ByteOffset] != testMem.ExpectedBytes[ByteOffset])
                             {
                                 CompareMemory = false;
-                                break;
                             }                            
                         }
                         CurrentSubresults.Add(
@@ -127,16 +126,16 @@ namespace debugger
                 return Result;
             } 
         }
-        private TestHandler()
+        static TestHandler()
         {
             foreach (string FilePath in Directory.GetFiles("Testcases")) //each testcase in file
             {
-                if(FilePath.Substring(FilePath.Length-4) == ".xml") //if its xml file(light filter, invalid xml files still cause errors)
+                if (FilePath.Substring(FilePath.Length - 4) == ".xml") //if its xml file(light filter, invalid xml files still cause errors)
                 {
                     try
                     {
                         XDocument TestcaseFile = XDocument.Load(FilePath);
-                        foreach(XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
+                        foreach (XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
                         {
                             TestcaseObject ParsedTestcase = new TestcaseObject
                             {
@@ -147,11 +146,11 @@ namespace debugger
                                 ulong Offset = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
                                 Checkpoint ParsedCheckpoint = new Checkpoint()
                                 {
-                                    Tag = InputCheckpoint.Attribute("tag").Value,                                   
+                                    Tag = InputCheckpoint.Attribute("tag").Value,
                                 };
                                 foreach (XElement TestCritera in InputCheckpoint.Elements())//for each criteria in the checkpoint
                                 {
-                                    if(TestCritera.Name == "Register") //<register>
+                                    if (TestCritera.Name == "Register") //<register>
                                     {
                                         ParsedCheckpoint.ExpectedRegisters.Add(
                                             new TestRegister()
@@ -161,42 +160,43 @@ namespace debugger
                                                 ExpectedValue = Convert.ToUInt64(TestCritera.Value, 16)
                                             });
                                     }
-                                    else if(TestCritera.Name == "Memory") //<memory>
+                                    else if (TestCritera.Name == "Memory") //<memory>
                                     {
-                                        if(TestCritera.Attribute("offset") == null && TestCritera.Attribute("offset_register") == null)
+                                        if (TestCritera.Attribute("offset") == null && TestCritera.Attribute("offset_register") == null)
                                         {
-                                            throw new Exception("Memory needs to have atleast ooffset or offset_register attribute");
+                                            throw new Exception("Memory needs to have atleast an offset or offset_register attribute");
                                         }
-                                        if(TestCritera.Attribute("offset") != null 
-                                            && Convert.ToInt64(TestCritera.Attribute("offset").Value, 16) < 0 
+                                        if (TestCritera.Attribute("offset") != null
+                                            && Convert.ToInt64(TestCritera.Attribute("offset").Value, 16) < 0
                                             && TestCritera.Attribute("offset_register") == null)
                                         {
-                                            throw new Exception("Cannot have a negative memory offset without a register to offset it");
+                                            throw new Exception("Cannot have a negative memory offset without a register to offset it" +
+                                                                "\nRemember that the offset it in a testcase is signed long values, so put a 0 before, or use a register");
                                         }
                                         ByteCode? RegOffset = null;
-                                        if(TestCritera.Attribute("offset_register") != null)
+                                        if (TestCritera.Attribute("offset_register") != null)
                                         {
                                             RegOffset = (ByteCode?)RegisterDecodeTable[TestCritera.Attribute("offset_register").Value];
                                         }
                                         ParsedCheckpoint.ExpectedMemory.Add(
                                             new TestMemoryAddress()
                                             {
-                                                Offset = TestCritera.Attribute("offset") == null ? 0 : Convert.ToInt64(TestCritera.Attribute("offset").Value, 16),
+                                                Offset = TestCritera.Attribute("offset") == null ? 0 : BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(ParseHex(TestCritera.Attribute("offset").Value)), 8), 0),
                                                 OffsetRegister = RegOffset,
                                                 ExpectedBytes = ParseHex(TestCritera.Value)
                                             });
                                     }
                                     else
                                     {
-                                         throw new Exception($"Unexpected item {TestCritera.Name}");//throw error if it wasnt memory of register
-                                    }                                    
+                                        throw new Exception($"Unexpected item {TestCritera.Name}");//throw error if it wasnt memory of register
+                                    }
                                 }
                                 ParsedTestcase.Checkpoints.Add(Offset, ParsedCheckpoint);
                             }
                             Testcases.Add(InputTestcase.Attribute("name").Value, ParsedTestcase);
                         }
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         MessageBox.Show($"Error reading testcase file {FilePath}:\n{e.ToString()}");
                     }
@@ -205,7 +205,7 @@ namespace debugger
         }
         private static byte[] ParseHex(string hex)
         {            
-            if(hex.Length % 2 != 0) { hex.Insert(0, "0"); }
+            if(hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
             byte[] Output = new byte[hex.Length / 2];
             for (int ByteIndex = 0; ByteIndex < hex.Length/2; ByteIndex++)
             {
@@ -235,17 +235,13 @@ namespace debugger
             }
             return Parsed;
         }
-        public static async void ExecuteTestcase(string name)
+        public static async Task<(bool, string)> ExecuteTestcase(string name)
         {
             name = name.ToLower();
-            TestHandler Instance = new TestHandler();
-            TestcaseResult Result;
-            TestingEmulator Emulator = new TestingEmulator(Instance.Testcases[name]);
-            Result = await Emulator.RunTestcase();            
-            if(MessageBox.Show($"Click No to see full results", name + (Result.Passed ? " passed!" : " failed!"), MessageBoxButtons.YesNo) == DialogResult.No)
-            {
-                MessageBox.Show(ParseResult(Result));
-            }
+            TestHandler Instance = new TestHandler();            
+            TestingEmulator Emulator = new TestingEmulator(Testcases[name]);
+            TestcaseResult Result = await Emulator.RunTestcase();
+            return (Result.Passed, ParseResult(Result));            
         }   
     }    
 }

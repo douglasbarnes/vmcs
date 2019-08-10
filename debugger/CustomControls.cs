@@ -29,28 +29,7 @@ namespace debugger
                 DrawingLayer = drawingLayer;
                 TextEmphasis = textEmphasis;
             }
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                //TAG = TEXT TO WRITE
-                Graphics GraphicsHandler = e.Graphics;
-                Rectangle Bounds = e.ClipRectangle;
-                //prevent line being cut
-                Bounds.Y += 10; //push downwards so we can have the text in line, we cannot draw outside the bounds of the control
-                Bounds.Width -= 3;
-                Bounds.Height -= 11;
-                GraphicsHandler.DrawRectangle(new Pen(LayerBrush), Bounds);
-                GraphicsHandler.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), Bounds);
-                //Prevent strikethough of text, constants here are exact, they make it look nice
-                int Offset = TextRenderer.MeasureText(Tag.ToString(), BaseUI.BaseFont).Width;
-                GraphicsHandler.DrawLine(new Pen(BaseUI.BackgroundColour), new Point(Bounds.Location.X + 11, Bounds.Location.Y), new Point(Bounds.Location.X + Offset + 14, Bounds.Location.Y));
-                Bounds.X += 15;
-                Bounds.Y -= 7;
-                Bounds.Width += 15;
-                Bounds.Height += 15;
-                //GraphicsHandler.DrawString((string)Tag, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);          
-                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, LayerBrush, Bounds);
-                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, ElevatedTransparentOverlays[(int)DrawingLayer+1], Bounds);
-            }
+            
         }
         public abstract class CustomLabel : Label, IMyCustomControl
         {
@@ -72,6 +51,7 @@ namespace debugger
             public Emphasis HeaderEmphasis;
             public CustomListview(Layer drawingLayer, Emphasis textEmphasis, Emphasis headerEmphasis) : base()
             {
+                DoubleBuffered = true;
                 DrawingLayer = drawingLayer;
                 TextEmphasis = textEmphasis;
                 HeaderEmphasis = headerEmphasis;
@@ -102,11 +82,37 @@ namespace debugger
         }
         public class BorderedPanel : CustomPanel
         {
-            public BorderedPanel() : base(Layer.Background, Emphasis.High)
+            public BorderedPanel(Layer layer, Emphasis emphasis) : base(layer, emphasis)
             {
             }
+            public BorderedPanel() : base(Layer.Background, Emphasis.High)
+            {
+
+            }
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                //TAG = TEXT TO WRITE
+                Graphics GraphicsHandler = e.Graphics;
+                Rectangle Bounds = e.ClipRectangle;
+                //prevent line being cut
+                Bounds.Y += 10; //push downwards so we can have the text in line, we cannot draw outside the bounds of the control
+                Bounds.Width -= 3;
+                Bounds.Height -= 11;
+                GraphicsHandler.DrawRectangle(new Pen(LayerBrush), Bounds);
+                GraphicsHandler.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), Bounds);
+                //Prevent strikethough of text, constants here are exact, they make it look nice
+                int Offset = TextRenderer.MeasureText(Tag.ToString(), BaseUI.BaseFont).Width;
+                GraphicsHandler.DrawLine(new Pen(BaseUI.BackgroundColour), new Point(Bounds.Location.X + 11, Bounds.Location.Y), new Point(Bounds.Location.X + Offset + 14, Bounds.Location.Y));
+                Bounds.X += 15;
+                Bounds.Y -= 7;
+                Bounds.Width += 15;
+                Bounds.Height += 15;
+                //GraphicsHandler.DrawString((string)Tag, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);          
+                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, LayerBrush, Bounds);
+                GraphicsHandler.DrawString(Tag.ToString(), BaseUI.BaseFont, ElevatedTransparentOverlays[(int)DrawingLayer + 1], Bounds);
+            }
         }
-        public class RegisterPanel : CustomPanel
+        public class RegisterPanel : BorderedPanel
         {
             public int RegSize { get; private set; } = 8;
             public Action OnRegSizeChanged = () => { };
@@ -144,8 +150,8 @@ namespace debugger
         public class DisassemblyListView : CustomListview
         {
             //https://docs.microsoft.com/en-gb/windows/win32/controls/cookbook-overview
-            [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-            public static extern int SetWindowTheme(IntPtr LVHandle, string keepEmpty1, string keepEmpty2);
+            //[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+            //public static extern int SetWindowTheme(IntPtr LVHandle, string keepEmpty1, string keepEmpty2);
             public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
             
 
@@ -156,7 +162,7 @@ namespace debugger
             };
             public DisassemblyListView() : base(Layer.Background, Emphasis.High, Emphasis.Medium)
             {
-                DoubleBuffered = true;
+                
                 Columns.Add(new ColumnHeader() { Width = 692 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
                 SendToBack();
                 SelectedIndexChanged += (sender, args) =>
@@ -175,14 +181,16 @@ namespace debugger
                         SelectedItems.Clear();
                     }                                                       
                 };
+                BreakpointSource.ListChanged += (sender,args) => Refresh();
             }
             protected override void OnHandleCreated(EventArgs e)
             {
                 base.OnHandleCreated(e);
-                SetWindowTheme(Handle, null, null);
+                //SetWindowTheme(Handle, null, null);
             }
             protected override void OnDrawItem(DrawListViewItemEventArgs e)
             {
+                
                 e.Graphics.FillRectangle(ItemColours[(BreakpointSource.Contains(Convert.ToUInt64(e.Item.SubItems[1].Text)) ? 1 : 0)], e.Bounds);
                 Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);               
                 string[] SortedText = Util.Core.SeparateString(e.Item.Text.Substring(2, 16), "0", stopAtFirstDifferent: true);
@@ -204,6 +212,42 @@ namespace debugger
                     Items.AddRange(Output.ToArray());
                     EndUpdate();
                 }));
+            }
+        }
+        public class MemoryListView : CustomListview
+        {
+
+            public MemoryListView() : base(Layer.Background, Emphasis.High, Emphasis.Medium)
+            {
+                BorderStyle = BorderStyle.None;
+                Columns.Add(new ColumnHeader(""));
+            }
+
+            protected override void OnDrawItem(DrawListViewItemEventArgs e)
+            {
+                string[] itemstring = new string[e.Item.SubItems.Count+1];
+                itemstring[0] = e.Item.Text;
+                for (int i = 0; i < e.Item.SubItems.Count; i++)
+                {
+                    itemstring[i] = e.Item.SubItems[i].Text;
+                }
+                e.Graphics.DrawString(string.Join(" ", itemstring), BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], e.Bounds);
+
+            }
+
+            private char[] ColumnChars = new char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+            protected override void OnDrawColumnHeader(DrawListViewColumnHeaderEventArgs e)
+            {
+                Columns[0].Width = Width;
+                Rectangle Bounds = e.Bounds;
+                e.Graphics.FillRectangle(LayerBrush, Bounds);
+                Bounds.X += (int)BaseUI.BaseFont.SizeInPoints / 2;
+                e.Graphics.DrawString("                   " + string.Join("  ", ColumnChars), BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
+                Bounds.X -= (int)BaseUI.BaseFont.SizeInPoints / 2;
+            }
+            protected override void OnMouseClick(MouseEventArgs e)
+            {
+                //base.OnMouseClick(e);
             }
         }
     }

@@ -32,9 +32,7 @@ namespace debugger
         private void InitializeComponent()
         {
             this.gotoMemSrc = new System.Windows.Forms.TextBox();
-            this.memviewer = new System.Windows.Forms.ListView();
-            this.Address = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.Bytes = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.memviewer = new debugger.CustomControls.MemoryListView();
             this.label1 = new System.Windows.Forms.Label();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -65,29 +63,31 @@ namespace debugger
             this.RBPLABEL = new debugger.CustomControls.RegisterLabel();
             this.RSPLABEL = new debugger.CustomControls.RegisterLabel();
             this.RIPLABEL = new debugger.CustomControls.RegisterLabel();
-            this.ButtonStep = new debugger.CustomControls.StepButton();
-            this.ButtonRun = new debugger.CustomControls.StepButton();
-            this.ButtonReset = new debugger.CustomControls.StepButton();
-            this.PanelFlags = new debugger.CustomControls.BorderedPanel();
+            this.PanelFlags = new debugger.CustomControls.RegisterPanel();
             this.LabelAuxiliary = new debugger.CustomControls.FlagLabel();
             this.LabelParity = new debugger.CustomControls.FlagLabel();
             this.LabelSign = new debugger.CustomControls.FlagLabel();
             this.LabelZero = new debugger.CustomControls.FlagLabel();
             this.LabelOverflow = new debugger.CustomControls.FlagLabel();
             this.LabelCarry = new debugger.CustomControls.FlagLabel();
+            this.ButtonStep = new debugger.CustomControls.StepButton();
+            this.ButtonRun = new debugger.CustomControls.StepButton();
+            this.ButtonReset = new debugger.CustomControls.StepButton();
             this.ListViewDisassembly = new debugger.CustomControls.DisassemblyListView();
-            this.DisassemblyBorder = new debugger.CustomControls.BorderedPanel();
             this.DisassemblyPadding = new System.Windows.Forms.Panel();
+            this.DisassemblyBorder = new debugger.CustomControls.BorderedPanel();
+            this.PanelMemory = new debugger.CustomControls.BorderedPanel();
             this.menuStrip1.SuspendLayout();
             this.PanelRegisters.SuspendLayout();
             this.PanelFlags.SuspendLayout();
-            this.DisassemblyBorder.SuspendLayout();
             this.DisassemblyPadding.SuspendLayout();
+            this.DisassemblyBorder.SuspendLayout();
+            this.PanelMemory.SuspendLayout();
             this.SuspendLayout();
             // 
             // gotoMemSrc
             // 
-            this.gotoMemSrc.Location = new System.Drawing.Point(74, 461);
+            this.gotoMemSrc.Location = new System.Drawing.Point(755, 485);
             this.gotoMemSrc.MaxLength = 18;
             this.gotoMemSrc.Name = "gotoMemSrc";
             this.gotoMemSrc.Size = new System.Drawing.Size(140, 20);
@@ -99,33 +99,24 @@ namespace debugger
             // memviewer
             // 
             this.memviewer.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(18)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
-            this.memviewer.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.Address,
-            this.Bytes});
+            this.memviewer.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.memviewer.DrawingLayer = debugger.FormSettings.Layer.Background;
             this.memviewer.Font = new System.Drawing.Font("Consolas", 11.25F);
             this.memviewer.ForeColor = System.Drawing.SystemColors.ControlLight;
             this.memviewer.HideSelection = false;
-            this.memviewer.Location = new System.Drawing.Point(38, 490);
+            this.memviewer.Location = new System.Drawing.Point(3, 16);
             this.memviewer.Name = "memviewer";
-            this.memviewer.Size = new System.Drawing.Size(558, 365);
+            this.memviewer.OwnerDraw = true;
+            this.memviewer.Size = new System.Drawing.Size(391, 362);
             this.memviewer.TabIndex = 14;
+            this.memviewer.TextEmphasis = debugger.FormSettings.Emphasis.High;
             this.memviewer.UseCompatibleStateImageBehavior = false;
             this.memviewer.View = System.Windows.Forms.View.Details;
-            // 
-            // Address
-            // 
-            this.Address.Text = "Address";
-            this.Address.Width = 170;
-            // 
-            // Bytes
-            // 
-            this.Bytes.Text = "0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F ";
-            this.Bytes.Width = 400;
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(35, 464);
+            this.label1.Location = new System.Drawing.Point(671, 488);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(33, 13);
             this.label1.TabIndex = 15;
@@ -410,45 +401,6 @@ namespace debugger
             this.RIPLABEL.Text = "REG : 0x0000000000000000";
             this.RIPLABEL.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
-            // ButtonStep
-            // 
-            this.ButtonStep.DrawingLayer = debugger.FormSettings.Layer.Foreground;
-            this.ButtonStep.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.ButtonStep.Location = new System.Drawing.Point(674, 431);
-            this.ButtonStep.Name = "ButtonStep";
-            this.ButtonStep.Size = new System.Drawing.Size(75, 23);
-            this.ButtonStep.TabIndex = 2;
-            this.ButtonStep.Text = "Step";
-            this.ButtonStep.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.ButtonStep.UseVisualStyleBackColor = true;
-            this.ButtonStep.Click += new System.EventHandler(this.VMContinue_ButtonEvent);
-            // 
-            // ButtonRun
-            // 
-            this.ButtonRun.DrawingLayer = debugger.FormSettings.Layer.Foreground;
-            this.ButtonRun.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.ButtonRun.Location = new System.Drawing.Point(755, 431);
-            this.ButtonRun.Name = "ButtonRun";
-            this.ButtonRun.Size = new System.Drawing.Size(75, 23);
-            this.ButtonRun.TabIndex = 9;
-            this.ButtonRun.Text = "Run";
-            this.ButtonRun.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.ButtonRun.UseVisualStyleBackColor = true;
-            this.ButtonRun.Click += new System.EventHandler(this.VMContinue_ButtonEvent);
-            // 
-            // ButtonReset
-            // 
-            this.ButtonReset.DrawingLayer = debugger.FormSettings.Layer.Foreground;
-            this.ButtonReset.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.ButtonReset.Location = new System.Drawing.Point(836, 431);
-            this.ButtonReset.Name = "ButtonReset";
-            this.ButtonReset.Size = new System.Drawing.Size(75, 23);
-            this.ButtonReset.TabIndex = 20;
-            this.ButtonReset.Text = "Reset";
-            this.ButtonReset.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.ButtonReset.UseVisualStyleBackColor = true;
-            this.ButtonReset.Click += new System.EventHandler(this.Reset_Click);
-            // 
             // PanelFlags
             // 
             this.PanelFlags.Controls.Add(this.LabelAuxiliary);
@@ -537,6 +489,45 @@ namespace debugger
             this.LabelCarry.Text = "label2";
             this.LabelCarry.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
+            // ButtonStep
+            // 
+            this.ButtonStep.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonStep.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.ButtonStep.Location = new System.Drawing.Point(674, 431);
+            this.ButtonStep.Name = "ButtonStep";
+            this.ButtonStep.Size = new System.Drawing.Size(75, 23);
+            this.ButtonStep.TabIndex = 2;
+            this.ButtonStep.Text = "Step";
+            this.ButtonStep.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
+            this.ButtonStep.UseVisualStyleBackColor = true;
+            this.ButtonStep.Click += new System.EventHandler(this.VMContinue_ButtonEvent);
+            // 
+            // ButtonRun
+            // 
+            this.ButtonRun.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonRun.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.ButtonRun.Location = new System.Drawing.Point(755, 431);
+            this.ButtonRun.Name = "ButtonRun";
+            this.ButtonRun.Size = new System.Drawing.Size(75, 23);
+            this.ButtonRun.TabIndex = 9;
+            this.ButtonRun.Text = "Run";
+            this.ButtonRun.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
+            this.ButtonRun.UseVisualStyleBackColor = true;
+            this.ButtonRun.Click += new System.EventHandler(this.VMContinue_ButtonEvent);
+            // 
+            // ButtonReset
+            // 
+            this.ButtonReset.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonReset.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.ButtonReset.Location = new System.Drawing.Point(836, 431);
+            this.ButtonReset.Name = "ButtonReset";
+            this.ButtonReset.Size = new System.Drawing.Size(75, 23);
+            this.ButtonReset.TabIndex = 20;
+            this.ButtonReset.Text = "Reset";
+            this.ButtonReset.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
+            this.ButtonReset.UseVisualStyleBackColor = true;
+            this.ButtonReset.Click += new System.EventHandler(this.Reset_Click);
+            // 
             // ListViewDisassembly
             // 
             this.ListViewDisassembly.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
@@ -557,6 +548,14 @@ namespace debugger
             this.ListViewDisassembly.UseCompatibleStateImageBehavior = false;
             this.ListViewDisassembly.View = System.Windows.Forms.View.Details;
             // 
+            // DisassemblyPadding
+            // 
+            this.DisassemblyPadding.Controls.Add(this.ListViewDisassembly);
+            this.DisassemblyPadding.Location = new System.Drawing.Point(3, 14);
+            this.DisassemblyPadding.Name = "DisassemblyPadding";
+            this.DisassemblyPadding.Size = new System.Drawing.Size(593, 394);
+            this.DisassemblyPadding.TabIndex = 18;
+            // 
             // DisassemblyBorder
             // 
             this.DisassemblyBorder.Controls.Add(this.DisassemblyPadding);
@@ -568,13 +567,16 @@ namespace debugger
             this.DisassemblyBorder.Tag = "Disassembly";
             this.DisassemblyBorder.TextEmphasis = debugger.FormSettings.Emphasis.High;
             // 
-            // DisassemblyPadding
+            // PanelMemory
             // 
-            this.DisassemblyPadding.Controls.Add(this.ListViewDisassembly);
-            this.DisassemblyPadding.Location = new System.Drawing.Point(3, 14);
-            this.DisassemblyPadding.Name = "DisassemblyPadding";
-            this.DisassemblyPadding.Size = new System.Drawing.Size(593, 394);
-            this.DisassemblyPadding.TabIndex = 18;
+            this.PanelMemory.Controls.Add(this.memviewer);
+            this.PanelMemory.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.PanelMemory.Location = new System.Drawing.Point(38, 472);
+            this.PanelMemory.Name = "PanelMemory";
+            this.PanelMemory.Size = new System.Drawing.Size(399, 383);
+            this.PanelMemory.TabIndex = 28;
+            this.PanelMemory.Tag = "Memory";
+            this.PanelMemory.TextEmphasis = debugger.FormSettings.Emphasis.High;
             // 
             // MainForm
             // 
@@ -582,13 +584,13 @@ namespace debugger
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(1070, 867);
+            this.Controls.Add(this.PanelMemory);
             this.Controls.Add(this.PanelFlags);
             this.Controls.Add(this.PanelRegisters);
             this.Controls.Add(this.DisassemblyBorder);
             this.Controls.Add(this.ButtonReset);
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.memviewer);
             this.Controls.Add(this.gotoMemSrc);
             this.Controls.Add(this.ButtonRun);
             this.Controls.Add(this.ButtonStep);
@@ -603,8 +605,9 @@ namespace debugger
             this.PanelRegisters.PerformLayout();
             this.PanelFlags.ResumeLayout(false);
             this.PanelFlags.PerformLayout();
-            this.DisassemblyBorder.ResumeLayout(false);
             this.DisassemblyPadding.ResumeLayout(false);
+            this.DisassemblyBorder.ResumeLayout(false);
+            this.PanelMemory.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -612,9 +615,7 @@ namespace debugger
 
         #endregion
         private System.Windows.Forms.TextBox gotoMemSrc;
-        private System.Windows.Forms.ListView memviewer;
-        private System.Windows.Forms.ColumnHeader Address;
-        private System.Windows.Forms.ColumnHeader Bytes;
+        private CustomControls.MemoryListView memviewer;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.MenuStrip menuStrip1;
         private System.Windows.Forms.ToolStripMenuItem debugToolStripMenuItem;
@@ -636,7 +637,6 @@ namespace debugger
         private System.Windows.Forms.ToolStripMenuItem MenuFormatUnsigned;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
         private CustomControls.RegisterPanel PanelRegisters;
-        private CustomControls.BorderedPanel PanelFlags;
         private CustomControls.FlagLabel LabelOverflow;
         private CustomControls.FlagLabel LabelCarry;
         private CustomControls.FlagLabel LabelAuxiliary;
@@ -658,6 +658,8 @@ namespace debugger
         private CustomControls.DisassemblyListView ListViewDisassembly;
         private CustomControls.BorderedPanel DisassemblyBorder;
         private System.Windows.Forms.Panel DisassemblyPadding;
+        private CustomControls.BorderedPanel PanelMemory;
+        private CustomControls.RegisterPanel PanelFlags;
     }
 }
 
