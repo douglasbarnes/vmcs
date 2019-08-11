@@ -24,27 +24,9 @@ namespace debugger
         {
             Font = BaseUI.BaseFont;           
             InitializeComponent();
+            CustomDraw();
             ForeColor = BaseUI.SurfaceColour;
             BackColor = BaseUI.BackgroundColour;
-            foreach (Control BackgroundControl in Controls)
-            {
-                BackgroundControl.BackColor = BaseUI.BackgroundColour;
-                if (BackgroundControl.HasChildren)
-                {
-
-                    BackgroundControl.ForeColor = SurfaceShades[1];
-                    foreach (Control NestedControl in BackgroundControl.Controls)
-                    {
-                        NestedControl.BackColor = BaseUI.BackgroundColour;
-                        NestedControl.ForeColor = SurfaceShades[2];
-
-                    }
-                }
-                else
-                {
-                    BackgroundControl.ForeColor = SurfaceShades[0];
-                }
-            }
         }
         VM VMInstance;
         private void Form1_Load(object sender, EventArgs e)
@@ -66,7 +48,7 @@ namespace debugger
             };
             VMInstance = new VM(settings, ins);
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
-            ListViewDisassembly.BreakpointSource.ListChanged += (s, a) => Refresh();
+            ListViewDisassembly.BreakpointSource.ListChanged += (s, lc_args) => Refresh();
             PanelRegisters.OnRegSizeChanged += RefreshRegisters;
             RefreshAll();            
         }
@@ -179,6 +161,10 @@ namespace debugger
                 ListViewDisassembly.AddParsed(DisassemblerInstance.StepAll().Result);           
             }                
         }
+        private void RefreshTestcases()
+        {
+
+        }
         private async void RefreshAll()
         {
             List<Task> RefreshTasks = new List<Task>
@@ -237,7 +223,7 @@ namespace debugger
         private void GotoMemSrc_MouseEnter(object sender, EventArgs e)
         {
             if(gotoMemSrc.Text == "Invalid address") { gotoMemSrc.Clear(); }
-        }
+        }        
         private void OnTestcaseSelected(object sender, EventArgs e)
         {
             Task.Run(async () =>
@@ -292,77 +278,7 @@ namespace debugger
         }
         //
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
+
     }
-    public static class FormSettings
-    {        
-        public enum Emphasis
-        {
-            Imminent = 0,
-            High = 1,
-            Medium = 2,
-            Disabled = 3,
-            Ignored = 4
-        }
-        public enum Layer
-        {
-            Imminent = 0,
-            Surface = 1,
-            Foreground = 2,
-            Background = 3
-        }
-        public static List<SolidBrush> ElevatedTransparentOverlays = new List<SolidBrush>();
-        public static List<SolidBrush> TextBrushes = new List<SolidBrush>();
-        public static SolidBrush LayerBrush;
-        public static SolidBrush PrimaryBrush;
-
-        public static List<Color> SurfaceShades = new List<Color>();
-        public struct UISettings
-        {
-            public readonly Font BaseFont;
-            public readonly Color BackgroundColour;
-            public readonly Color SurfaceColour;
-            public readonly Color PrimaryColour;
-            public readonly Color PrimaryVariantColour;
-            public readonly Color SecondaryColour;
-            
-            public UISettings(Font InputFont, Color InputBackgroundColour, Color InputTextColour)
-            {
-                BaseFont = InputFont;
-                BackgroundColour = InputBackgroundColour;
-                SurfaceColour = InputTextColour;
-                //
-                PrimaryColour = Color.FromArgb(240, InputBackgroundColour.R + 0xA9, InputBackgroundColour.B + 0x74, InputBackgroundColour.G + 0xEA);
-                PrimaryVariantColour = InputTextColour;
-                SecondaryColour = InputTextColour;
-            }
-        }
-        public static UISettings BaseUI;
-        static FormSettings()
-        {
-            BaseUI = new UISettings(new Font("Consolas", 9), Color.FromArgb(18, 18, 18), Color.FromArgb(220, 255, 255, 255));
-            LayerBrush = new SolidBrush(BaseUI.BackgroundColour);
-            ElevatedTransparentOverlays = new List<SolidBrush>()
-            {
-                new SolidBrush(Color.FromArgb(0,Color.White)),
-                new SolidBrush(Color.FromArgb(17,Color.White)), //~93%
-                new SolidBrush(Color.FromArgb(22,Color.White)), //~91%
-                new SolidBrush(Color.FromArgb(30,Color.White)), //~88%
-                new SolidBrush(Color.FromArgb(38,Color.White)), //~85%
-            };
-
-            SurfaceShades = new List<Color>()
-            {
-                BaseUI.SurfaceColour,
-                Color.FromArgb(220, BaseUI.SurfaceColour), // ~87%
-                Color.FromArgb(153, BaseUI.SurfaceColour), // 60%
-                Color.FromArgb(97, BaseUI.SurfaceColour), // ~38%
-                Color.FromArgb(17, BaseUI.SurfaceColour) // 20%
-            };
-            TextBrushes = SurfaceShades.Select(x => new SolidBrush(x)).ToList();
-
-            PrimaryBrush = new SolidBrush(BaseUI.PrimaryColour);
-            
-        }
-        
-    }
+   
 }

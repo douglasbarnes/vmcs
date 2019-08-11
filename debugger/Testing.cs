@@ -12,9 +12,9 @@ using static debugger.ControlUnit;
 using static debugger.Util;
 namespace debugger
 {
-    class TestHandler
+    static class TestHandler
     {
-        protected static Dictionary<string, ByteCode> RegisterDecodeTable = new Dictionary<string, ByteCode>() {
+        private static Dictionary<string, ByteCode> RegisterDecodeTable = new Dictionary<string, ByteCode>() {
             {"A",ByteCode.A }, {"B",ByteCode.B },{"C",ByteCode.C },{"D",ByteCode.D },
             {"SP",ByteCode.SP }, {"BP",ByteCode.BP },{"SI",ByteCode.SI },{"DI",ByteCode.DI } };
         protected struct CheckpointSubresult
@@ -235,13 +235,29 @@ namespace debugger
             }
             return Parsed;
         }
+        public static event Action OnTestcaseNotFound = () => MessageBox.Show("Testcase not found");
         public static async Task<(bool, string)> ExecuteTestcase(string name)
         {
-            name = name.ToLower();
-            TestHandler Instance = new TestHandler();            
-            TestingEmulator Emulator = new TestingEmulator(Testcases[name]);
-            TestcaseResult Result = await Emulator.RunTestcase();
-            return (Result.Passed, ParseResult(Result));            
+            name = name.ToLower();      
+            if(Testcases.ContainsKey(name))
+            {
+                TestingEmulator Emulator = new TestingEmulator(Testcases[name]);
+                TestcaseResult Result = await Emulator.RunTestcase();
+                return (Result.Passed, ParseResult(Result));
+            }
+            else
+            {
+                OnTestcaseNotFound.Invoke();
+                return (false, null);
+            }
+                
         }   
+
+        //public static async Task<(bool, string)> ExecuteTestcase()
+        //{
+        //
+        //}
+
+        public static string[] GetTestcases() => Testcases.Keys.ToArray();
     }    
 }

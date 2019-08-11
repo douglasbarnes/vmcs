@@ -35,24 +35,13 @@ namespace debugger
             this.memviewer = new debugger.CustomControls.MemoryListView();
             this.label1 = new System.Windows.Forms.Label();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
-            this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.debugToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.runTestcaseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.allToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.baseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.sIBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.sIBToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.opcodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.mOVToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.aDDToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.movToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.formatToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuFormatHex = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuFormatDecimal = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuFormatSigned = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuFormatUnsigned = new System.Windows.Forms.ToolStripMenuItem();
-            this.MenuFormatString = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewToolStripMenuItem = new debugger.CustomControls.ThemedToolStripMenuHeader();
+            this.formatToolStripMenuItem = new debugger.CustomControls.ThemedToolStripMenuItem();
+            this.MenuFormatHex = new debugger.CustomControls.ThemedToolStripMenuItem();
+            this.MenuFormatDecimal = new debugger.CustomControls.ThemedToolStripMenuItem();
+            this.MenuFormatSigned = new debugger.CustomControls.ThemedToolStripMenuItem();
+            this.MenuFormatUnsigned = new debugger.CustomControls.ThemedToolStripMenuItem();
+            this.MenuFormatString = new debugger.CustomControls.ThemedToolStripMenuItem();
             this.PanelRegisters = new debugger.CustomControls.RegisterPanel();
             this.RDXLABEL = new debugger.CustomControls.RegisterLabel();
             this.RCXLABEL = new debugger.CustomControls.RegisterLabel();
@@ -100,7 +89,7 @@ namespace debugger
             // 
             this.memviewer.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(18)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
             this.memviewer.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.memviewer.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.memviewer.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.memviewer.Font = new System.Drawing.Font("Consolas", 11.25F);
             this.memviewer.ForeColor = System.Drawing.SystemColors.ControlLight;
             this.memviewer.HideSelection = false;
@@ -126,8 +115,6 @@ namespace debugger
             // 
             this.menuStrip1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(18)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.exitToolStripMenuItem,
-            this.debugToolStripMenuItem,
             this.viewToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
@@ -136,103 +123,19 @@ namespace debugger
             this.menuStrip1.TabIndex = 19;
             this.menuStrip1.Text = "menuStrip1";
             // 
-            // exitToolStripMenuItem
-            // 
-            this.exitToolStripMenuItem.Margin = new System.Windows.Forms.Padding(1000, 0, -1037, 0);
-            this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
-            this.exitToolStripMenuItem.Text = "Exit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.ExitToolStripMenuItem_Click);
-            // 
-            // debugToolStripMenuItem
-            // 
-            this.debugToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.runTestcaseToolStripMenuItem});
-            this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-            this.debugToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
-            this.debugToolStripMenuItem.Text = "Debug";
-            // 
-            // runTestcaseToolStripMenuItem
-            // 
-            this.runTestcaseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.allToolStripMenuItem,
-            this.baseToolStripMenuItem,
-            this.opcodeToolStripMenuItem});
-            this.runTestcaseToolStripMenuItem.Name = "runTestcaseToolStripMenuItem";
-            this.runTestcaseToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
-            this.runTestcaseToolStripMenuItem.Text = "Run testcase";
-            // 
-            // allToolStripMenuItem
-            // 
-            this.allToolStripMenuItem.Name = "allToolStripMenuItem";
-            this.allToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
-            this.allToolStripMenuItem.Text = "All";
-            this.allToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
-            // baseToolStripMenuItem
-            // 
-            this.baseToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.sIBToolStripMenuItem,
-            this.sIBToolStripMenuItem1});
-            this.baseToolStripMenuItem.Name = "baseToolStripMenuItem";
-            this.baseToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
-            this.baseToolStripMenuItem.Text = "Internal";
-            // 
-            // sIBToolStripMenuItem
-            // 
-            this.sIBToolStripMenuItem.Name = "sIBToolStripMenuItem";
-            this.sIBToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
-            this.sIBToolStripMenuItem.Text = "All internals";
-            this.sIBToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
-            // sIBToolStripMenuItem1
-            // 
-            this.sIBToolStripMenuItem1.Name = "sIBToolStripMenuItem1";
-            this.sIBToolStripMenuItem1.Size = new System.Drawing.Size(136, 22);
-            this.sIBToolStripMenuItem1.Text = "SIB";
-            this.sIBToolStripMenuItem1.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
-            // opcodeToolStripMenuItem
-            // 
-            this.opcodeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.mOVToolStripMenuItem,
-            this.aDDToolStripMenuItem,
-            this.movToolStripMenuItem1});
-            this.opcodeToolStripMenuItem.Name = "opcodeToolStripMenuItem";
-            this.opcodeToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
-            this.opcodeToolStripMenuItem.Text = "Opcode";
-            // 
-            // mOVToolStripMenuItem
-            // 
-            this.mOVToolStripMenuItem.Name = "mOVToolStripMenuItem";
-            this.mOVToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
-            this.mOVToolStripMenuItem.Text = "All opcodes";
-            this.mOVToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
-            // aDDToolStripMenuItem
-            // 
-            this.aDDToolStripMenuItem.Name = "aDDToolStripMenuItem";
-            this.aDDToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
-            this.aDDToolStripMenuItem.Text = "ADD";
-            this.aDDToolStripMenuItem.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
-            // movToolStripMenuItem1
-            // 
-            this.movToolStripMenuItem1.Name = "movToolStripMenuItem1";
-            this.movToolStripMenuItem1.Size = new System.Drawing.Size(136, 22);
-            this.movToolStripMenuItem1.Text = "MOV";
-            this.movToolStripMenuItem1.Click += new System.EventHandler(this.OnTestcaseSelected);
-            // 
             // viewToolStripMenuItem
             // 
+            this.viewToolStripMenuItem.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.formatToolStripMenuItem});
             this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
             this.viewToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
             this.viewToolStripMenuItem.Text = "View";
+            this.viewToolStripMenuItem.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // formatToolStripMenuItem
             // 
+            this.formatToolStripMenuItem.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.formatToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.MenuFormatHex,
             this.MenuFormatDecimal,
@@ -240,47 +143,58 @@ namespace debugger
             this.formatToolStripMenuItem.Name = "formatToolStripMenuItem";
             this.formatToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
             this.formatToolStripMenuItem.Text = "Format";
+            this.formatToolStripMenuItem.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             // 
             // MenuFormatHex
             // 
             this.MenuFormatHex.Checked = true;
             this.MenuFormatHex.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.MenuFormatHex.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.MenuFormatHex.Name = "MenuFormatHex";
             this.MenuFormatHex.Size = new System.Drawing.Size(142, 22);
             this.MenuFormatHex.Text = "Hexadecimal";
+            this.MenuFormatHex.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             this.MenuFormatHex.Click += new System.EventHandler(this.MenuFormatChanged);
             // 
             // MenuFormatDecimal
             // 
+            this.MenuFormatDecimal.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.MenuFormatDecimal.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.MenuFormatSigned,
             this.MenuFormatUnsigned});
             this.MenuFormatDecimal.Name = "MenuFormatDecimal";
             this.MenuFormatDecimal.Size = new System.Drawing.Size(142, 22);
             this.MenuFormatDecimal.Text = "Decimal";
+            this.MenuFormatDecimal.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             this.MenuFormatDecimal.Click += new System.EventHandler(this.MenuFormatChanged);
             // 
             // MenuFormatSigned
             // 
             this.MenuFormatSigned.Checked = true;
             this.MenuFormatSigned.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.MenuFormatSigned.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.MenuFormatSigned.Name = "MenuFormatSigned";
             this.MenuFormatSigned.Size = new System.Drawing.Size(124, 22);
             this.MenuFormatSigned.Text = "Unsigned";
+            this.MenuFormatSigned.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             this.MenuFormatSigned.Click += new System.EventHandler(this.MenuFormatSignedChanged);
             // 
             // MenuFormatUnsigned
             // 
+            this.MenuFormatUnsigned.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.MenuFormatUnsigned.Name = "MenuFormatUnsigned";
             this.MenuFormatUnsigned.Size = new System.Drawing.Size(124, 22);
             this.MenuFormatUnsigned.Text = "Signed";
+            this.MenuFormatUnsigned.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             this.MenuFormatUnsigned.Click += new System.EventHandler(this.MenuFormatSignedChanged);
             // 
             // MenuFormatString
             // 
+            this.MenuFormatString.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.MenuFormatString.Name = "MenuFormatString";
             this.MenuFormatString.Size = new System.Drawing.Size(142, 22);
             this.MenuFormatString.Text = "String";
+            this.MenuFormatString.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
             this.MenuFormatString.Click += new System.EventHandler(this.MenuFormatChanged);
             // 
             // PanelRegisters
@@ -294,7 +208,7 @@ namespace debugger
             this.PanelRegisters.Controls.Add(this.RBPLABEL);
             this.PanelRegisters.Controls.Add(this.RSPLABEL);
             this.PanelRegisters.Controls.Add(this.RIPLABEL);
-            this.PanelRegisters.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.PanelRegisters.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.PanelRegisters.Location = new System.Drawing.Point(674, 43);
             this.PanelRegisters.Name = "PanelRegisters";
             this.PanelRegisters.Size = new System.Drawing.Size(368, 267);
@@ -305,7 +219,7 @@ namespace debugger
             // RDXLABEL
             // 
             this.RDXLABEL.AutoSize = true;
-            this.RDXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RDXLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RDXLABEL.Location = new System.Drawing.Point(4, 190);
             this.RDXLABEL.Name = "RDXLABEL";
             this.RDXLABEL.Size = new System.Drawing.Size(146, 13);
@@ -316,7 +230,7 @@ namespace debugger
             // RCXLABEL
             // 
             this.RCXLABEL.AutoSize = true;
-            this.RCXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RCXLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RCXLABEL.Location = new System.Drawing.Point(4, 170);
             this.RCXLABEL.Name = "RCXLABEL";
             this.RCXLABEL.Size = new System.Drawing.Size(146, 13);
@@ -327,7 +241,7 @@ namespace debugger
             // RBXLABEL
             // 
             this.RBXLABEL.AutoSize = true;
-            this.RBXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RBXLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RBXLABEL.Location = new System.Drawing.Point(4, 150);
             this.RBXLABEL.Name = "RBXLABEL";
             this.RBXLABEL.Size = new System.Drawing.Size(146, 13);
@@ -338,7 +252,7 @@ namespace debugger
             // RAXLABEL
             // 
             this.RAXLABEL.AutoSize = true;
-            this.RAXLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RAXLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RAXLABEL.Location = new System.Drawing.Point(4, 130);
             this.RAXLABEL.Name = "RAXLABEL";
             this.RAXLABEL.Size = new System.Drawing.Size(146, 13);
@@ -349,7 +263,7 @@ namespace debugger
             // RDILABEL
             // 
             this.RDILABEL.AutoSize = true;
-            this.RDILABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RDILABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RDILABEL.Location = new System.Drawing.Point(4, 110);
             this.RDILABEL.Name = "RDILABEL";
             this.RDILABEL.Size = new System.Drawing.Size(146, 13);
@@ -360,7 +274,7 @@ namespace debugger
             // RSILABEL
             // 
             this.RSILABEL.AutoSize = true;
-            this.RSILABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RSILABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RSILABEL.Location = new System.Drawing.Point(4, 90);
             this.RSILABEL.Name = "RSILABEL";
             this.RSILABEL.Size = new System.Drawing.Size(146, 13);
@@ -371,7 +285,7 @@ namespace debugger
             // RBPLABEL
             // 
             this.RBPLABEL.AutoSize = true;
-            this.RBPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RBPLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RBPLABEL.Location = new System.Drawing.Point(4, 70);
             this.RBPLABEL.Name = "RBPLABEL";
             this.RBPLABEL.Size = new System.Drawing.Size(146, 13);
@@ -382,7 +296,7 @@ namespace debugger
             // RSPLABEL
             // 
             this.RSPLABEL.AutoSize = true;
-            this.RSPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RSPLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RSPLABEL.Location = new System.Drawing.Point(4, 50);
             this.RSPLABEL.Name = "RSPLABEL";
             this.RSPLABEL.Size = new System.Drawing.Size(146, 13);
@@ -393,7 +307,7 @@ namespace debugger
             // RIPLABEL
             // 
             this.RIPLABEL.AutoSize = true;
-            this.RIPLABEL.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.RIPLABEL.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.RIPLABEL.Location = new System.Drawing.Point(4, 30);
             this.RIPLABEL.Name = "RIPLABEL";
             this.RIPLABEL.Size = new System.Drawing.Size(146, 13);
@@ -409,7 +323,7 @@ namespace debugger
             this.PanelFlags.Controls.Add(this.LabelZero);
             this.PanelFlags.Controls.Add(this.LabelOverflow);
             this.PanelFlags.Controls.Add(this.LabelCarry);
-            this.PanelFlags.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.PanelFlags.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.PanelFlags.Location = new System.Drawing.Point(674, 327);
             this.PanelFlags.Name = "PanelFlags";
             this.PanelFlags.Size = new System.Drawing.Size(368, 98);
@@ -420,7 +334,7 @@ namespace debugger
             // LabelAuxiliary
             // 
             this.LabelAuxiliary.AutoSize = true;
-            this.LabelAuxiliary.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelAuxiliary.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelAuxiliary.Location = new System.Drawing.Point(171, 65);
             this.LabelAuxiliary.Name = "LabelAuxiliary";
             this.LabelAuxiliary.Size = new System.Drawing.Size(35, 13);
@@ -432,7 +346,7 @@ namespace debugger
             // LabelParity
             // 
             this.LabelParity.AutoSize = true;
-            this.LabelParity.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelParity.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelParity.Location = new System.Drawing.Point(171, 45);
             this.LabelParity.Name = "LabelParity";
             this.LabelParity.Size = new System.Drawing.Size(35, 13);
@@ -444,7 +358,7 @@ namespace debugger
             // LabelSign
             // 
             this.LabelSign.AutoSize = true;
-            this.LabelSign.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelSign.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelSign.Location = new System.Drawing.Point(4, 65);
             this.LabelSign.Name = "LabelSign";
             this.LabelSign.Size = new System.Drawing.Size(35, 13);
@@ -456,7 +370,7 @@ namespace debugger
             // LabelZero
             // 
             this.LabelZero.AutoSize = true;
-            this.LabelZero.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelZero.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelZero.Location = new System.Drawing.Point(171, 25);
             this.LabelZero.Name = "LabelZero";
             this.LabelZero.Size = new System.Drawing.Size(35, 13);
@@ -468,7 +382,7 @@ namespace debugger
             // LabelOverflow
             // 
             this.LabelOverflow.AutoSize = true;
-            this.LabelOverflow.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelOverflow.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelOverflow.Location = new System.Drawing.Point(4, 45);
             this.LabelOverflow.Name = "LabelOverflow";
             this.LabelOverflow.Size = new System.Drawing.Size(35, 13);
@@ -480,7 +394,7 @@ namespace debugger
             // LabelCarry
             // 
             this.LabelCarry.AutoSize = true;
-            this.LabelCarry.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.LabelCarry.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.LabelCarry.Location = new System.Drawing.Point(4, 25);
             this.LabelCarry.Name = "LabelCarry";
             this.LabelCarry.Size = new System.Drawing.Size(35, 13);
@@ -491,7 +405,7 @@ namespace debugger
             // 
             // ButtonStep
             // 
-            this.ButtonStep.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonStep.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.ButtonStep.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.ButtonStep.Location = new System.Drawing.Point(674, 431);
             this.ButtonStep.Name = "ButtonStep";
@@ -504,7 +418,7 @@ namespace debugger
             // 
             // ButtonRun
             // 
-            this.ButtonRun.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonRun.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.ButtonRun.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.ButtonRun.Location = new System.Drawing.Point(755, 431);
             this.ButtonRun.Name = "ButtonRun";
@@ -517,7 +431,7 @@ namespace debugger
             // 
             // ButtonReset
             // 
-            this.ButtonReset.DrawingLayer = debugger.FormSettings.Layer.Foreground;
+            this.ButtonReset.DrawingLayer = debugger.FormSettings.Layer.Surface;
             this.ButtonReset.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.ButtonReset.Location = new System.Drawing.Point(836, 431);
             this.ButtonReset.Name = "ButtonReset";
@@ -532,7 +446,7 @@ namespace debugger
             // 
             this.ListViewDisassembly.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
             this.ListViewDisassembly.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.ListViewDisassembly.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.ListViewDisassembly.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.ListViewDisassembly.Font = new System.Drawing.Font("Consolas", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.ListViewDisassembly.ForeColor = System.Drawing.SystemColors.ControlDark;
             this.ListViewDisassembly.FullRowSelect = true;
@@ -559,7 +473,7 @@ namespace debugger
             // DisassemblyBorder
             // 
             this.DisassemblyBorder.Controls.Add(this.DisassemblyPadding);
-            this.DisassemblyBorder.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.DisassemblyBorder.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.DisassemblyBorder.Location = new System.Drawing.Point(38, 43);
             this.DisassemblyBorder.Name = "DisassemblyBorder";
             this.DisassemblyBorder.Size = new System.Drawing.Size(599, 411);
@@ -570,7 +484,7 @@ namespace debugger
             // PanelMemory
             // 
             this.PanelMemory.Controls.Add(this.memviewer);
-            this.PanelMemory.DrawingLayer = debugger.FormSettings.Layer.Background;
+            this.PanelMemory.DrawingLayer = debugger.FormSettings.Layer.Imminent;
             this.PanelMemory.Location = new System.Drawing.Point(38, 472);
             this.PanelMemory.Name = "PanelMemory";
             this.PanelMemory.Size = new System.Drawing.Size(399, 383);
@@ -618,24 +532,13 @@ namespace debugger
         private CustomControls.MemoryListView memviewer;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.MenuStrip menuStrip1;
-        private System.Windows.Forms.ToolStripMenuItem debugToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem runTestcaseToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem allToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem baseToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem sIBToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem opcodeToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem mOVToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem aDDToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem sIBToolStripMenuItem1;
-        private System.Windows.Forms.ToolStripMenuItem movToolStripMenuItem1;
-        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem formatToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem MenuFormatHex;
-        private System.Windows.Forms.ToolStripMenuItem MenuFormatDecimal;
-        private System.Windows.Forms.ToolStripMenuItem MenuFormatString;
-        private System.Windows.Forms.ToolStripMenuItem MenuFormatSigned;
-        private System.Windows.Forms.ToolStripMenuItem MenuFormatUnsigned;
-        private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
+        private CustomControls.ThemedToolStripMenuHeader viewToolStripMenuItem;
+        private CustomControls.ThemedToolStripMenuItem formatToolStripMenuItem;
+        private CustomControls.ThemedToolStripMenuItem MenuFormatHex;
+        private CustomControls.ThemedToolStripMenuItem MenuFormatDecimal;
+        private CustomControls.ThemedToolStripMenuItem MenuFormatString;
+        private CustomControls.ThemedToolStripMenuItem MenuFormatSigned;
+        private CustomControls.ThemedToolStripMenuItem MenuFormatUnsigned;
         private CustomControls.RegisterPanel PanelRegisters;
         private CustomControls.FlagLabel LabelOverflow;
         private CustomControls.FlagLabel LabelCarry;

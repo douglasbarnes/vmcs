@@ -9,7 +9,7 @@ using static debugger.FormSettings;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Collections.Specialized;
-
+using static debugger.Util.Drawing;
 namespace debugger
 {
     class CustomControls
@@ -75,17 +75,84 @@ namespace debugger
                 e.Graphics.FillRectangle(ElevatedTransparentOverlays[(int)DrawingLayer], Bounds);
                 Rectangle InnerBounds = new Rectangle(Bounds.X+1 , Bounds.Y+1 , Bounds.Width-3, Bounds.Height-3);
                 e.Graphics.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), InnerBounds);
-                Size TextSize = TextRenderer.MeasureText(Text, BaseUI.BaseFont);
-                Rectangle StringPosition = new Rectangle(new Point(Bounds.X + (Bounds.Width - TextSize.Width)/2, Bounds.Y + (Bounds.Height - TextSize.Height)/2), TextSize);
-                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], StringPosition);               
+                //Size TextSize = TextRenderer.MeasureText(Text, BaseUI.BaseFont);
+                //Rectangle StringPosition = new Rectangle(new Point(Bounds.X + (Bounds.Width - TextSize.Width)/2, Bounds.Y + (Bounds.Height - TextSize.Height)/2), TextSize);
+                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], GetCenter(Bounds, Text, BaseUI.BaseFont));               
             }  
+        }
+        public abstract class CustomToolStripMenuItem : ToolStripMenuItem, IMyCustomControl
+        {
+            public Layer DrawingLayer { get; set; }
+            public Emphasis TextEmphasis { get; set; }
+            public CustomToolStripMenuItem(Layer drawingLayer, Emphasis textEmphasis)
+            {
+                DrawingLayer = drawingLayer;
+                TextEmphasis = textEmphasis;
+            }
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], GetCenter(e.ClipRectangle, Text, BaseUI.BaseFont));
+                //base.OnPaint(e);
+            }
+        }
+        public abstract class CustomTextBox : TextBox, IMyCustomControl
+        {
+            public Layer DrawingLayer { get; set; }
+            public Emphasis TextEmphasis { get; set; }
+            public CustomTextBox(Layer drawingLayer, Emphasis textEmphasis) : base()
+            {
+                DrawingLayer = drawingLayer;
+                TextEmphasis = textEmphasis;
+            }
+        }
+        public abstract class CustomToolStripTextBox : ToolStripMenuItem, IMyCustomControl
+        {
+            public Layer DrawingLayer { get; set; }
+            public Emphasis TextEmphasis { get; set; }
+            public string Input = "";
+            public string Prefix = "";
+            public int BufferSize = 15;
+            public CustomToolStripTextBox(Layer drawingLayer, Emphasis textEmphasis) : base()
+            {
+                DrawingLayer = drawingLayer;
+                TextEmphasis = textEmphasis;
+                AutoSize = true;
+            }
+            protected void Ready()
+            {                
+                Text = Prefix + Input;
+            }
+            private KeysConverter Converter = new KeysConverter();
+            public void KeyPressed(object s,PreviewKeyDownEventArgs e)
+            {
+                if (e.KeyCode == Keys.Back && Input.Length > 0)
+                {
+                    Input = Input.Remove(Input.Count() - 1);
+                }
+                string Key = Converter.ConvertToString(e.KeyCode).ToLower();
+                if (Input.Length < BufferSize && Key.Length == 1 && "abcdefghijklmnopqrstuvwxyz!\"!£$%^&*()[];'#,./<>?:@~{}1234567890".Contains(Key))
+                {
+                    Input += Key;
+                }
+                Ready();
+            }
+        }
+        public abstract class CustomMenuStrip : MenuStrip, IMyCustomControl
+        {
+            public Layer DrawingLayer { get; set; }
+            public Emphasis TextEmphasis { get; set; }
+            public CustomMenuStrip(Layer drawingLayer, Emphasis textEmphasis) : base()
+            {
+                DrawingLayer = drawingLayer;
+                TextEmphasis = textEmphasis;
+            }
         }
         public class BorderedPanel : CustomPanel
         {
             public BorderedPanel(Layer layer, Emphasis emphasis) : base(layer, emphasis)
             {
             }
-            public BorderedPanel() : base(Layer.Background, Emphasis.High)
+            public BorderedPanel() : base(Layer.Imminent, Emphasis.High)
             {
 
             }
@@ -116,7 +183,7 @@ namespace debugger
         {
             public int RegSize { get; private set; } = 8;
             public Action OnRegSizeChanged = () => { };
-            public RegisterPanel() : base(Layer.Background, Emphasis.High)
+            public RegisterPanel() : base(Layer.Imminent, Emphasis.High)
             {
             }
             protected override void OnMouseDoubleClick(MouseEventArgs e)
@@ -145,7 +212,7 @@ namespace debugger
         }
         public class StepButton : CustomButton
         {
-            public StepButton() : base(Layer.Foreground, Emphasis.Medium) { FlatAppearance.BorderSize = 0; CustomBorder = true; }
+            public StepButton() : base(Layer.Surface, Emphasis.Medium) { FlatAppearance.BorderSize = 0; CustomBorder = true; }
         }
         public class DisassemblyListView : CustomListview
         {
@@ -160,7 +227,7 @@ namespace debugger
                 LayerBrush,
                 PrimaryBrush
             };
-            public DisassemblyListView() : base(Layer.Background, Emphasis.High, Emphasis.Medium)
+            public DisassemblyListView() : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
             {
                 
                 Columns.Add(new ColumnHeader() { Width = 692 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
@@ -216,8 +283,7 @@ namespace debugger
         }
         public class MemoryListView : CustomListview
         {
-
-            public MemoryListView() : base(Layer.Background, Emphasis.High, Emphasis.Medium)
+            public MemoryListView() : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
             {
                 BorderStyle = BorderStyle.None;
                 Columns.Add(new ColumnHeader(""));
@@ -249,6 +315,142 @@ namespace debugger
             {
                 //base.OnMouseClick(e);
             }
+        }
+        public class ThemedMenuStrip : CustomMenuStrip
+        {
+            public class ThemeRenderer : ToolStripRenderer
+            {
+                private Layer DrawingLayer;
+                private Emphasis TextEmphasis;
+                public ThemeRenderer(Layer layer, Emphasis emphasis)
+                {
+                    TextEmphasis = emphasis;
+                    DrawingLayer = layer;
+                }
+                protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
+                {
+                    FillShadedRect(e.Graphics, Rectangle.Round(e.Graphics.ClipBounds), Layer.Foreground);
+                }
+            }
+            public ThemedMenuStrip(Layer layer, Emphasis emphasis) : base(layer, emphasis)
+            {
+                Renderer = new ThemeRenderer(layer, emphasis);                
+            }
+        }
+        public class ThemedToolStripMenuHeader : CustomToolStripMenuItem
+        {
+            public ThemedToolStripMenuHeader() : base(Layer.Background, Emphasis.Medium)
+            {
+                DropDown.Closing += OnDropdownClosing;
+                AutoSize = true;
+               
+            }
+            private void OnDropdownClosing(object s, ToolStripDropDownClosingEventArgs e)
+            {
+                if (e.CloseReason == ToolStripDropDownCloseReason.ItemClicked)
+                {
+                    e.Cancel = true;
+                }
+            }
+
+        }
+        public class ThemedToolStripMenuItem : CustomToolStripMenuItem
+        {
+            public ThemedToolStripMenuItem() : base(Layer.Background, Emphasis.Medium)
+            {
+                
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                DrawShadedRect(e.Graphics, ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+            }
+
+        }
+        public class TestcaseSearchTextbox : CustomToolStripTextBox
+        {
+            public Func<string[]> GetToSearch;
+            public event DelegateResultClicked ResultClicked;
+            public delegate void DelegateResultClicked(string name);
+            public TestcaseSearchTextbox(Func<string[]> getToSearch, DelegateResultClicked resultClicked, Layer layer, Emphasis emphasis) : base(layer, emphasis)
+            {
+                GetToSearch = getToSearch;
+                ResultClicked += resultClicked;
+                Prefix = "Search: ";
+                TextAlign = ContentAlignment.MiddleLeft;
+                DropDown.PreviewKeyDown += KeyPressed;
+                DropDown.DefaultDropDownDirection = ToolStripDropDownDirection.BelowRight;
+                DisplayStyle = ToolStripItemDisplayStyle.Text;
+                DropDown.Opening += DropDown_Opening;
+                Ready();
+
+            }
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Rectangle Bounds = GetCenter(e.ClipRectangle); // GOES INTO CORNER FOR SOME REASON!!
+                DrawShadedRect(e.Graphics, ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+                e.Graphics.DrawString(Prefix, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
+                Bounds.Offset(CorrectedMeasureText(Prefix, BaseUI.BaseFont).Width, 0);
+                e.Graphics.DrawString(Input, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis + 1], Bounds);
+
+            }
+            protected override void OnTextChanged(EventArgs e)
+            {
+                base.OnTextChanged(e);
+                DropDown.Hide();
+                if(Input.Length > 1)
+                {
+                    DropDown.Show();
+                }                      
+            }
+
+            private void DropDown_Opening(object sender, CancelEventArgs e)
+            {
+                DropDown.Items.Clear();
+                if (Input.Length > 1)
+                {
+                    string[] ToSearch = GetToSearch.Invoke();
+                    for (int i = 0; i < ToSearch.Length; i++) // each tosearch string
+                    {
+                        if (ToSearch[i].Length >= Input.Length) // dont bother if input is bigger than the string
+                        {
+                            for (int j = 0; j < Input.Length; j++) //each char in string
+                            {
+                                if (ToSearch[i][j] != Input[j]) break; //if they are different, the strings have a different prefix of size=input.length
+                                if (j + 1 == Input.Length)//if this is the final iteration
+                                {
+                                    var ToAdd = new ThemedToolStripMenuItem() { Text = ToSearch[i] };
+                                    ToAdd.Click += (s, a) =>ResultClicked(s.ToString());
+                                    DropDown.Items.Add(new ThemedToolStripMenuItem() { Text = ToSearch[i] });//if we never broke, they were equal
+                                }
+                            }
+                        }
+                    }
+                }   
+                DropDown.Update();               
+            }
+        }
+        public class EndToolStripMenuItem : ThemedToolStripMenuHeader
+        {
+            private void RefreshPosition()
+            {
+                int WidthSum = 0;
+                for (int i = 0; i <= Parent.Items.IndexOf(this); i++)
+                {                    
+                    WidthSum += Parent.Items[i].Width;
+                }
+                Margin = new Padding(Parent.Width - WidthSum - 4, 0, Parent.Width  - WidthSum, 0);
+            }
+            protected override void OnParentChanged(ToolStrip oldParent, ToolStrip newParent)
+            {
+                base.OnParentChanged(oldParent, newParent);
+                if(newParent != null)
+                {
+                    RefreshPosition();
+                }                
+            }
+
         }
     }
 }

@@ -7,6 +7,8 @@ using static debugger.ControlUnit;
 using static debugger.FormSettings;
 using static debugger.Primitives;
 using static debugger.ControlUnit.FlagSet;
+using System.Windows.Forms;
+
 namespace debugger
 {
     public class Primitives
@@ -567,6 +569,35 @@ namespace debugger
                         Position += " ";
                     }
                 }               
+            }
+            public static void DrawShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer, int penSize=1)
+            {
+                graphics.DrawRectangle(new Pen(LayerBrush, penSize), bounds);
+                graphics.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)overlayLayer], penSize), bounds);
+            }
+            public static void FillShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer)
+            {
+                graphics.FillRectangle(LayerBrush, bounds);
+                graphics.FillRectangle(ElevatedTransparentOverlays[(int)overlayLayer], bounds);
+            }
+            public static Rectangle GetCenter(Rectangle bounds, string text, Font font)
+            {
+                Size TextSize = CorrectedMeasureText(text, font);
+                return GetCenter(bounds, TextSize.Width, TextSize.Height);
+            }
+            public static Rectangle GetCenter(Rectangle bounds, int offsetx=0, int offsety=0) 
+                => new Rectangle(
+                    new Point(bounds.X + (bounds.Width - offsetx) / 2, bounds.Y + (bounds.Height - offsety) / 2), 
+                    new Size(bounds.Width / 2 + offsetx, bounds.Height / 2 + offsety));
+            public static Rectangle ShrinkRectangle(Rectangle bounds, int pxSquared)
+                => new Rectangle(
+                    bounds.Location,
+                    new Size(bounds.Width - pxSquared, bounds.Height - pxSquared));
+            public static Size CorrectedMeasureText(string text, Font font)
+            {
+                Size ToCorrect = TextRenderer.MeasureText(text, font);
+                ToCorrect.Width -= (int)font.Size / 2;
+                return ToCorrect;
             }
         }
         public class OpcodeUtil
