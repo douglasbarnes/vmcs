@@ -5,10 +5,12 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using static debugger.FormSettings;
 using static debugger.Primitives;
 using static debugger.Util;
@@ -223,17 +225,43 @@ namespace debugger
         private void GotoMemSrc_MouseEnter(object sender, EventArgs e)
         {
             if(gotoMemSrc.Text == "Invalid address") { gotoMemSrc.Clear(); }
-        }        
-        private void OnTestcaseSelected(object sender, EventArgs e)
+        }
+        private const string ResultOutputPath = "Results\\";
+        private void OnTestcaseSelected(string name)
         {
-            Task.Run(async () =>
+            if(name == "all")
             {
-                (bool, string) Result = await TestHandler.ExecuteTestcase(sender.ToString());
-                if (MessageBox.Show($"Click No to see full results", sender.ToString() + (Result.Item1 ? " passed!" : " failed!"), MessageBoxButtons.YesNo) == DialogResult.No)
+                string OutputPath = ResultOutputPath + "AllTestcases.xml";
+                if (new FileInfo(OutputPath) == null)
                 {
-                    MessageBox.Show(Result.Item2);
-                }
-            });            
+                    throw new Exception("Invalid output path");
+                } else
+                {
+                    Task.Run(async () =>
+                    {
+                        XElement Result = await TestHandler.ExecuteAll();
+                        Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
+                        Result.Save(OutputPath);
+                        //byte[] ToWrite = Encoding.ASCII.GetBytes(Result);
+                        //using (FileStream resultWriter = File.Create(OutputPath))
+                        //{
+                        //    resultWriter.Write(ToWrite, 0, ToWrite.Length);
+                        //}
+                        MessageBox.Show("Results written to " + OutputPath);
+                    });
+                }                
+            } else
+            {
+                Task.Run(async () =>
+                {
+                    XElement Result = await TestHandler.ExecuteTestcase(name);
+                    if (MessageBox.Show($"Click No to see full results", name + Result.Attribute("result").ToString().ToLower(), MessageBoxButtons.YesNo) == DialogResult.No)
+                    {
+                        MessageBox.Show(Result.ToString());
+                    }
+                });
+            }
+                       
         }
         private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
         //Format methods

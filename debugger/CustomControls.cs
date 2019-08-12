@@ -371,24 +371,25 @@ namespace debugger
         public class TestcaseSearchTextbox : CustomToolStripTextBox
         {
             public Func<string[]> GetToSearch;
-            public event DelegateResultClicked ResultClicked;
+            public DelegateResultClicked ResultClicked;
             public delegate void DelegateResultClicked(string name);
             public TestcaseSearchTextbox(Func<string[]> getToSearch, DelegateResultClicked resultClicked, Layer layer, Emphasis emphasis) : base(layer, emphasis)
             {
                 GetToSearch = getToSearch;
-                ResultClicked += resultClicked;
+                ResultClicked = resultClicked;
                 Prefix = "Search: ";
                 TextAlign = ContentAlignment.MiddleLeft;
                 DropDown.PreviewKeyDown += KeyPressed;
                 DropDown.DefaultDropDownDirection = ToolStripDropDownDirection.BelowRight;
                 DisplayStyle = ToolStripItemDisplayStyle.Text;
+                
                 DropDown.Opening += DropDown_Opening;
                 Ready();
 
             }
             protected override void OnPaint(PaintEventArgs e)
             {
-                Rectangle Bounds = GetCenter(e.ClipRectangle); // GOES INTO CORNER FOR SOME REASON!!
+                Rectangle Bounds = GetCenterHeight(e.ClipRectangle);
                 DrawShadedRect(e.Graphics, ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
                 e.Graphics.DrawString(Prefix, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
                 Bounds.Offset(CorrectedMeasureText(Prefix, BaseUI.BaseFont).Width, 0);
@@ -420,9 +421,9 @@ namespace debugger
                                 if (ToSearch[i][j] != Input[j]) break; //if they are different, the strings have a different prefix of size=input.length
                                 if (j + 1 == Input.Length)//if this is the final iteration
                                 {
-                                    var ToAdd = new ThemedToolStripMenuItem() { Text = ToSearch[i] };
-                                    ToAdd.Click += (s, a) =>ResultClicked(s.ToString());
-                                    DropDown.Items.Add(new ThemedToolStripMenuItem() { Text = ToSearch[i] });//if we never broke, they were equal
+                                    var ToAdd = new ThemedToolStripMenuItem() { Text = ToSearch[i] };                                    
+                                    ToAdd.Click += (s, a) => ResultClicked(s.ToString());
+                                    DropDown.Items.Add(ToAdd);//if we never broke, they were equal
                                 }
                             }
                         }

@@ -20,18 +20,36 @@ namespace debugger
         protected struct CheckpointSubresult
         {
             public bool Passed;
-            public string Message;
+            public string Expected;
+            public string Found;
         }
         protected class TestcaseResult
         {
             public bool Passed = true;
             public Dictionary<Checkpoint, List<CheckpointSubresult>> CheckpointOutputs = new Dictionary<Checkpoint, List<CheckpointSubresult>>();
+            public XElement ToXML(string name)
+            {
+                XElement Output = new XElement(name);
+                Output.SetAttributeValue("result", Passed ? "Passed" : "Failed");
+                foreach (var CheckpointOutput in CheckpointOutputs)
+                {
+                    XElement CheckpointResult = new XElement("CheckpointResult", new XAttribute("Tag", CheckpointOutput.Key.Tag));
+                    foreach (var SubCheckpointOutput in CheckpointOutput.Value)
+                    {
+                        CheckpointResult.Add(
+                            new XElement("SubCheckpointResult", new XAttribute("result", SubCheckpointOutput.Passed ? "passed" : "failed")
+                                ,new XElement("Expected", SubCheckpointOutput.Expected)
+                                ,new XElement("Found", SubCheckpointOutput.Found)));
+                    }
+                    Output.Add(CheckpointResult);
+                }
+                return Output;
+            }
         }
         protected class TestcaseObject
         {
             public MemorySpace Memory;
             public Dictionary<ulong, Checkpoint> Checkpoints = new Dictionary<ulong, Checkpoint>();
-
         }
         protected class Checkpoint
         {
@@ -77,8 +95,8 @@ namespace debugger
                             new CheckpointSubresult
                             {
                                 Passed = Snapshot.Registers[testReg.RegisterCode, testReg.Size].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0,
-                                Message = $"Expected: ${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}\n" +
-                                          $"Found   : ${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.RegisterCode, testReg.Size],8),0).ToString("X")}"
+                                Expected = $" ${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
+                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.RegisterCode, testReg.Size],8),0).ToString("X")}"
                             });
                     }
                     foreach (TestMemoryAddress testMem in CurrentCheckpoint.ExpectedMemory)
@@ -113,8 +131,8 @@ namespace debugger
                             new CheckpointSubresult
                             {
                                 Passed = CompareMemory,
-                                Message = $"Expected: [{Mnemonic}]={{{ParseBytes(testMem.ExpectedBytes)}}}\n" +
-                                          $"Found   : [{Mnemonic}]={{{ParseBytes(FoundBytes)}}}"
+                                Expected = $"[{Mnemonic}]={{{ParseBytes(testMem.ExpectedBytes)}}}",
+                                Found = $"[{Mnemonic}]={{{ParseBytes(FoundBytes)}}}"
                             });
                     }
                     if(!CurrentSubresults.Last().Passed)
@@ -222,41 +240,39 @@ namespace debugger
             }
             return string.Join(", ", Output);
         }
-        private static string ParseResult(TestcaseResult result)
+        public static event Action OnTestcaseNotFound = () => MessageBox.Show("Testcase not found");      
+        public static async Task<XElement> ExecuteTestcase(string name)
         {
-            string Parsed = "";
-            foreach (var checkpoint in result.CheckpointOutputs)
-            {
-                Parsed += $"\n{checkpoint.Key.Tag}:\n";
-                foreach (var output in checkpoint.Value)
-                {
-                    Parsed += $"----{((output.Passed) ? "[Passed]" : "[Failed]")}\n{output.Message}\n";
-                }
-            }
-            return Parsed;
-        }
-        public static event Action OnTestcaseNotFound = () => MessageBox.Show("Testcase not found");
-        public static async Task<(bool, string)> ExecuteTestcase(string name)
-        {
-            name = name.ToLower();      
+            name = name.ToLower();
+            XElement Output;
             if(Testcases.ContainsKey(name))
             {
                 TestingEmulator Emulator = new TestingEmulator(Testcases[name]);
                 TestcaseResult Result = await Emulator.RunTestcase();
-                return (Result.Passed, ParseResult(Result));
+                Output = Result.ToXML(name);
             }
             else
             {
                 OnTestcaseNotFound.Invoke();
-                return (false, null);
+                Output = new XElement(name, new XAttribute("result", "error: testcase not found"));
             }
-                
+            return Output;
         }   
 
-        //public static async Task<(bool, string)> ExecuteTestcase()
-        //{
-        //
-        //}
+        public static async Task<XElement> ExecuteAll()
+        {
+            XElement Base = new XElement("all");
+            bool Passed = true;
+            foreach (var Testcase in Testcases)
+            {
+                TestingEmulator Emulator = new TestingEmulator(Testcase.Value);
+                TestcaseResult Result = await Emulator.RunTestcase();
+                Base.Add(Result.ToXML(Testcase.Key));
+                Passed &= Result.Passed; //once result.passed==false, base.passed will never be true again
+            }
+            Base.SetAttributeValue("result", Passed ? "Passed" : "Failed");
+            return Base;
+        }
 
         public static string[] GetTestcases() => Testcases.Keys.ToArray();
     }    

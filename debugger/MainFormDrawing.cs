@@ -71,11 +71,13 @@ namespace debugger
             string[] Testcases = TestHandler.GetTestcases();
             for (int i = 0; i < Testcases.Length; i++)
             {
-                SelectDebugMenuItem.DropDownItems.Add(new ThemedToolStripMenuItem()
+                var ToAdd = new ThemedToolStripMenuItem()
                 {
                     Text = Testcases[i],
                     Size = ItemSize
-                });
+                };
+                ToAdd.Click += (s,a) => OnTestcaseSelected(ToAdd.Text);
+                SelectDebugMenuItem.DropDownItems.Add(ToAdd);
             }
             //SelectDebugMenuItem.Click += new EventHandler(OnTestcaseSelected);
             AllDebugMenuItem = new ThemedToolStripMenuItem()
@@ -83,9 +85,10 @@ namespace debugger
                 Size = ItemSize,
                 Text = "All"
             };
+            AllDebugMenuItem.Click += (s, a) => OnTestcaseSelected("all");
             SearchDebugMenuItem = new TestcaseSearchTextbox(
                 () => TestHandler.GetTestcases(),
-                async (name) =>  await TestHandler.ExecuteTestcase(name),
+                (name) =>  OnTestcaseSelected(name),
                 Layer.Background, 
                 Emphasis.Medium)
             {

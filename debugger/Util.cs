@@ -589,6 +589,10 @@ namespace debugger
                 => new Rectangle(
                     new Point(bounds.X + (bounds.Width - offsetx) / 2, bounds.Y + (bounds.Height - offsety) / 2), 
                     new Size(bounds.Width / 2 + offsetx, bounds.Height / 2 + offsety));
+            public static Rectangle GetCenterHeight(Rectangle bounds)
+                => new Rectangle(
+                    new Point(bounds.X, bounds.Y + (bounds.Height / 4)),
+                    new Size(bounds.Width, bounds.Height / 2));
             public static Rectangle ShrinkRectangle(Rectangle bounds, int pxSquared)
                 => new Rectangle(
                     bounds.Location,
