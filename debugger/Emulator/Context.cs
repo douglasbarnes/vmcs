@@ -1,0 +1,35 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using debugger.Util;
+namespace debugger.Emulator
+{
+    public class Context
+    {
+        public FlagSet Flags = new FlagSet();
+        public MemorySpace Memory;
+        public RegisterGroup Registers = new RegisterGroup();
+        public ulong InstructionPointer;
+        public List<ulong> Breakpoints = new List<ulong>();
+        public Context(MemorySpace memory)
+        {
+            Memory = memory;
+            InstructionPointer = Memory.EntryPoint;
+        }
+
+        private Context(Context toClone)
+        {
+            Flags = toClone.Flags;
+            Memory = toClone.Memory.DeepCopy();
+            InstructionPointer = toClone.InstructionPointer; // val type
+            Breakpoints = toClone.Breakpoints.DeepCopy();
+            Registers = toClone.Registers.DeepCopy();
+        }
+        public Context DeepCopy()
+        {
+            return new Context(this);
+        }
+    }
+}

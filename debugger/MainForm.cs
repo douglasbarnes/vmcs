@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -11,9 +8,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using debugger.Util;
+using debugger.Hypervisor;
+using debugger.Emulator;
 using static debugger.FormSettings;
-using static debugger.Primitives;
-using static debugger.Util;
+
 namespace debugger
 {  
     public partial class MainForm : Form
@@ -36,7 +35,9 @@ namespace debugger
             var ins = new MemorySpace(new byte[]
            // { 0xB8, 0x10, 0x00, 0x00, 0x00, 0xBB, 0x20, 0x00, 0x00, 0x00, 0xBA, 0xAA, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x14, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x14, 0x43, 0x67, 0x89, 0x94, 0x43, 0x00, 0x01, 0x00, 0x00, 0x89, 0x94, 0x45, 0x00, 0x01, 0x00, 0x00 }
 //{ 0xB8, 0xA3, 0x10, 0x00, 0x00, 0xBB, 0x2F, 0x43, 0x20, 0x00, 0xF7, 0xE3, 0x69, 0xC0, 0x35, 0x02, 0x03, 0x00, 0x69, 0xC0, 0x23, 0x21, 0x00, 0x00 }
-{ 0xB8, 0x00, 0x01, 0x00, 0x00, 0xBB, 0xFF, 0x00, 0x00, 0x00, 0x67, 0x89, 0x58, 0x50, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x85, 0x00, 0x00, 0x00, 0x20, 0x67, 0x89, 0x1C, 0xC3, 0x67, 0x89, 0x9C, 0x18, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x5C, 0x45, 0x10, 0x67, 0x8A, 0x4C, 0x45, 0x10, 0x90 }
+{ 0xB0, 0xF1, 0x66, 0xBB, 0xF2, 0xF2, 0xB9, 0xF3, 0xF3, 0x33, 0xF3, 0x48, 0xBA, 0xF4, 0xF4, 0x44, 0xF4, 0x44, 0x44, 0x44, 0xF4, 0x90, 0x88, 0x04, 0x24, 0x66, 0x89, 0x5C, 0x24, 0xFE, 0x89, 0x4C, 0x24, 0xFA, 0x48, 0x89, 0x54, 0x24, 0xF2, 0x90, 0x66, 0x0F, 0xBE, 0xD9, 0x0F, 0xBF, 0xD1, 0x48, 0x0F, 0xBE, 0xCB, 0x0F, 0xBF, 0xCB, 0x48, 0x0F, 0xBF, 0xD9, 0x48, 0x63, 0xC3, 0x90, 0x66, 0x0F, 0xB6, 0xD9, 0x0F, 0xB7, 0xD1, 0x0F, 0xB6, 0xC3, 0x0F, 0xB7, 0xCB, 0x48, 0x0F, 0xB7, 0xD9, 0x90 }
+
+
 
 
 
@@ -229,7 +230,8 @@ namespace debugger
         private const string ResultOutputPath = "Results\\";
         private void OnTestcaseSelected(string name)
         {
-            if(name == "all")
+            XElement Result;
+            if (name == "all")
             {
                 string OutputPath = ResultOutputPath + "AllTestcases.xml";
                 if (new FileInfo(OutputPath) == null)
@@ -239,23 +241,21 @@ namespace debugger
                 {
                     Task.Run(async () =>
                     {
-                        XElement Result = await TestHandler.ExecuteAll();
+                        Result = await TestHandler.ExecuteAll();
                         Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
                         Result.Save(OutputPath);
-                        //byte[] ToWrite = Encoding.ASCII.GetBytes(Result);
-                        //using (FileStream resultWriter = File.Create(OutputPath))
-                        //{
-                        //    resultWriter.Write(ToWrite, 0, ToWrite.Length);
-                        //}
-                        MessageBox.Show("Results written to " + OutputPath);
+                        
+                        MessageBox.Show("Results written to " + OutputPath, Result.Attribute("result").Value);
                     });
                 }                
             } else
             {
                 Task.Run(async () =>
-                {
-                    XElement Result = await TestHandler.ExecuteTestcase(name);
-                    if (MessageBox.Show($"Click No to see full results", name + Result.Attribute("result").ToString().ToLower(), MessageBoxButtons.YesNo) == DialogResult.No)
+                {                    
+                    Result = await TestHandler.ExecuteTestcase(name);
+                    string OutputPath = ResultOutputPath + $"{name}Testcase.xml";
+                    Result.Save(OutputPath);
+                    if (MessageBox.Show($"Click No to see full results", name + " " + Result.Attribute("result").Value.ToString().ToLower(), MessageBoxButtons.YesNo) == DialogResult.No)
                     {
                         MessageBox.Show(Result.ToString());
                     }
@@ -266,44 +266,6 @@ namespace debugger
         private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
         //Format methods
         private FormatType SelectedFormatType = FormatType.Hex;        
-        private void MenuFormatChanged(object sender, EventArgs e)
-        {
-            switch(sender.ToString())
-            {
-                case "Hexadecimal":
-                    MenuFormatDecimal.Checked = false;
-                    MenuFormatString.Checked = false;
-                    MenuFormatHex.Checked = true;
-                    SelectedFormatType = FormatType.Hex;
-                    break;
-                case "Decimal":
-                    MenuFormatDecimal.Checked = false;
-                    MenuFormatString.Checked = false;
-                    MenuFormatHex.Checked = true;
-                    SelectedFormatType = (MenuFormatSigned.Checked) ? FormatType.SignedDecimal : FormatType.Decimal;
-                    break;
-                case "String":
-                    MenuFormatDecimal.Checked = false;
-                    MenuFormatString.Checked = false;
-                    MenuFormatHex.Checked = true;
-                    SelectedFormatType = FormatType.String;
-                    break;
-                    //void menuformatsignedchanged doesnt hit any of these
-            }
-        }
-        private void MenuFormatSignedChanged(object sender, EventArgs e)
-        {
-            MenuFormatDecimal.Checked = false;
-            MenuFormatString.Checked = false;
-            MenuFormatHex.Checked = true;
-            if (sender.ToString() == "Signed")
-            {
-                SelectedFormatType = FormatType.SignedDecimal;
-            } else
-            {                
-                SelectedFormatType = FormatType.Decimal;
-            }
-        }
         //
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
 

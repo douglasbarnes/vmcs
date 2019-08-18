@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing;
-using static debugger.FormSettings;
-using System.Runtime.InteropServices;
 using System.ComponentModel;
-using System.Collections.Specialized;
-using static debugger.Util.Drawing;
+using debugger.Hypervisor;
+using debugger.Util;
+using static debugger.FormSettings;
 namespace debugger
 {
     class CustomControls
@@ -41,7 +38,7 @@ namespace debugger
             }
             protected override void OnPaint(PaintEventArgs e)
             {         
-                Util.Drawing.DrawFormattedText(Text, e.Graphics, bounds:e.ClipRectangle, defaultEmphasis:TextEmphasis);
+                Drawing.DrawFormattedText(Text, e.Graphics, bounds:e.ClipRectangle, defaultEmphasis:TextEmphasis);
             }
         }
         public abstract class CustomListview : ListView, IMyCustomControl
@@ -75,9 +72,7 @@ namespace debugger
                 e.Graphics.FillRectangle(ElevatedTransparentOverlays[(int)DrawingLayer], Bounds);
                 Rectangle InnerBounds = new Rectangle(Bounds.X+1 , Bounds.Y+1 , Bounds.Width-3, Bounds.Height-3);
                 e.Graphics.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), InnerBounds);
-                //Size TextSize = TextRenderer.MeasureText(Text, BaseUI.BaseFont);
-                //Rectangle StringPosition = new Rectangle(new Point(Bounds.X + (Bounds.Width - TextSize.Width)/2, Bounds.Y + (Bounds.Height - TextSize.Height)/2), TextSize);
-                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], GetCenter(Bounds, Text, BaseUI.BaseFont));               
+                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));               
             }  
         }
         public abstract class CustomToolStripMenuItem : ToolStripMenuItem, IMyCustomControl
@@ -91,7 +86,8 @@ namespace debugger
             }
             protected override void OnPaint(PaintEventArgs e)
             {
-                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], GetCenter(e.ClipRectangle, Text, BaseUI.BaseFont));
+                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(e.ClipRectangle, Text, BaseUI.BaseFont));
+                
                 //base.OnPaint(e);
             }
         }
@@ -136,15 +132,58 @@ namespace debugger
                 }
                 Ready();
             }
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Rectangle Bounds = Drawing.GetCenterHeight(e.ClipRectangle);
+                Drawing.DrawShadedRect(e.Graphics, Drawing.ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+                e.Graphics.DrawString(Prefix, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
+                Bounds.Offset(Drawing.CorrectedMeasureText(Prefix, BaseUI.BaseFont).Width, 0);
+                e.Graphics.DrawString(Input, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis + 1], Bounds);
+
+            }
+        }
+        public abstract class CustomToolStripButton : ToolStripButton, IMyCustomControl
+        {
+            public Layer DrawingLayer { get; set; }
+            public Emphasis TextEmphasis { get; set; }
+            public CustomToolStripButton(Layer drawingLayer, Emphasis textEmphasis) : base()
+            {
+                DrawingLayer = drawingLayer;
+                TextEmphasis = textEmphasis;
+            }
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Rectangle Bounds = e.ClipRectangle;
+                e.Graphics.FillRectangle(LayerBrush, Bounds);
+                e.Graphics.FillRectangle(ElevatedTransparentOverlays[(int)DrawingLayer], Bounds);
+                Rectangle InnerBounds = new Rectangle(Bounds.X + 1, Bounds.Y + 1, Bounds.Width - 3, Bounds.Height - 3);
+                e.Graphics.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)DrawingLayer]), InnerBounds);
+                e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));
+            }
         }
         public abstract class CustomMenuStrip : MenuStrip, IMyCustomControl
         {
+            public class ThemeRenderer : ToolStripRenderer
+            {
+                private Layer DrawingLayer;
+                private Emphasis TextEmphasis;
+                public ThemeRenderer(Layer layer, Emphasis emphasis)
+                {
+                    TextEmphasis = emphasis;
+                    DrawingLayer = layer;
+                }
+                protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
+                {
+                    Drawing.FillShadedRect(e.Graphics, Rectangle.Round(e.Graphics.ClipBounds), Layer.Foreground);
+                }
+            }
             public Layer DrawingLayer { get; set; }
             public Emphasis TextEmphasis { get; set; }
             public CustomMenuStrip(Layer drawingLayer, Emphasis textEmphasis) : base()
             {
                 DrawingLayer = drawingLayer;
                 TextEmphasis = textEmphasis;
+                Renderer = new ThemeRenderer(drawingLayer, textEmphasis);
             }
         }
         public class BorderedPanel : CustomPanel
@@ -216,12 +255,7 @@ namespace debugger
         }
         public class DisassemblyListView : CustomListview
         {
-            //https://docs.microsoft.com/en-gb/windows/win32/controls/cookbook-overview
-            //[DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-            //public static extern int SetWindowTheme(IntPtr LVHandle, string keepEmpty1, string keepEmpty2);
             public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
-            
-
             private SolidBrush[] ItemColours = new SolidBrush[]
             {
                 LayerBrush,
@@ -250,11 +284,6 @@ namespace debugger
                 };
                 BreakpointSource.ListChanged += (sender,args) => Refresh();
             }
-            protected override void OnHandleCreated(EventArgs e)
-            {
-                base.OnHandleCreated(e);
-                //SetWindowTheme(Handle, null, null);
-            }
             protected override void OnDrawItem(DrawListViewItemEventArgs e)
             {
                 
@@ -263,8 +292,7 @@ namespace debugger
                 string[] SortedText = Util.Core.SeparateString(e.Item.Text.Substring(2, 16), "0", stopAtFirstDifferent: true);
                 e.Graphics.DrawString($"  {SortedText[0]}{e.Item.Text.Substring(18)}", BaseUI.BaseFont, TextBrushes[2], HeightCenteredBounds);
                 e.Graphics.DrawString($"0x{SortedText[1]}", BaseUI.BaseFont, TextBrushes[3], HeightCenteredBounds);            
-            }
-            
+            }            
             public void AddParsed(List<Disassembler.DisassembledItem> ParsedLines)
             {
                 List<ListViewItem> Output = new List<ListViewItem>();
@@ -317,24 +345,10 @@ namespace debugger
             }
         }
         public class ThemedMenuStrip : CustomMenuStrip
-        {
-            public class ThemeRenderer : ToolStripRenderer
-            {
-                private Layer DrawingLayer;
-                private Emphasis TextEmphasis;
-                public ThemeRenderer(Layer layer, Emphasis emphasis)
-                {
-                    TextEmphasis = emphasis;
-                    DrawingLayer = layer;
-                }
-                protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
-                {
-                    FillShadedRect(e.Graphics, Rectangle.Round(e.Graphics.ClipBounds), Layer.Foreground);
-                }
-            }
+        {            
             public ThemedMenuStrip(Layer layer, Emphasis emphasis) : base(layer, emphasis)
             {
-                Renderer = new ThemeRenderer(layer, emphasis);                
+                               
             }
         }
         public class ThemedToolStripMenuHeader : CustomToolStripMenuItem
@@ -363,8 +377,8 @@ namespace debugger
 
             protected override void OnPaint(PaintEventArgs e)
             {
-                base.OnPaint(e);
-                DrawShadedRect(e.Graphics, ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+                Drawing.DrawShadedRect(e.Graphics, Drawing.ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+                base.OnPaint(e);                
             }
 
         }
@@ -381,21 +395,11 @@ namespace debugger
                 TextAlign = ContentAlignment.MiddleLeft;
                 DropDown.PreviewKeyDown += KeyPressed;
                 DropDown.DefaultDropDownDirection = ToolStripDropDownDirection.BelowRight;
-                DisplayStyle = ToolStripItemDisplayStyle.Text;
-                
+                DisplayStyle = ToolStripItemDisplayStyle.Text;                
                 DropDown.Opening += DropDown_Opening;
                 Ready();
-
             }
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                Rectangle Bounds = GetCenterHeight(e.ClipRectangle);
-                DrawShadedRect(e.Graphics, ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
-                e.Graphics.DrawString(Prefix, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
-                Bounds.Offset(CorrectedMeasureText(Prefix, BaseUI.BaseFont).Width, 0);
-                e.Graphics.DrawString(Input, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis + 1], Bounds);
-
-            }
+            
             protected override void OnTextChanged(EventArgs e)
             {
                 base.OnTextChanged(e);
@@ -452,6 +456,13 @@ namespace debugger
                 }                
             }
 
+        }
+        public class ThemedToolStripRadioButton : CustomToolStripButton
+        {
+            public ThemedToolStripRadioButton() : base(Layer.Background, Emphasis.Medium)
+            {
+
+            }
         }
     }
 }

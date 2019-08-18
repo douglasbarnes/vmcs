@@ -34,14 +34,6 @@ namespace debugger
             this.gotoMemSrc = new System.Windows.Forms.TextBox();
             this.memviewer = new debugger.CustomControls.MemoryListView();
             this.label1 = new System.Windows.Forms.Label();
-            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
-            this.viewToolStripMenuItem = new debugger.CustomControls.ThemedToolStripMenuHeader();
-            this.formatToolStripMenuItem = new debugger.CustomControls.ThemedToolStripMenuItem();
-            this.MenuFormatHex = new debugger.CustomControls.ThemedToolStripMenuItem();
-            this.MenuFormatDecimal = new debugger.CustomControls.ThemedToolStripMenuItem();
-            this.MenuFormatSigned = new debugger.CustomControls.ThemedToolStripMenuItem();
-            this.MenuFormatUnsigned = new debugger.CustomControls.ThemedToolStripMenuItem();
-            this.MenuFormatString = new debugger.CustomControls.ThemedToolStripMenuItem();
             this.PanelRegisters = new debugger.CustomControls.RegisterPanel();
             this.RDXLABEL = new debugger.CustomControls.RegisterLabel();
             this.RCXLABEL = new debugger.CustomControls.RegisterLabel();
@@ -66,7 +58,6 @@ namespace debugger
             this.DisassemblyPadding = new System.Windows.Forms.Panel();
             this.DisassemblyBorder = new debugger.CustomControls.BorderedPanel();
             this.PanelMemory = new debugger.CustomControls.BorderedPanel();
-            this.menuStrip1.SuspendLayout();
             this.PanelRegisters.SuspendLayout();
             this.PanelFlags.SuspendLayout();
             this.DisassemblyPadding.SuspendLayout();
@@ -110,92 +101,6 @@ namespace debugger
             this.label1.Size = new System.Drawing.Size(33, 13);
             this.label1.TabIndex = 15;
             this.label1.Text = "Goto:";
-            // 
-            // menuStrip1
-            // 
-            this.menuStrip1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(18)))), ((int)(((byte)(18)))), ((int)(((byte)(18)))));
-            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.viewToolStripMenuItem});
-            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
-            this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-            this.menuStrip1.Size = new System.Drawing.Size(1070, 24);
-            this.menuStrip1.TabIndex = 19;
-            this.menuStrip1.Text = "menuStrip1";
-            // 
-            // viewToolStripMenuItem
-            // 
-            this.viewToolStripMenuItem.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.viewToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.formatToolStripMenuItem});
-            this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
-            this.viewToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
-            this.viewToolStripMenuItem.Text = "View";
-            this.viewToolStripMenuItem.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            // 
-            // formatToolStripMenuItem
-            // 
-            this.formatToolStripMenuItem.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.formatToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.MenuFormatHex,
-            this.MenuFormatDecimal,
-            this.MenuFormatString});
-            this.formatToolStripMenuItem.Name = "formatToolStripMenuItem";
-            this.formatToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
-            this.formatToolStripMenuItem.Text = "Format";
-            this.formatToolStripMenuItem.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            // 
-            // MenuFormatHex
-            // 
-            this.MenuFormatHex.Checked = true;
-            this.MenuFormatHex.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.MenuFormatHex.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.MenuFormatHex.Name = "MenuFormatHex";
-            this.MenuFormatHex.Size = new System.Drawing.Size(142, 22);
-            this.MenuFormatHex.Text = "Hexadecimal";
-            this.MenuFormatHex.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.MenuFormatHex.Click += new System.EventHandler(this.MenuFormatChanged);
-            // 
-            // MenuFormatDecimal
-            // 
-            this.MenuFormatDecimal.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.MenuFormatDecimal.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.MenuFormatSigned,
-            this.MenuFormatUnsigned});
-            this.MenuFormatDecimal.Name = "MenuFormatDecimal";
-            this.MenuFormatDecimal.Size = new System.Drawing.Size(142, 22);
-            this.MenuFormatDecimal.Text = "Decimal";
-            this.MenuFormatDecimal.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.MenuFormatDecimal.Click += new System.EventHandler(this.MenuFormatChanged);
-            // 
-            // MenuFormatSigned
-            // 
-            this.MenuFormatSigned.Checked = true;
-            this.MenuFormatSigned.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.MenuFormatSigned.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.MenuFormatSigned.Name = "MenuFormatSigned";
-            this.MenuFormatSigned.Size = new System.Drawing.Size(124, 22);
-            this.MenuFormatSigned.Text = "Unsigned";
-            this.MenuFormatSigned.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.MenuFormatSigned.Click += new System.EventHandler(this.MenuFormatSignedChanged);
-            // 
-            // MenuFormatUnsigned
-            // 
-            this.MenuFormatUnsigned.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.MenuFormatUnsigned.Name = "MenuFormatUnsigned";
-            this.MenuFormatUnsigned.Size = new System.Drawing.Size(124, 22);
-            this.MenuFormatUnsigned.Text = "Signed";
-            this.MenuFormatUnsigned.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.MenuFormatUnsigned.Click += new System.EventHandler(this.MenuFormatSignedChanged);
-            // 
-            // MenuFormatString
-            // 
-            this.MenuFormatString.DrawingLayer = debugger.FormSettings.Layer.Imminent;
-            this.MenuFormatString.Name = "MenuFormatString";
-            this.MenuFormatString.Size = new System.Drawing.Size(142, 22);
-            this.MenuFormatString.Text = "String";
-            this.MenuFormatString.TextEmphasis = debugger.FormSettings.Emphasis.Medium;
-            this.MenuFormatString.Click += new System.EventHandler(this.MenuFormatChanged);
             // 
             // PanelRegisters
             // 
@@ -503,18 +408,14 @@ namespace debugger
             this.Controls.Add(this.PanelRegisters);
             this.Controls.Add(this.DisassemblyBorder);
             this.Controls.Add(this.ButtonReset);
-            this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.gotoMemSrc);
             this.Controls.Add(this.ButtonRun);
             this.Controls.Add(this.ButtonStep);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-            this.MainMenuStrip = this.menuStrip1;
             this.Name = "MainForm";
             this.Text = "Disassembler";
             this.Load += new System.EventHandler(this.Form1_Load);
-            this.menuStrip1.ResumeLayout(false);
-            this.menuStrip1.PerformLayout();
             this.PanelRegisters.ResumeLayout(false);
             this.PanelRegisters.PerformLayout();
             this.PanelFlags.ResumeLayout(false);
@@ -531,14 +432,6 @@ namespace debugger
         private System.Windows.Forms.TextBox gotoMemSrc;
         private CustomControls.MemoryListView memviewer;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.MenuStrip menuStrip1;
-        private CustomControls.ThemedToolStripMenuHeader viewToolStripMenuItem;
-        private CustomControls.ThemedToolStripMenuItem formatToolStripMenuItem;
-        private CustomControls.ThemedToolStripMenuItem MenuFormatHex;
-        private CustomControls.ThemedToolStripMenuItem MenuFormatDecimal;
-        private CustomControls.ThemedToolStripMenuItem MenuFormatString;
-        private CustomControls.ThemedToolStripMenuItem MenuFormatSigned;
-        private CustomControls.ThemedToolStripMenuItem MenuFormatUnsigned;
         private CustomControls.RegisterPanel PanelRegisters;
         private CustomControls.FlagLabel LabelOverflow;
         private CustomControls.FlagLabel LabelCarry;

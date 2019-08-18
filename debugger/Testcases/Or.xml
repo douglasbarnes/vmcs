@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="or" noparse="true">
+    <Hex>48B8A5A5A5A5A5A5A5A50C5A660D005A0D00005A5A480D000000809048BBA5A5A5A5A5A5A5A580CB5A6681CB005A81CB00005A5A4881CB000000809048B811111111111111114889C34889C16683C82281CB222200004881C92222222290BB11000000881C24BB3322000066895C2401BB77665544895C240448BBFFEEDDCCBBAA998848895C2409800C24EE66814C2401CCDD814C24048899AABB48814C2409001122F390BB11000000881C24BB3322000066895C2401BB77665544895C240448BBFFEEDDCCBBAA998848895C2409B7EE083C2466BBCCDD66095C2401BB8899AABB095C240448BB001122334455667748095C240990</Hex>
+    <Checkpoint tag="Immediate A" position_hex="1b">
+        <Register id="A" size="8">ffffffffffffffff</Register>
+    </Checkpoint>
+    <Checkpoint tag="Immediate" position_hex="3b">
+        <Register id="B" size="8">ffffffffffffffff</Register>
+    </Checkpoint>
+    <Checkpoint tag="Immediate sign extended byte" position_hex="5d">
+        <Register id="A" size="1">33</Register>
+        <Register id="B" size="8">0000000011113333</Register>
+        <Register id="C" size="8">1111111133333333</Register>
+    </Checkpoint>
+    <Checkpoint tag="Immediate to mem" position_hex="a4">
+        <Memory offset_register="SP">FF</Memory>
+        <Memory offset_register="SP" offset="1">FFFF</Memory>
+        <Memory offset_register="SP" offset="4">FFFFFFFF</Memory>
+        <Memory offset_register="SP" offset="9">FFFFFFFFFFFFFFFF</Memory>
+    </Checkpoint>
+    <Checkpoint tag="Reg to mem" position_hex="f5">
+        <Memory offset_register="SP">FF</Memory>
+        <Memory offset_register="SP" offset="1">FFFF</Memory>
+        <Memory offset_register="SP" offset="4">FFFFFFFF</Memory>
+        <Memory offset_register="SP" offset="9">FFFFFFFFFFFFFFFF</Memory>
+    </Checkpoint>
+</Testcase>   

@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="Name" noparse="true">
+    <Hex>Enter_Raw_Hex</Hex>
+    <Checkpoint tag="Tag" position_hex="Address">
+        <Register id="RegId" size="Size">BigEndianBytes</Register>
+        <Memory offset_register="OffsetReg" offset="Offset">LittleEndianBytes</Memory>
+    </Checkpoint>
+</Testcase>   

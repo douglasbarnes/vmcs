@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using static debugger.Primitives;
-using static debugger.ControlUnit;
-namespace debugger
+using debugger.Emulator;
+using debugger.Util;
+
+using static debugger.Emulator.ControlUnit;
+namespace debugger.Hypervisor
 {
-    public class Disassembler : EmulatorBase
+    public class Disassembler : HypervisorBase
     {
         public struct DisassembledItem
         {
@@ -22,7 +22,7 @@ namespace debugger
         }
         private Handle TargetHandle;
         private Context TargetContext { get => TargetHandle.ShallowCopy(); }
-        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.ShallowCopy())
+        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.ShallowCopy(), HandleParameters.IsDisassembling)
         {
             TargetHandle = targetHandle;
         }
@@ -51,22 +51,22 @@ namespace debugger
                 Output.Add(new DisassembledItem()
                 {
                     Address = CurrentAddr,                                         // } 1 space (←rip/4 spaces) 15 spaces {                    
-                    DisassembledLine = $"{Util.Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {JoinDisassembled((await RunAsync(true)).LastDisassembled)}"
+                    DisassembledLine = $"{Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {JoinDisassembled((await RunAsync(true)).LastDisassembled)}"
                 }); ;
 
             }
             return Output;
         }
-        private string JoinDisassembled(string[] RawDisassembled)
+        private string JoinDisassembled(List<string> RawDisassembled)
         {
-            if (RawDisassembled.Length < 3)
+            if (RawDisassembled.Count < 3)
             {
                 return string.Join(" ", RawDisassembled);
             }
             else
             {
                 string Output = $"{RawDisassembled[0]} {RawDisassembled[1]}";
-                for (int i = 2; i < RawDisassembled.Length; i++)
+                for (int i = 2; i < RawDisassembled.Count; i++)
                 {
                     Output += ", " + RawDisassembled[i];
                 }

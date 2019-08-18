@@ -5,13 +5,13 @@
         <Register id="A" size="1">f1</Register>
         <Register id="B" size="2">f2f2</Register>
         <Register id="C" size="4">f333f3f3</Register>
-        <Register id="D" size="8">F444F4F4F4444444</Register>
+        <Register id="D" size="8">F4444444F444F4F4</Register>
     </Checkpoint>
     <Checkpoint tag="Reg to mem" position_hex="27">
         <Memory offset_register="SP">F1</Memory>
         <Memory offset_register="SP" offset="FE">F2F2</Memory>
         <Memory offset_register="SP" offset="FA">F3F333F3</Memory>
-        <Memory offset_register="SP" offset="F2">f4444444f444f4f4</Memory>
+        <Memory offset_register="SP" offset="F2">f4f444f4444444f4</Memory>
     </Checkpoint>
     <Checkpoint tag="Sign extension" position_hex="3d">
         <Register id="A" size="8">fffffffffffffff3</Register>

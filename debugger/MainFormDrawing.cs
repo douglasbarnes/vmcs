@@ -1,31 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static debugger.CustomControls;
-using static debugger.FormSettings;
 using System.Drawing;
 using System.Windows.Forms;
+using static debugger.Util.Drawing;
+using static debugger.CustomControls;
+using static debugger.FormSettings;
 namespace debugger
 {
     public partial class MainForm
     {
-        internal EndToolStripMenuItem ExitMenuItem;
-        internal ThemedToolStripMenuHeader DebugMenuItem;
-        internal ThemedToolStripMenuHeader ViewMenuItem;
+        internal EndToolStripMenuItem ExitMenu;
+        internal ThemedToolStripMenuHeader DebugMenu;
+        internal ThemedToolStripMenuHeader ViewMenu;
         internal ThemedMenuStrip TopMenuStrip;
-        internal ThemedToolStripMenuItem SelectDebugMenuItem;
-        internal ThemedToolStripMenuItem AllDebugMenuItem;
-        internal TestcaseSearchTextbox SearchDebugMenuItem;
-
-        internal Size BaseMenuItemSize = new Size(40, 20);
+        internal ThemedToolStripMenuItem SelectDebugMenu;
+        internal ThemedToolStripMenuItem AllDebugMenu;
+        internal TestcaseSearchTextbox SearchDebugMenu;
+        internal ThemedToolStripMenuItem FormatViewMenu;
         private void CustomDraw()
         {
             DrawMenuBar();
         }
-
-
         private void DrawMenuBar()
         {
             TopMenuStrip = new ThemedMenuStrip(Layer.Background, Emphasis.Medium)
@@ -40,22 +36,22 @@ namespace debugger
             CreateMenuDebug();
             CreateMenuExit();
             CreateMenuView();
-            TopMenuStrip.Items.AddRange(new[] { DebugMenuItem, ViewMenuItem, ExitMenuItem });
+            TopMenuStrip.Items.AddRange(new[] { DebugMenu, ViewMenu, ExitMenu });
             TopMenuStrip.PerformLayout();
             
             
         }
         private void CreateMenuExit()
         {
-            ExitMenuItem = new EndToolStripMenuItem()
+            ExitMenu = new EndToolStripMenuItem()
             {
                 DrawingLayer = Layer.Imminent,
                 Name = "ExitMenuItem",
-                Size = BaseMenuItemSize,
+                Size = CorrectedMeasureText(" Exit ", BaseUI.BaseFont),
                 Text = "Exit",
                 TextEmphasis = Emphasis.Medium
             };
-            ExitMenuItem.Click += new EventHandler(ExitToolStripMenuItem_Click);
+            ExitMenu.Click += new EventHandler(ExitToolStripMenuItem_Click);
             
         }
         private void CreateMenuDebug()
@@ -63,12 +59,12 @@ namespace debugger
             //a work around for SelectDebugMenuItem.Dropdown opening when 's' is used in search, this is selected instead, which does nothing.
             var FillerDebugItem = new ToolStripMenuItem() { Text = "S", Size = new Size(0, 0), AutoSize = false };
             Size ItemSize = new Size(70, 20);
-            SelectDebugMenuItem = new ThemedToolStripMenuItem()
+            SelectDebugMenu = new ThemedToolStripMenuItem()
             {
                 Size = ItemSize,
                 Text = "Select"                
             };
-            string[] Testcases = TestHandler.GetTestcases();
+            string[] Testcases = Hypervisor.TestHandler.GetTestcases();
             for (int i = 0; i < Testcases.Length; i++)
             {
                 var ToAdd = new ThemedToolStripMenuItem()
@@ -77,17 +73,16 @@ namespace debugger
                     Size = ItemSize
                 };
                 ToAdd.Click += (s,a) => OnTestcaseSelected(ToAdd.Text);
-                SelectDebugMenuItem.DropDownItems.Add(ToAdd);
+                SelectDebugMenu.DropDownItems.Add(ToAdd);
             }
-            //SelectDebugMenuItem.Click += new EventHandler(OnTestcaseSelected);
-            AllDebugMenuItem = new ThemedToolStripMenuItem()
+            AllDebugMenu = new ThemedToolStripMenuItem()
             {
                 Size = ItemSize,
                 Text = "All"
             };
-            AllDebugMenuItem.Click += (s, a) => OnTestcaseSelected("all");
-            SearchDebugMenuItem = new TestcaseSearchTextbox(
-                () => TestHandler.GetTestcases(),
+            AllDebugMenu.Click += (s, a) => OnTestcaseSelected("all");
+            SearchDebugMenu = new TestcaseSearchTextbox(
+                () => Hypervisor.TestHandler.GetTestcases(),
                 (name) =>  OnTestcaseSelected(name),
                 Layer.Background, 
                 Emphasis.Medium)
@@ -95,26 +90,33 @@ namespace debugger
                 Size = ItemSize,
                 Name = ""
             };
-            DebugMenuItem = new ThemedToolStripMenuHeader()
+            DebugMenu = new ThemedToolStripMenuHeader()
             {
                 Name = "DebugMenuItem",
-                Size = BaseMenuItemSize,
+                Size = CorrectedMeasureText(" Debug ", BaseUI.BaseFont),
                 Text = "Debug",
             };
-            DebugMenuItem.DropDown.PreviewKeyDown += SearchDebugMenuItem.KeyPressed;
-            DebugMenuItem.DropDown.KeyDown += (s, e) => { };
-            DebugMenuItem.DropDownItems.AddRange(new ToolStripItem[]{ FillerDebugItem, AllDebugMenuItem, SelectDebugMenuItem, SearchDebugMenuItem });
+            DebugMenu.DropDown.PreviewKeyDown += SearchDebugMenu.KeyPressed;
+            DebugMenu.DropDown.KeyDown += (s, e) => { };
+            DebugMenu.DropDownItems.AddRange(new ToolStripItem[]{ FillerDebugItem, AllDebugMenu, SelectDebugMenu, SearchDebugMenu });
         }
         private void CreateMenuView()
         {
-            ViewMenuItem = new ThemedToolStripMenuHeader()
+            ViewMenu = new ThemedToolStripMenuHeader()
             {
                 DrawingLayer = Layer.Imminent,
                 Name = "ViewMenuItem",
-                Size = BaseMenuItemSize,
+                Size = CorrectedMeasureText(" View ", BaseUI.BaseFont),
                 Text = "View",
                 TextEmphasis = Emphasis.Medium
             };
+            FormatViewMenu = new ThemedToolStripMenuItem()
+            {
+                Name = "FormatView",
+                Text = "Format",                
+            };
+            FormatViewMenu.DropDownItems.AddRange(new[] { new ThemedToolStripRadioButton(), new ThemedToolStripRadioButton()});
+            ViewMenu.DropDownItems.Add(FormatViewMenu);
         }
     }
 

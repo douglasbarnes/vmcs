@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
 using System.Xml.Linq;
-using System.Xml;
-using static debugger.Primitives;
-using static debugger.ControlUnit;
-using static debugger.Util;
-namespace debugger
+using debugger.Emulator;
+using debugger.Util;
+namespace debugger.Hypervisor
 {
     static class TestHandler
     {
@@ -70,7 +67,7 @@ namespace debugger
             public byte[] ExpectedBytes;
         }
         private static Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
-        private class TestingEmulator : EmulatorBase
+        private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
             public TestingEmulator(TestcaseObject testcase) : 
@@ -155,6 +152,7 @@ namespace debugger
                         XDocument TestcaseFile = XDocument.Load(FilePath);
                         foreach (XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
                         {
+                            if (InputTestcase.Attribute("noparse") != null && InputTestcase.Attribute("noparse").Value == "true") continue;
                             TestcaseObject ParsedTestcase = new TestcaseObject
                             {
                                 Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)) // memory = <hex>x</hex>
@@ -211,7 +209,15 @@ namespace debugger
                                 }
                                 ParsedTestcase.Checkpoints.Add(Offset, ParsedCheckpoint);
                             }
-                            Testcases.Add(InputTestcase.Attribute("name").Value, ParsedTestcase);
+                            string TestcaseName = InputTestcase.Attribute("name").Value.ToLower();
+                            if(Testcases.ContainsKey(TestcaseName))
+                            {
+                                MessageBox.Show("Duplicate testcase entry " + TestcaseName);
+                            } else
+                            {
+                                Testcases.Add(TestcaseName, ParsedTestcase);
+                            }
+                            
                         }
                     }
                     catch (Exception e)
@@ -270,7 +276,7 @@ namespace debugger
                 Base.Add(Result.ToXML(Testcase.Key));
                 Passed &= Result.Passed; //once result.passed==false, base.passed will never be true again
             }
-            Base.SetAttributeValue("result", Passed ? "Passed" : "Failed");
+            Base.SetAttributeValue("result", Passed ? "passed" : "failed");
             return Base;
         }
 
