@@ -10,7 +10,7 @@ namespace debugger.Hypervisor
     {
         protected internal readonly Handle Handle;
         public event Action RunComplete = () => { };
-        public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.None) //new handle from context
+        public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
             inputContext.Registers = new RegisterGroup(new Dictionary<ByteCode, RegisterGroup.Register>()
             {
@@ -36,12 +36,12 @@ namespace debugger.Hypervisor
             FlagSet VMFlags = Handle.ShallowCopy().Flags;
             return new Dictionary<string, bool>()
                 {
-                {"Carry", VMFlags.Carry         == FlagState.On},
-                {"Parity", VMFlags.Parity       == FlagState.On},
-                {"Auxiliary", VMFlags.Auxiliary == FlagState.On},
-                {"Zero", VMFlags.Zero           == FlagState.On},
-                {"Sign", VMFlags.Sign           == FlagState.On},
-                {"Overflow", VMFlags.Overflow   == FlagState.On},
+                {"Carry", VMFlags.Carry         == FlagState.ON},
+                {"Parity", VMFlags.Parity       == FlagState.ON},
+                {"Auxiliary", VMFlags.Auxiliary == FlagState.ON},
+                {"Zero", VMFlags.Zero           == FlagState.ON},
+                {"Sign", VMFlags.Sign           == FlagState.ON},
+                {"Overflow", VMFlags.Overflow   == FlagState.ON},
                 };
         }
         public MemorySpace GetMemory()

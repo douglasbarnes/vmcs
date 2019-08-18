@@ -11,7 +11,7 @@ namespace debugger.Hypervisor
 {
     static class TestHandler
     {
-        private static Dictionary<string, ByteCode> RegisterDecodeTable = new Dictionary<string, ByteCode>() {
+        private readonly static Dictionary<string, ByteCode> RegisterDecodeTable = new Dictionary<string, ByteCode>() {
             {"A",ByteCode.A }, {"B",ByteCode.B },{"C",ByteCode.C },{"D",ByteCode.D },
             {"SP",ByteCode.SP }, {"BP",ByteCode.BP },{"SI",ByteCode.SI },{"DI",ByteCode.DI } };
         protected struct CheckpointSubresult
@@ -53,6 +53,8 @@ namespace debugger.Hypervisor
             public string Tag;
             public List<TestRegister> ExpectedRegisters = new List<TestRegister>();
             public List<TestMemoryAddress> ExpectedMemory = new List<TestMemoryAddress>();
+            public FlagSet ExpectedFlags = new FlagSet(FlagState.OFF);
+            public bool TestFlags = false;
         }
         protected struct TestRegister
         {
@@ -71,7 +73,7 @@ namespace debugger.Hypervisor
         {
             readonly TestcaseObject CurrentTestcase;
             public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
-                base("TestingEmulator", (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList() }).DeepCopy()) 
+                base("TestingEmulator", (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList(), Flags = new FlagSet(FlagState.OFF)}).DeepCopy()) 
             {
                 CurrentTestcase = testcase;
             }
@@ -86,8 +88,7 @@ namespace debugger.Hypervisor
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
-                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size);
-                        
+                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size);                        
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
@@ -132,6 +133,16 @@ namespace debugger.Hypervisor
                                 Found = $"[{Mnemonic}]={{{ParseBytes(FoundBytes)}}}"
                             });
                     }
+                    if(CurrentCheckpoint.TestFlags)
+                    {
+                        CurrentSubresults.Add(
+                        new CheckpointSubresult
+                        {
+                            Passed = CurrentCheckpoint.ExpectedFlags == ControlUnit.Flags,
+                            Expected = CurrentCheckpoint.ExpectedFlags.ToString(),
+                            Found = ControlUnit.Flags.ToString()
+                        });
+                    }                    
                     if(!CurrentSubresults.Last().Passed)
                     {
                         Result.Passed = false;
@@ -202,9 +213,18 @@ namespace debugger.Hypervisor
                                                 ExpectedBytes = ParseHex(TestCritera.Value)
                                             });
                                     }
+                                    else if (TestCritera.Name == "Flag")
+                                    {
+                                        if(TestCritera.Attribute("name") == null)
+                                        {
+                                            throw new Exception("Flag must have a name");
+                                        }
+                                        ParsedCheckpoint.TestFlags = true;
+                                        ParsedCheckpoint.ExpectedFlags[TestCritera.Attribute("name").Value] = TestCritera.Value == "1" ? FlagState.ON : FlagState.OFF;                                        
+                                    }
                                     else
                                     {
-                                        throw new Exception($"Unexpected item {TestCritera.Name}");//throw error if it wasnt memory of register
+                                        throw new Exception($"Unexpected element {TestCritera.Name}");//throw error if it wasnt memory of register
                                     }
                                 }
                                 ParsedTestcase.Checkpoints.Add(Offset, ParsedCheckpoint);
@@ -264,7 +284,6 @@ namespace debugger.Hypervisor
             }
             return Output;
         }   
-
         public static async Task<XElement> ExecuteAll()
         {
             XElement Base = new XElement("all");
@@ -279,7 +298,6 @@ namespace debugger.Hypervisor
             Base.SetAttributeValue("result", Passed ? "passed" : "failed");
             return Base;
         }
-
         public static string[] GetTestcases() => Testcases.Keys.ToArray();
     }    
 }

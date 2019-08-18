@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="mul">
+    <Hex>B311B002F6E39066BB222266B8112266F7E390BB33333333B811223333F7E39048C7C30B00000048891C2448B8112233334444444448F7242490</Hex>
+    <Checkpoint tag="Byte" position_hex="6">
+        <Register id="A" size="2">0022</Register>
+        <Register id="D" size="2">0</Register>
+        <Flag name="Carry">0</Flag>
+        <Flag name="Overflow">0</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Word" position_hex="12">
+        <Register id="A" size="2">C842</Register>
+        <Register id="D" size="2">048A</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Dword" position_hex="1f">
+        <Register id="A" size="4">8f5c2c63</Register>
+        <Register id="D" size="4">0a3d6d36</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Qword from mem" position_hex="39">
+        <Register id="A" size="8">eeeeeeee333276bb</Register>
+        <Register id="D" size="8">2</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+    </Checkpoint>
+</Testcase>   

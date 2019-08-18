@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         public Add(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None, bool UseCarry=false) : base((UseCarry) ? "ADC" : "ADD", input, settings)
         {
             List<byte[]> DestSource = Fetch();
-            ResultFlags = Bitwise.Add(DestSource[0], DestSource[1], (int)Capacity, out Result, (ControlUnit.Flags.Carry == FlagState.On && UseCarry));
+            ResultFlags = Bitwise.Add(DestSource[0], DestSource[1], (int)Capacity, out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseCarry));
         }
         public override void Execute()
         {

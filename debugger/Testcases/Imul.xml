@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="imul">
+    <Hex>B311B002F6EB9066BB222266B8112266F7EB90BB33333333891C24B811223333F72C249048C7C30B00000048B8112233334444444448F7EB9048B8112233334444444466BB2222660FAFD8B9333333330FAFC848BA4444444444444404480FAFD09048B81122333344444444666BD8036BC80348890424486B14240390</Hex>
+    <Checkpoint tag="Byte" position_hex="6">
+        <Register id="A" size="2">0022</Register>
+        <Register id="D" size="2">0</Register>
+        <Flag name="Carry">0</Flag>
+        <Flag name="Overflow">0</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Word" position_hex="12">
+        <Register id="A" size="2">C842</Register>
+        <Register id="D" size="2">048A</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+        <Flag name="Sign">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Dword from mem" position_hex="23">
+        <Register id="A" size="4">8f5c2c63</Register>
+        <Register id="D" size="4">0a3d6d36</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+        <Flag name="Sign">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Qword" position_hex="38">
+        <Register id="A" size="8">eeeeeeee333276bb</Register>
+        <Register id="D" size="8">2</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">1</Flag>
+        <Flag name="Sign">1</Flag>
+    </Checkpoint>    
+    <Checkpoint tag="Reg to reg" position_hex="61">
+        <Register id="B" size="8">c842</Register>
+        <Register id="C" size="8">08f5c2c63</Register>
+        <Register id="D" size="8">320fedcbf259084</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg*Imm to reg" position_hex="7c">
+        <Register id="B" size="8">6633</Register>
+        <Register id="C" size="8">99996633</Register>
+        <Register id="D" size="8">cccccccc99996633</Register>
+    </Checkpoint>
+</Testcase>   

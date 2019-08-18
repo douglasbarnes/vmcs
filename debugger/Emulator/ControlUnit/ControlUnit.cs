@@ -21,14 +21,13 @@ namespace debugger.Emulator
     public static partial class ControlUnit
     {
         
-        public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.None);
+        public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE);
         public static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }
         public static FlagSet Flags { get => CurrentContext.Flags; }
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; set => CurrentContext.InstructionPointer = value; }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
         public static List<PrefixByte> PrefixBuffer { get; private set; } = new List<PrefixByte>();
-        //public static readonly RegisterCapacity CurrentCapacity { get; set; }
 
         private static Status Execute(bool step)
         {
@@ -52,7 +51,7 @@ namespace debugger.Emulator
                     CurrentOpcode.Execute();
                     OpcodeWidth = 1;
                     PrefixBuffer = new List<PrefixByte>();
-                    if((CurrentHandle.HandleSettings | HandleParameters.IsDisassembling) == CurrentHandle.HandleSettings)
+                    if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {
                         TempLastDisas = CurrentOpcode.Disassemble();
                     }                   

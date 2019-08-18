@@ -6,8 +6,8 @@ namespace debugger.Emulator.Opcodes
     public class Jmp : Opcode
     {
         private readonly Condition JmpCondition;
-        public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.None) 
-            : base(condition == Condition.None ? "JMP" : "J" + Util.Disassembly.DisassembleCondition(condition)
+        public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.NONE) 
+            : base(condition == Condition.NONE ? "JMP" : "J" + Util.Disassembly.DisassembleCondition(condition)
                   , input
                   , (ControlUnit.PrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.WORD : RegisterCapacity.DWORD))
         {

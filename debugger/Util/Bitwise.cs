@@ -68,9 +68,9 @@ namespace debugger.Util
             Result = GetBytes(Bits);
             return new FlagSet(Result)
             {
-                Carry = FlagState.Off,
-                Overflow = FlagState.Off,
-                Auxiliary = FlagState.Undefined
+                Carry = FlagState.OFF,
+                Overflow = FlagState.OFF,
+                Auxiliary = FlagState.UNDEFINED
             };
         }
         public static FlagSet And(byte[] input1, byte[] input2, out byte[] Result)
@@ -94,9 +94,9 @@ namespace debugger.Util
             Result = GetBytes(Bits);
             return new FlagSet(Result)
             {
-                Carry = FlagState.Off,
-                Overflow = FlagState.Off,
-                Auxiliary = FlagState.Undefined
+                Carry = FlagState.OFF,
+                Overflow = FlagState.OFF,
+                Auxiliary = FlagState.UNDEFINED
             };
         }
         public static FlagSet Xor(byte[] input1, byte[] input2, out byte[] Result)
@@ -120,9 +120,9 @@ namespace debugger.Util
             Result = GetBytes(Bits);
             return new FlagSet(Result)
             {
-                Carry = FlagState.Off,
-                Overflow = FlagState.Off,
-                Auxiliary = FlagState.Undefined
+                Carry = FlagState.OFF,
+                Overflow = FlagState.OFF,
+                Auxiliary = FlagState.UNDEFINED
             };
         }
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
@@ -145,9 +145,9 @@ namespace debugger.Util
             }
             return new FlagSet(Result)
             {
-                Carry = carry ? FlagState.On : FlagState.Off,
-                Overflow = (input1.IsNegative() == input2.IsNegative() && Result.IsNegative() != input1.IsNegative()) ? FlagState.On : FlagState.Off,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = FlagState.Off
+                Carry = carry ? FlagState.ON : FlagState.OFF,
+                Overflow = (input1.IsNegative() == input2.IsNegative() && Result.IsNegative() != input1.IsNegative()) ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
+                Auxiliary = FlagState.OFF
             };
         }
         public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
@@ -173,9 +173,9 @@ namespace debugger.Util
             //overflow, negative - positive = positive
             return new FlagSet(Result) // negative - positive = positive   or positive - negative = negative
             {
-                Carry = Borrow ? FlagState.On : FlagState.Off,
-                Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.On : FlagState.Off,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = FlagState.Off // subtracted a bigger number from a smaller number and didnt get a negative
+                Carry = Borrow ? FlagState.ON : FlagState.OFF,
+                Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
+                Auxiliary = FlagState.OFF // subtracted a bigger number from a smaller number and didnt get a negative
             };
         }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
@@ -215,9 +215,9 @@ namespace debugger.Util
             bool UpperUsed = UpperComparison.CompareTo(Result, signed) != 0;
             return new FlagSet() //only these 3 are set in 
             {
-                Overflow = UpperUsed ? FlagState.On : FlagState.Off,
-                Carry = UpperUsed ? FlagState.On : FlagState.Off,
-                Sign = Result[size - 1] > 0x7F ? FlagState.On : FlagState.Off
+                Overflow = UpperUsed ? FlagState.ON : FlagState.OFF,
+                Carry = UpperUsed ? FlagState.ON : FlagState.OFF,
+                Sign = signed ? (Result[size - 1] > 0x7F ? FlagState.ON : FlagState.OFF) : FlagState.UNDEFINED
             };
         }
         public static FlagSet Increment(byte[] input, int size, out byte[] Result)
@@ -234,8 +234,8 @@ namespace debugger.Util
             }
             return new FlagSet(Result)
             {
-                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.On : FlagState.Off,//if we increased it and got a negative
-                Auxiliary = FlagState.Off,
+                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
+                Auxiliary = FlagState.OFF,
             };
         }
         public static FlagSet Decrement(byte[] input, int size, out byte[] Result)
@@ -252,8 +252,8 @@ namespace debugger.Util
             }
             return new FlagSet(Result)
             {
-                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.On : FlagState.Off,//if we increased it and got a negative
-                Auxiliary = FlagState.Off,
+                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
+                Auxiliary = FlagState.OFF,
             };
         }
         public static string GetBits(byte[] input)

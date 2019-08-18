@@ -7,8 +7,8 @@ namespace debugger.Emulator
     [Flags]
     public enum HandleParameters
     {
-        None=0,
-        IsDisassembling=1,
+        NONE=0,
+        DISASSEMBLEMODE=1,
     }
     public static partial class ControlUnit
     {        
@@ -62,6 +62,7 @@ namespace debugger.Emulator
                 {
                     StoredContexts.Add(this, inputContext);
                 }
+
             }
             public void Invoke(Action toExecute) // dont invoke run
             {

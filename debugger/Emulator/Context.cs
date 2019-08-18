@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator
 {
     public class Context
     {
-        public FlagSet Flags = new FlagSet();
+        public FlagSet Flags = new FlagSet(FlagState.OFF);
         public MemorySpace Memory;
         public RegisterGroup Registers = new RegisterGroup();
         public ulong InstructionPointer;

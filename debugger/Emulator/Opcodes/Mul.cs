@@ -8,21 +8,24 @@ namespace debugger.Emulator.Opcodes
         readonly byte[] Result;
         readonly FlagSet ResultFlags;
         readonly List<byte[]> Operands;
-        public Mul(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base((settings | OpcodeSettings.IsSigned) == settings ? "IMUL" : "MUL", input, settings)
+        readonly int NumOfOperands;
+        public Mul(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base((settings | OpcodeSettings.SIGNED) == settings ? "IMUL" : "MUL", input, settings)
         {
             Operands = Fetch();
-            if(Operands.Count == 1)
+            NumOfOperands = Operands.Count;
+            if(NumOfOperands == 1)
             {
                 Operands.Add(ControlUnit.FetchRegister(ByteCode.A, Capacity));
             }
             //imul opcodes come in the format,
+            //imul rm1 : a = upper(rm1*a) d = lower(rm1*a)
             //imul rm1 rm2 : rm1 = cut(rm1*rm2, rm1.length)
             //imul rm1 rm2 imm : rm1 = cut(rm2*imm, rm1.length) (rm1 and rm2 always have the same length)
-            ResultFlags = Bitwise.Multiply(Operands[Operands.Count], Operands[Operands.Count-1],(Settings | OpcodeSettings.IsSigned) == Settings, (int)Capacity, out Result); 
+            ResultFlags = Bitwise.Multiply(Operands[Operands.Count-1], Operands[Operands.Count-2],(Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity, out Result); 
         }
         public override void Execute()
         {
-            if(Operands.Count == 1)
+            if(NumOfOperands == 1)
             {
                 if(Capacity == RegisterCapacity.BYTE)
                 {

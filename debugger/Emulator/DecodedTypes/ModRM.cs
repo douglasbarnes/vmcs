@@ -3,85 +3,15 @@ using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator.DecodedTypes
 {
-    /*
-    public struct ModRM
+    public enum ModRMSettings
     {
-        private ulong Destination;               
-        private long Offset;//for disas only
-        public ulong DestPtr => Destination + (ulong)Offset;
-        public bool IsPtr => Bits.Mod != 3;
-        public ByteCode Source;
-        private SIB? DecodedSIB;
-        private readonly DeconstructedModRM Bits;
-        
-        public ModRM(byte input, bool swap=false)
-        {
-            string Bits = Bitwise.GetBits(input);
-            this = new ModRM(Convert.ToByte(Bits.Substring(0, 2), 2), Convert.ToByte(Bits.Substring(2, 3), 2), Convert.ToByte(Bits.Substring(5, 3), 2), swap );
-        }
-        public ModRM(byte mod, byte reg, byte mem, bool swap=false)
-        {
-            if(swap) (reg, mem) = (mem, reg);
-            Offset = 0;
-            DecodedSIB = null;
-            Bits = new DeconstructedModRM(mod,reg,mem);
-            Source = (ByteCode)reg;
-            if(mod == 3)
-            {
-                Destination = mem;
-            } else
-            {             
-                if(mod == 0 && mem == 5)
-                {
-                    Offset = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
-                    Destination = ControlUnit.InstructionPointer;                    
-                }
-                else if(mem == 4)
-                {
-                    DecodedSIB = new SIB(ControlUnit.FetchNext(), mod);
-                    Offset = DecodedSIB.Value.OffsetValue;
-                    Destination = DecodedSIB.Value.ResultNoOffset;
-                }
-                else
-                {                    
-                    Destination = BitConverter.ToUInt64(ControlUnit.FetchRegister((ByteCode)mem, RegisterCapacity.QWORD), 0);                               
-                }
-
-                if(mod == 1)
-                {
-                    Offset += (sbyte)ControlUnit.FetchNext();
-                }
-                else if(mod == 2)
-                {
-                    Offset += BitConverter.ToInt32(ControlUnit.FetchNext(4), 0);
-                }
-            }
-        }
-        public string[] Disassemble(RegisterCapacity regCap)
-        {
-            Pointer DestPtr = new Pointer() { BaseReg = RegisterMnemonics[Bits.Mem][regCap] };
-            if (Bits.Mem == 5 && Bits.Mod == 0)
-            {
-                DestPtr.BaseReg = "RIP";
-            }
-            else if (Bits.Mem == 4 && Bits.Mod != 3) // sib conditions
-            {
-                (DestPtr.Coefficient, DestPtr.BaseReg, DestPtr.AdditionalReg) = DecodedSIB.Value.Disassemble();
-            }
-            DestPtr.Offset = Offset;
-            string Source = RegisterMnemonics[Bits.Reg][regCap];
-            string Dest = DisassemblePointer(DestPtr);
-            if (Bits.Mod != 3)
-            {
-                Dest = $"[{Dest}]";
-            }
-            return new string[] { Dest, Source };
-        }
+        NONE = 0,
+        SWAP = 1,
+        EXTENDED
     }
-    */
+    
     public class ModRM : IMyDecoded
-    {
-        public bool ExtendedOpcode = false;
+    {//everything here is MR encoded by default. doesn't affect anything
         private enum Mod
         {
             Pointer,
@@ -94,7 +24,7 @@ namespace debugger.Emulator.DecodedTypes
         private long Offset;
         private SIB? DecodedSIB;
         private DeconstructedModRM Bits;
-        private bool IsSwap;
+        private readonly ModRMSettings Settings;
         private readonly struct DeconstructedModRM
         {
             public readonly Mod Mod; // first 2
@@ -105,18 +35,19 @@ namespace debugger.Emulator.DecodedTypes
                 (Mod, Reg, Mem) = ((Mod)mod, reg, mem);
             }
         }        
-        public ModRM(byte input, bool swap = false)
+        public ModRM(byte input, ModRMSettings settings = ModRMSettings.NONE)
         {
+            Settings = settings;
             string Bits = Bitwise.GetBits(input);
-            Initialise(Convert.ToByte(Bits.Substring(0, 2), 2), Convert.ToByte(Bits.Substring(2, 3), 2), Convert.ToByte(Bits.Substring(5, 3), 2), swap);
+            Initialise(Convert.ToByte(Bits.Substring(0, 2), 2), Convert.ToByte(Bits.Substring(2, 3), 2), Convert.ToByte(Bits.Substring(5, 3), 2));
         }
-        public ModRM(byte mod, byte reg, byte mem, bool swap = false)
+        public ModRM(byte mod, byte reg, byte mem, ModRMSettings settings = ModRMSettings.NONE)
         {
-            Initialise(mod, reg, mem, swap);
+            Settings = settings;
+            Initialise(mod, reg, mem);
         }
-        private void Initialise(byte mod, byte reg, byte mem, bool swap)
+        private void Initialise(byte mod, byte reg, byte mem)
         {
-            IsSwap = swap;
             Offset = 0;
             DecodedSIB = null;
             Bits = new DeconstructedModRM(mod, reg, mem);
@@ -170,13 +101,13 @@ namespace debugger.Emulator.DecodedTypes
             {
                 Dest = $"[{Dest}]";
             }
-            if (ExtendedOpcode)
+            if (Settings == ModRMSettings.EXTENDED)
             {
                 return new List<string> { Dest };
             } else
             {
                 string Source = Disassembly.RegisterMnemonics[Bits.Reg][size];
-                if (IsSwap)
+                if (Settings == ModRMSettings.SWAP)
                 {
                     return new List<string> { Source, Dest };
                 }
@@ -185,11 +116,6 @@ namespace debugger.Emulator.DecodedTypes
                     return new List<string> { Dest, Source };
                 }
             }
-            
-            
-            
-            
-            
         }
         public List<byte[]> Fetch(RegisterCapacity length)
         {
@@ -204,11 +130,11 @@ namespace debugger.Emulator.DecodedTypes
                 DestBytes = ControlUnit.Fetch(Destination + (ulong)Offset, (int)length);
             }
             Output.Add(DestBytes);
-            if(!ExtendedOpcode)
+            if(Settings != ModRMSettings.EXTENDED)
             {
                 Output.Add(ControlUnit.FetchRegister(Source, length));
             }         
-            if(IsSwap)
+            if(Settings == ModRMSettings.SWAP)
             {
                 Output.Reverse();
             }
@@ -217,7 +143,7 @@ namespace debugger.Emulator.DecodedTypes
         public void Set(byte[] data)
         {
             if (Bits.Mod == Mod.Register) {
-                if(IsSwap)
+                if(Settings == ModRMSettings.SWAP)
                 {
                     ControlUnit.SetRegister(Source, data);                    
                 } else
@@ -227,7 +153,7 @@ namespace debugger.Emulator.DecodedTypes
                 
             } else
             {
-                if (IsSwap)
+                if (Settings == ModRMSettings.SWAP)
                 {
                     ControlUnit.SetRegister(Source, data);
                 }

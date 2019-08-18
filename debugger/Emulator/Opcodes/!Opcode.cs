@@ -7,7 +7,7 @@ namespace debugger.Emulator.Opcodes
 { 
     public enum Condition // for conditional opcodes
     {
-        None,
+        NONE,
         A,
         NC,
         C,
@@ -30,11 +30,11 @@ namespace debugger.Emulator.Opcodes
     public enum OpcodeSettings
     {
         None = 0,
-        Is8Bit = 1,
-        IsSigned = 2,
-        IsSignExtendedByte = 4,
-        AllowImm64 = 8,
-        ExtraImmediate = 32,
+        BYTEMODE = 1,
+        SIGNED = 2,
+        SXBYTE = 4,
+        ALLOWIMM64 = 8,
+        IMMEDIATE = 32,
     }
     public abstract class Opcode
     {
@@ -60,17 +60,17 @@ namespace debugger.Emulator.Opcodes
         protected List<byte[]> Fetch()
         {
             List<byte[]> Output = InputMethod.Fetch(Capacity);
-            if ((Settings | OpcodeSettings.ExtraImmediate) == Settings)
+            if ((Settings | OpcodeSettings.IMMEDIATE) == Settings)
             {
                 if (ImmediateBuffer == null) // prevents fetching into adjacent instructions, still dont think its a good idea to call fetch more than once
                 {
-                    if((Settings | OpcodeSettings.IsSignExtendedByte) == Settings)
+                    if((Settings | OpcodeSettings.SXBYTE) == Settings)
                     {
                         ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
                     }
                     else if(Capacity == RegisterCapacity.QWORD)
                     {
-                        if ((Settings | OpcodeSettings.AllowImm64) == Settings)
+                        if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
                         {
                             ImmediateBuffer = FetchNext(8);
                         }
@@ -105,7 +105,7 @@ namespace debugger.Emulator.Opcodes
         }
         protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.DWORD)
         {
-            if ((Settings | OpcodeSettings.Is8Bit) == Settings) Capacity = RegisterCapacity.BYTE;
+            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.BYTE;
             else if (PrefixBuffer.Contains(PrefixByte.REXW)) Capacity = RegisterCapacity.QWORD;
             else if (PrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.WORD;
             else Capacity = defaultCapacity;
@@ -115,39 +115,39 @@ namespace debugger.Emulator.Opcodes
             switch(condition)
             {
                 case Condition.A: // used for signed
-                    return Flags.Carry == FlagState.Off && Flags.Zero == FlagState.Off;
+                    return Flags.Carry == FlagState.OFF && Flags.Zero == FlagState.OFF;
                 case Condition.NA: // used for signed
-                    return Flags.Carry == FlagState.On || Flags.Zero == FlagState.On;
+                    return Flags.Carry == FlagState.ON || Flags.Zero == FlagState.ON;
                 case Condition.C: // used for signed
-                    return Flags.Carry == FlagState.On;
+                    return Flags.Carry == FlagState.ON;
                 case Condition.NC: // used for signed
-                    return Flags.Carry == FlagState.Off;
+                    return Flags.Carry == FlagState.OFF;
                 case Condition.RCXZ: //exists because of loops using C reg as the iterator, have to hard code it like this, risky using Capacity here
                     return (PrefixBuffer.Contains(PrefixByte.ADDR32) && FetchRegister(ByteCode.A, RegisterCapacity.DWORD).IsZero()) || FetchRegister(ByteCode.A, RegisterCapacity.QWORD).IsZero();
                 case Condition.Z:
-                    return Flags.Zero == FlagState.On;
+                    return Flags.Zero == FlagState.ON;
                 case Condition.NZ:
-                    return Flags.Zero == FlagState.Off;
+                    return Flags.Zero == FlagState.OFF;
                 case Condition.G: // used for unsigned
-                    return Flags.Zero == FlagState.Off && Flags.Sign == Flags.Overflow;
+                    return Flags.Zero == FlagState.OFF && Flags.Sign == Flags.Overflow;
                 case Condition.GE: // used for unsigned
                     return Flags.Sign == Flags.Overflow;
                 case Condition.L: // used for unsigned
                     return Flags.Sign != Flags.Overflow;
                 case Condition.LE: // used for unsigned
-                    return Flags.Zero == FlagState.On || Flags.Sign != Flags.Overflow;
+                    return Flags.Zero == FlagState.ON || Flags.Sign != Flags.Overflow;
                 case Condition.O:
-                    return Flags.Overflow == FlagState.On;
+                    return Flags.Overflow == FlagState.ON;
                 case Condition.NO:
-                    return Flags.Overflow == FlagState.Off;
+                    return Flags.Overflow == FlagState.OFF;
                 case Condition.S:
-                    return Flags.Sign == FlagState.On;
+                    return Flags.Sign == FlagState.ON;
                 case Condition.NS:
-                    return Flags.Sign == FlagState.Off;
+                    return Flags.Sign == FlagState.OFF;
                 case Condition.P:
-                    return Flags.Parity == FlagState.On;
+                    return Flags.Parity == FlagState.ON;
                 case Condition.NP:
-                    return Flags.Parity == FlagState.Off;
+                    return Flags.Parity == FlagState.OFF;
                 default:
                     return true; //Condition.None
             }

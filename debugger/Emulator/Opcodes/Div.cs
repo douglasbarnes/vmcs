@@ -7,7 +7,7 @@ namespace debugger.Emulator.Opcodes
         readonly byte[] Quotient;
         readonly byte[] Modulo;
         public Div(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) 
-            : base((settings | OpcodeSettings.IsSigned) == settings ? "IDIV" : "DIV", input, settings)
+            : base((settings | OpcodeSettings.SIGNED) == settings ? "IDIV" : "DIV", input, settings)
         {
             List<byte[]> DestSource = Fetch();
             if(DestSource.Count == 1)
@@ -15,7 +15,7 @@ namespace debugger.Emulator.Opcodes
                 DestSource.Add(ControlUnit.FetchRegister(ByteCode.A, Capacity));
             }
             // always a reg, atleast for this opcode
-            Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.IsSigned) == Settings, (int)Capacity, out Quotient, out Modulo);
+            Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity, out Quotient, out Modulo);
         }
         public override void Execute()
         {
