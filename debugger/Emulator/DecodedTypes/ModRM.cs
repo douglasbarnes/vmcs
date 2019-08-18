@@ -94,6 +94,7 @@ namespace debugger.Emulator.DecodedTypes
         private long Offset;
         private SIB? DecodedSIB;
         private DeconstructedModRM Bits;
+        private bool IsSwap;
         private readonly struct DeconstructedModRM
         {
             public readonly Mod Mod; // first 2
@@ -115,7 +116,7 @@ namespace debugger.Emulator.DecodedTypes
         }
         private void Initialise(byte mod, byte reg, byte mem, bool swap)
         {
-            if (swap) (reg, mem) = (mem, reg);
+            IsSwap = swap;
             Offset = 0;
             DecodedSIB = null;
             Bits = new DeconstructedModRM(mod, reg, mem);
@@ -152,7 +153,7 @@ namespace debugger.Emulator.DecodedTypes
                 }
             }
         }
-        public string[] Disassemble(RegisterCapacity size)
+        public List<string> Disassemble(RegisterCapacity size)
         {
             Disassembly.Pointer DestPtr = new Disassembly.Pointer() { BaseReg = Disassembly.RegisterMnemonics[Bits.Mem][size] };
             if (Bits.Mem == 5 && Bits.Mod == 0)
@@ -164,13 +165,31 @@ namespace debugger.Emulator.DecodedTypes
                 (DestPtr.Coefficient, DestPtr.BaseReg, DestPtr.AdditionalReg) = DecodedSIB.Value.Disassemble();
             }
             DestPtr.Offset = Offset;
-            string Source = Disassembly.RegisterMnemonics[Bits.Reg][size];
             string Dest = Disassembly.DisassemblePointer(DestPtr);
             if (Bits.Mod != Mod.Register)
             {
                 Dest = $"[{Dest}]";
             }
-            return new string[] { Dest, Source };
+            if (ExtendedOpcode)
+            {
+                return new List<string> { Dest };
+            } else
+            {
+                string Source = Disassembly.RegisterMnemonics[Bits.Reg][size];
+                if (IsSwap)
+                {
+                    return new List<string> { Source, Dest };
+                }
+                else
+                {
+                    return new List<string> { Dest, Source };
+                }
+            }
+            
+            
+            
+            
+            
         }
         public List<byte[]> Fetch(RegisterCapacity length)
         {
@@ -188,16 +207,35 @@ namespace debugger.Emulator.DecodedTypes
             if(!ExtendedOpcode)
             {
                 Output.Add(ControlUnit.FetchRegister(Source, length));
-            }            
+            }         
+            if(IsSwap)
+            {
+                Output.Reverse();
+            }
             return Output;
         }
         public void Set(byte[] data)
         {
             if (Bits.Mod == Mod.Register) {
-                ControlUnit.SetRegister((ByteCode)Destination, data);
+                if(IsSwap)
+                {
+                    ControlUnit.SetRegister(Source, data);                    
+                } else
+                {
+                    ControlUnit.SetRegister((ByteCode)Destination, data);
+                }
+                
             } else
             {
-                ControlUnit.SetMemory(Destination+(ulong)Offset, data);
+                if (IsSwap)
+                {
+                    ControlUnit.SetRegister(Source, data);
+                }
+                else
+                {
+                    ControlUnit.SetMemory(Destination + (ulong)Offset, data);
+                }
+                
             }
         }
     }

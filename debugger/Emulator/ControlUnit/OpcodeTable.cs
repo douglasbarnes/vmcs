@@ -6,8 +6,7 @@ using static debugger.Emulator.Opcodes.OpcodeSettings;
 namespace debugger.Emulator
 {
     public static partial class ControlUnit
-    {
-        
+    {        
         private delegate Opcode OpcodeCaller();
         // format <byte size of opcode, <determining byte of opcode, method to return opcode>>
         private static readonly Dictionary<byte, Dictionary<byte, OpcodeCaller>> OpcodeTable = new Dictionary<byte, Dictionary<byte, OpcodeCaller>>()
@@ -128,14 +127,14 @@ namespace debugger.Emulator
                   { 0xB5, () => new Mov(new ImplicitRegister(ByteCode.CH), Is8Bit | ExtraImmediate) },
                   { 0xB6, () => new Mov(new ImplicitRegister(ByteCode.DH), Is8Bit | ExtraImmediate) },
                   { 0xB7, () => new Mov(new ImplicitRegister(ByteCode.BH), Is8Bit | ExtraImmediate) },
-                  { 0xB8, () => new Mov(new ImplicitRegister(ByteCode.A ), ExtraImmediate) },
-                  { 0xB9, () => new Mov(new ImplicitRegister(ByteCode.C ), ExtraImmediate) },
-                  { 0xBA, () => new Mov(new ImplicitRegister(ByteCode.D ), ExtraImmediate) },
-                  { 0xBB, () => new Mov(new ImplicitRegister(ByteCode.B ), ExtraImmediate) },
-                  { 0xBC, () => new Mov(new ImplicitRegister(ByteCode.AH), ExtraImmediate) },
-                  { 0xBD, () => new Mov(new ImplicitRegister(ByteCode.CH), ExtraImmediate) },
-                  { 0xBE, () => new Mov(new ImplicitRegister(ByteCode.DH), ExtraImmediate) },
-                  { 0xBF, () => new Mov(new ImplicitRegister(ByteCode.BH), ExtraImmediate) },
+                  { 0xB8, () => new Mov(new ImplicitRegister(ByteCode.A ), ExtraImmediate | AllowImm64) },
+                  { 0xB9, () => new Mov(new ImplicitRegister(ByteCode.C ), ExtraImmediate | AllowImm64) },
+                  { 0xBA, () => new Mov(new ImplicitRegister(ByteCode.D ), ExtraImmediate | AllowImm64) },
+                  { 0xBB, () => new Mov(new ImplicitRegister(ByteCode.B ), ExtraImmediate | AllowImm64) },
+                  { 0xBC, () => new Mov(new ImplicitRegister(ByteCode.AH), ExtraImmediate | AllowImm64) },
+                  { 0xBD, () => new Mov(new ImplicitRegister(ByteCode.CH), ExtraImmediate | AllowImm64) },
+                  { 0xBE, () => new Mov(new ImplicitRegister(ByteCode.DH), ExtraImmediate | AllowImm64) },
+                  { 0xBF, () => new Mov(new ImplicitRegister(ByteCode.BH), ExtraImmediate | AllowImm64) },
 
                   { 0xC6, () => new Mov(new ModRM(FetchNext(), swap:true), ExtraImmediate | Is8Bit)},
                   { 0xC7, () => new Movx(new ModRM(FetchNext(), swap:true), "MOV", signExtend:true, RegisterCapacity.DWORD, ExtraImmediate)},

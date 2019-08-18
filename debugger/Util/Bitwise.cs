@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using static debugger.Emulator.FlagSet;
 using debugger.Emulator;
 namespace debugger.Util
 {
@@ -15,17 +14,6 @@ namespace debugger.Util
             return Buffer;
         }
         public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
-        public static byte[] Trim(byte[] input)
-        {
-            for (int i = 0; i < input.Length; i++)
-            {
-                if (input[input.Length - i - 1] != 0)
-                {
-                    Array.Resize(ref input, input.Length - i);// cut after first non zero
-                }
-            }
-            return input;
-        }
         public static byte[] Cut(byte[] input, int count) // time difference between this and linq.take is huge, 
         {                                                           // http://prntscr.com/od20o4 // linq: http://prntscr.com/od20vw  //my way: http://prntscr.com/od21br
             Array.Resize(ref input, count);

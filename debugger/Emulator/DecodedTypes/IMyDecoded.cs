@@ -3,7 +3,7 @@ namespace debugger.Emulator.DecodedTypes
 {
     public interface IMyDecoded
     {
-        public string[] Disassemble(RegisterCapacity size);
+        public List<string> Disassemble(RegisterCapacity size);
         public List<byte[]> Fetch(RegisterCapacity length);
         public void Set(byte[] data);
     }

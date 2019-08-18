@@ -64,7 +64,26 @@ namespace debugger.Emulator.Opcodes
             {
                 if (ImmediateBuffer == null) // prevents fetching into adjacent instructions, still dont think its a good idea to call fetch more than once
                 {
-                    ImmediateBuffer = FetchNext((byte)Capacity);
+                    if((Settings | OpcodeSettings.IsSignExtendedByte) == Settings)
+                    {
+                        ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
+                    }
+                    else if(Capacity == RegisterCapacity.QWORD)
+                    {
+                        if ((Settings | OpcodeSettings.AllowImm64) == Settings)
+                        {
+                            ImmediateBuffer = FetchNext(8);
+                        }
+                        else
+                        {
+                            ImmediateBuffer = Bitwise.SignExtend(FetchNext(4), 8);
+                        }
+                    }
+                     else
+                    {                                                
+                        ImmediateBuffer = FetchNext((byte)Capacity);
+                    }
+                    
                 } 
                 Output.Add(ImmediateBuffer);
             }
@@ -79,6 +98,7 @@ namespace debugger.Emulator.Opcodes
             Output.AddRange(InputMethod.Disassemble(Capacity));
             if(ImmediateBuffer != null)
             {
+                Array.Reverse(ImmediateBuffer); //little to big endian
                 Output.Add($"0x{Core.Atoi(ImmediateBuffer)}");
             }
             return Output;

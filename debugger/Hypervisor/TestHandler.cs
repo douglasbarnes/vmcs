@@ -70,8 +70,8 @@ namespace debugger.Hypervisor
         private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
-            public TestingEmulator(TestcaseObject testcase) : 
-                base("TestingEmulator", new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList() })
+            public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
+                base("TestingEmulator", (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList() }).DeepCopy()) 
             {
                 CurrentTestcase = testcase;
             }

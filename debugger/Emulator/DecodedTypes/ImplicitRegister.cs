@@ -19,14 +19,14 @@ namespace debugger.Emulator.DecodedTypes
         //    NextImmediate = extraImmediate;
         //    HasImmediate = true;
         //}
-        public string[] Disassemble(RegisterCapacity size)
+        public List<string> Disassemble(RegisterCapacity size)
         {
             if(HasImmediate)
             {
-                return new string[] { Disassembly.DisassembleRegister(Destination, size), Core.Atoi(NextImmediate.Fetch(size)) };
+                return new List<string> { Disassembly.DisassembleRegister(Destination, size), Core.Atoi(NextImmediate.Fetch(size)) };
             } else
             {
-                return new string[] { Disassembly.DisassembleRegister(Destination, size) };
+                return new List<string> { Disassembly.DisassembleRegister(Destination, size) };
             }
         }
 

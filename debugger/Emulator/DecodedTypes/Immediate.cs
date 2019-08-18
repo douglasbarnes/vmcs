@@ -37,7 +37,7 @@ namespace debugger.Emulator.DecodedTypes
             }
             Size = (RegisterCapacity)input.Length; // If theres an error here, something is wrong
         }
-        public string[] Disassemble(RegisterCapacity size) => new string[] { Util.Core.Atoi(ImmediateBuffer) };
+        public List<string> Disassemble(RegisterCapacity size) => new List<string> { Util.Core.Atoi(ImmediateBuffer) };
         public List<byte[]> Fetch(RegisterCapacity length)
         {
             if(ImmediateBuffer == null)
