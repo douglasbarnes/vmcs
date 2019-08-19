@@ -5,9 +5,9 @@ namespace debugger.Emulator.Opcodes
     {
         byte[] StackBytes;                                // no 32 bit mode for reg pop, default it to 64
         public Pop(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) 
-            : base("POP", input, (ControlUnit.PrefixBuffer.Contains(PrefixByte.SIZEOVR)) ? RegisterCapacity.WORD : RegisterCapacity.QWORD, settings)
+            : base("POP", input, (ControlUnit.PrefixBuffer.Contains(PrefixByte.SIZEOVR)) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_QWORD, settings)
         {
-            StackBytes = ControlUnit.Fetch(BitConverter.ToUInt64(ControlUnit.FetchRegister(ByteCode.SP, RegisterCapacity.QWORD), 0), (int)Capacity);
+            StackBytes = ControlUnit.Fetch(BitConverter.ToUInt64(ControlUnit.FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), (int)Capacity);
         }
         public override void Execute()
         {

@@ -16,7 +16,16 @@ namespace debugger.Emulator
     {
         ADDR32 = 0x67,
         SIZEOVR = 0x66,
-        REXW = 0x48
+    }
+    [Flags]
+    public enum REX
+    {
+        NONE=0,
+        EMPTY=1,
+        B=2,
+        X=4,
+        R=8,
+        W=16
     }
     public static partial class ControlUnit
     {
@@ -28,7 +37,7 @@ namespace debugger.Emulator
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; set => CurrentContext.InstructionPointer = value; }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
         public static List<PrefixByte> PrefixBuffer { get; private set; } = new List<PrefixByte>();
-
+        public static REX RexByte = REX.NONE;
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1;
@@ -37,7 +46,11 @@ namespace debugger.Emulator
             while (CurrentContext.InstructionPointer != CurrentContext.Memory.End)
             {
                 byte Fetched = FetchNext();
-                if (Fetched == 0x0F)
+                if(Fetched >= 0x40 && Fetched < 0x50 && OpcodeWidth == 1)
+                {// shift to avoid 0(NONE)
+                    RexByte = (REX)((Fetched << 1) & 0b00011110); // remove upper half so [flags] can be inferred
+                }
+                else if (Fetched == 0x0F)
                 {
                     OpcodeWidth = 2;
                 }
@@ -51,6 +64,7 @@ namespace debugger.Emulator
                     CurrentOpcode.Execute();
                     OpcodeWidth = 1;
                     PrefixBuffer = new List<PrefixByte>();
+                    RexByte = REX.NONE;
                     if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {
                         TempLastDisas = CurrentOpcode.Disassemble();
@@ -72,37 +86,36 @@ namespace debugger.Emulator
             }
             return output;
         }
-        public static byte[] FetchRegister(ByteCode register, RegisterCapacity size)
+        public static byte[] FetchRegister(XRegCode register, RegisterCapacity size, bool IgnoreRex=false)
         {
-            if (size == RegisterCapacity.BYTE && (int)register > 3)
+            if (size == RegisterCapacity.GP_BYTE && register > XRegCode.B && (RexByte == REX.NONE || IgnoreRex))
             {
-                return Bitwise.Subarray(CurrentContext.Registers[register - 4, RegisterCapacity.WORD], 1);
+                return Bitwise.Subarray(CurrentContext.Registers[RegisterCapacity.GP_WORD, register - 4], 1);
             }
             else
             {
-                return CurrentContext.Registers[register, size];
+                return CurrentContext.Registers[size, register];
             }
         }
-        public static void SetRegister(ByteCode register, byte[] data)
+        public static void SetRegister(XRegCode register, byte[] data, bool IgnoreRex=false)
         {
             // pretty way has a cost http://prntscr.com/os6et3
             if (data.Length == 1 || data.Length == 2 || data.Length == 4 || data.Length == 8)
             {
-                if (data.Length == 1 && (int)register > 3) // setting higher bit of word reg
+                if (data.Length == (int)RegisterCapacity.GP_BYTE && (int)register > 3 && (RexByte == REX.NONE || IgnoreRex)) // setting higher bit of word reg
                 { // e.g AH has the same integer value as SP(SP has no higher bit register) so when 0b101 is accessed with byte width we need to sub 4 to get the normal reg code for that reg then set higher bit ourselves 
-                    CurrentContext.Registers[register - 4, RegisterCapacity.WORD] = new byte[] { CurrentContext.Registers[register - 4, RegisterCapacity.BYTE][0], data[0] };
+                    CurrentContext.Registers[RegisterCapacity.GP_WORD, register - 4] = new byte[] { CurrentContext.Registers[RegisterCapacity.GP_WORD, register - 4][0], data[0] };
                 }
                 else
                 {
                     if (data.Length == 4) { data = Bitwise.ZeroExtend(data, 8); }
-                    CurrentContext.Registers[register, (RegisterCapacity)data.Length] = data;
+                    CurrentContext.Registers[(RegisterCapacity)data.Length, register] = data;
                 }
             }
             else
             {
                 throw new Exception("Control Unit: Cannot infer size of target register");
-            }
-            
+            }            
         }
         public static void SetMemory(ulong address, byte[] data)
         {

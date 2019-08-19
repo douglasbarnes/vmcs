@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         {
             List<byte[]> Operands = Fetch();
             SourceBytes = Operands[Operands.Count-1];
-        } // 0x88 ACCEPTS MOV R/M8, R8
+        } 
         public override void Execute()
         {
             Set(SourceBytes);

@@ -6,13 +6,14 @@ namespace debugger.Emulator
     {
         public FlagSet Flags = new FlagSet(FlagState.OFF);
         public MemorySpace Memory;
-        public RegisterGroup Registers = new RegisterGroup();
+        public RegisterGroup Registers;
         public ulong InstructionPointer;
         public List<ulong> Breakpoints = new List<ulong>();
         public Context(MemorySpace memory)
         {
             Memory = memory;
             InstructionPointer = Memory.EntryPoint;
+            Registers = new RegisterGroup();
         }
 
         private Context(Context toClone)

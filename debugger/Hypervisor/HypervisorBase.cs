@@ -12,10 +12,10 @@ namespace debugger.Hypervisor
         public event Action RunComplete = () => { };
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
-            inputContext.Registers = new RegisterGroup(new Dictionary<ByteCode, RegisterGroup.Register>()
+            inputContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
             {
-                { ByteCode.SP, new RegisterGroup.Register(inputContext.Memory.SegmentMap[".stack"].StartAddr) },
-                { ByteCode.BP, new RegisterGroup.Register(inputContext.Memory.SegmentMap[".stack"].StartAddr) },
+                { XRegCode.SP, inputContext.Memory.SegmentMap[".stack"].StartAddr },
+                { XRegCode.BP, inputContext.Memory.SegmentMap[".stack"].StartAddr },
             });
             Handle = new Handle(inputName, inputContext, handleParameters);
         }

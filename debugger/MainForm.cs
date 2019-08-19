@@ -67,7 +67,7 @@ namespace debugger
         //refresh methods
         private void RefreshRegisters()
         {
-            RegisterCapacity RegCap = RegisterCapacity.QWORD;
+            RegisterCapacity RegCap = RegisterCapacity.GP_QWORD;
             Registers = VMInstance.GetRegisters(RegCap); //qword regs
             PanelRegisters.Invoke(new Action(() => RegCap = (RegisterCapacity)PanelRegisters.RegSize));
             string[] ParsedRegValues = new string[9];
@@ -82,16 +82,16 @@ namespace debugger
                         Value = Value.Insert(2, "%").Insert(0, "%");
                     }
                 }
-                else if (RegCap == RegisterCapacity.BYTE & i > 4) //higher bit reg
+                else if (RegCap == RegisterCapacity.GP_BYTE & i > 4) //higher bit reg
                 {
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-5, RegisterCapacity.QWORD)], SelectedFormatType);
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((XRegCode)i-5, RegisterCapacity.GP_QWORD, REX.B)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
                     {
                         Value = Value.Insert(16, "%").Insert(14, "%").Insert(0, "%");
                     }
                 } else
                 {      //anything else                     
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((ByteCode)i-1, RegisterCapacity.QWORD)], SelectedFormatType);
+                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((XRegCode)i-1, RegisterCapacity.GP_QWORD, REX.NONE)], SelectedFormatType);
                     if (SelectedFormatType == FormatType.Hex)
                     {
                         Value = Value.Insert(2 + 16 - ((byte)RegCap * 2), "%").Insert(0, "%");
@@ -104,7 +104,7 @@ namespace debugger
                 Label[] LabelOrder = new Label[] { RIPLABEL, RSPLABEL, RBPLABEL, RSILABEL, RDILABEL, RAXLABEL, RBXLABEL, RCXLABEL, RDXLABEL };
                 for (int i = 0; i < LabelOrder.Length; i++)
                 {
-                    string Mnemonic = (i == 0) ? "RIP" : Disassembly.DisassembleRegister((ByteCode)i-1, RegCap);
+                    string Mnemonic = (i == 0) ? "RIP" : Disassembly.DisassembleRegister((XRegCode)i-1, RegCap, REX.B);
                     LabelOrder[i].Text = $"{Mnemonic}{(((byte)RegCap < 4 & i != 0) ? " " : "")} : {ParsedRegValues[i]}";
                 }
                 PanelRegisters.Refresh();           //extra space so stuff stays in line

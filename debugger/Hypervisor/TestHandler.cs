@@ -11,9 +11,9 @@ namespace debugger.Hypervisor
 {
     static class TestHandler
     {
-        private readonly static Dictionary<string, ByteCode> RegisterDecodeTable = new Dictionary<string, ByteCode>() {
-            {"A",ByteCode.A }, {"B",ByteCode.B },{"C",ByteCode.C },{"D",ByteCode.D },
-            {"SP",ByteCode.SP }, {"BP",ByteCode.BP },{"SI",ByteCode.SI },{"DI",ByteCode.DI } };
+        private readonly static Dictionary<string, XRegCode> RegisterDecodeTable = new Dictionary<string, XRegCode>() {
+            {"A",XRegCode.A }, {"B",XRegCode.B },{"C",XRegCode.C },{"D",XRegCode.D },
+            {"SP",XRegCode.SP }, {"BP",XRegCode.BP },{"SI",XRegCode.SI },{"DI",XRegCode.DI } };
         protected struct CheckpointSubresult
         {
             public bool Passed;
@@ -58,13 +58,13 @@ namespace debugger.Hypervisor
         }
         protected struct TestRegister
         {
-            public ByteCode RegisterCode;
+            public XRegCode RegisterCode;
             public RegisterCapacity Size;
             public ulong ExpectedValue;
         }
         protected struct TestMemoryAddress
         {
-            public ByteCode? OffsetRegister;
+            public XRegCode? OffsetRegister;
             public long Offset;
             public byte[] ExpectedBytes;
         }
@@ -88,13 +88,13 @@ namespace debugger.Hypervisor
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
-                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size);                        
+                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size, REX.NONE);                        
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
-                                Passed = Snapshot.Registers[testReg.RegisterCode, testReg.Size].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0,
+                                Passed = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0,
                                 Expected = $" ${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
-                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.RegisterCode, testReg.Size],8),0).ToString("X")}"
+                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.RegisterCode],8),0).ToString("X")}"
                             });
                     }
                     foreach (TestMemoryAddress testMem in CurrentCheckpoint.ExpectedMemory)
@@ -103,12 +103,12 @@ namespace debugger.Hypervisor
                         string Mnemonic = "";
                         if (testMem.OffsetRegister.HasValue)
                         {
-                            Mnemonic = Disassembly.DisassembleRegister(testMem.OffsetRegister.Value, RegisterCapacity.QWORD);
+                            Mnemonic = Disassembly.DisassembleRegister(testMem.OffsetRegister.Value, RegisterCapacity.GP_QWORD, REX.NONE);
                             if(testMem.Offset != 0)
                             {
                                 Mnemonic += (testMem.Offset > 0) ? "+" : "-";
                             } 
-                            ExactAddress += BitConverter.ToUInt64(Snapshot.Registers[testMem.OffsetRegister.Value, RegisterCapacity.QWORD], 0);
+                            ExactAddress += BitConverter.ToUInt64(Snapshot.Registers[RegisterCapacity.GP_QWORD, testMem.OffsetRegister.Value], 0);
                         }
                         if(testMem.Offset != 0)
                         {
@@ -200,10 +200,10 @@ namespace debugger.Hypervisor
                                             throw new Exception("Cannot have a negative memory offset without a register to offset it" +
                                                                 "\nRemember that the offset it in a testcase is signed long values, so put a 0 before, or use a register");
                                         }
-                                        ByteCode? RegOffset = null;
+                                        XRegCode? RegOffset = null;
                                         if (TestCritera.Attribute("offset_register") != null)
                                         {
-                                            RegOffset = (ByteCode?)RegisterDecodeTable[TestCritera.Attribute("offset_register").Value];
+                                            RegOffset = (XRegCode?)RegisterDecodeTable[TestCritera.Attribute("offset_register").Value];
                                         }
                                         ParsedCheckpoint.ExpectedMemory.Add(
                                             new TestMemoryAddress()

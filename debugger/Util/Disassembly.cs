@@ -5,23 +5,12 @@ namespace debugger.Util
 {
     public static class Disassembly
     {
-        public static List<Dictionary<RegisterCapacity, string>> RegisterMnemonics = new List<Dictionary<RegisterCapacity, string>>
-            {
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RAX" }, { RegisterCapacity.DWORD, "EAX" },{ RegisterCapacity.WORD, "AX" },{ RegisterCapacity.BYTE, "AL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RCX" }, { RegisterCapacity.DWORD, "ECX" },{ RegisterCapacity.WORD, "CX" },{ RegisterCapacity.BYTE, "CL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RDX" }, { RegisterCapacity.DWORD, "EDX" },{ RegisterCapacity.WORD, "DX" },{ RegisterCapacity.BYTE, "DL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RBX" }, { RegisterCapacity.DWORD, "EBX" },{ RegisterCapacity.WORD, "BX" },{ RegisterCapacity.BYTE, "BL" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RSP" }, { RegisterCapacity.DWORD, "ESP" },{ RegisterCapacity.WORD, "SP" },{ RegisterCapacity.BYTE, "AH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RBP" }, { RegisterCapacity.DWORD, "EBP" },{ RegisterCapacity.WORD, "BP" },{ RegisterCapacity.BYTE, "CH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RSI" }, { RegisterCapacity.DWORD, "ESI" },{ RegisterCapacity.WORD, "SI" },{ RegisterCapacity.BYTE, "DH" }},
-                new Dictionary<RegisterCapacity, string> {{ RegisterCapacity.QWORD, "RDI" }, { RegisterCapacity.DWORD, "EDI" },{ RegisterCapacity.WORD, "DI" },{ RegisterCapacity.BYTE, "BH" }}
-            };
         public static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
             {
-                {RegisterCapacity.BYTE, "BYTE"},
-                {RegisterCapacity.WORD, "WORD"},
-                {RegisterCapacity.DWORD, "DWORD"},
-                {RegisterCapacity.QWORD, "QWORD"}
+                {RegisterCapacity.GP_BYTE, "BYTE"},
+                {RegisterCapacity.GP_WORD, "WORD"},
+                {RegisterCapacity.GP_DWORD, "DWORD"},
+                {RegisterCapacity.GP_QWORD, "QWORD"}
             };
         private static Dictionary<Condition, string> ConditionMnemonics = new Dictionary<Condition, string>()
         {
@@ -43,10 +32,53 @@ namespace debugger.Util
             { Condition.P, "P" },
             { Condition.NP, "NP" }
         };
-        public static string DisassembleCondition(Condition condition) => ConditionMnemonics[condition];
-        public static string DisassembleRegister(ByteCode Register, RegisterCapacity RegCap)
+        public static List<string> Mnemonics = new List<string>
         {
-            return RegisterMnemonics[(byte)Register][RegCap];
+            "A","C","D","B","SP","BP","SI","DI","R8","R9","R10","R11","R12","R13","R14","R15"
+        };
+        public static string DisassembleCondition(Condition condition) => ConditionMnemonics[condition];
+        public static string DisassembleRegister(XRegCode Register, RegisterCapacity RegCap, REX RexByte)
+        {            
+            if(RegCap == RegisterCapacity.GP_BYTE && RexByte != REX.NONE && Register - 4 > 0)
+            {
+                return Mnemonics[(int)Register-4] + "H";
+            }
+            string Output = Mnemonics[(int)Register];
+            if (Register <= XRegCode.B && RegCap > RegisterCapacity.GP_BYTE) 
+            {
+                Output = $"{Output}X";
+            }
+            switch (RegCap)
+            {
+                case RegisterCapacity.GP_BYTE:                
+                    Output += "L";
+                    break;
+                case RegisterCapacity.GP_WORD:
+                    if(Register > XRegCode.DI && Register <= XRegCode.R15)
+                    {
+                        Output += "W";
+                    }
+                    break;
+                case RegisterCapacity.GP_DWORD:
+                    if (Register <= XRegCode.DI)
+                    {
+                        Output = $"E{Output}";
+                    }
+                    else
+                    {
+                        Output += "D";
+                    }
+                    break;
+                case RegisterCapacity.GP_QWORD:
+                    
+                    if(Register <= XRegCode.DI)
+                    {
+                        Output = $"R{Output}";
+                    }
+                    break;
+
+            }
+            return Output;
         }
         public struct Pointer
         {

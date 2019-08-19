@@ -15,7 +15,7 @@ namespace debugger.Emulator.Opcodes
             NumOfOperands = Operands.Count;
             if(NumOfOperands == 1)
             {
-                Operands.Add(ControlUnit.FetchRegister(ByteCode.A, Capacity));
+                Operands.Add(ControlUnit.FetchRegister(XRegCode.A, Capacity));
             }
             //imul opcodes come in the format,
             //imul rm1 : a = upper(rm1*a) d = lower(rm1*a)
@@ -27,14 +27,14 @@ namespace debugger.Emulator.Opcodes
         {
             if(NumOfOperands == 1)
             {
-                if(Capacity == RegisterCapacity.BYTE)
+                if(Capacity == RegisterCapacity.GP_BYTE)
                 {
-                    ControlUnit.SetRegister(ByteCode.A, Result);//everything goes into ax
+                    ControlUnit.SetRegister(XRegCode.A, Result);//everything goes into ax
                 }
                 else
                 {
-                    ControlUnit.SetRegister(ByteCode.A, Bitwise.Cut(Result, (int)Capacity)); // higher bytes to d
-                    ControlUnit.SetRegister(ByteCode.D, Bitwise.Subarray(Result, (int)Capacity)); // lower to a=
+                    ControlUnit.SetRegister(XRegCode.A, Bitwise.Cut(Result, (int)Capacity)); // higher bytes to d
+                    ControlUnit.SetRegister(XRegCode.D, Bitwise.Subarray(Result, (int)Capacity)); // lower to a=
                 }
                 
             }

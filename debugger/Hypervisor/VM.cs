@@ -20,10 +20,11 @@ namespace debugger.Hypervisor
         public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(Handle.DeepCopy().Breakpoints); }
         public VM(VMSettings inputSettings, MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             InstructionPointer = inputMemory.EntryPoint,
-            Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
+            Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
-                { ByteCode.SP, new Register(inputMemory.SegmentMap[".stack"].StartAddr) },
-                { ByteCode.BP, new Register(inputMemory.SegmentMap[".stack"].StartAddr) } }),          
+                { XRegCode.SP, inputMemory.SegmentMap[".stack"].StartAddr },
+                { XRegCode.BP, inputMemory.SegmentMap[".stack"].StartAddr }
+            }),          
             })            
         {
             CurrentSettings = inputSettings;
@@ -37,10 +38,10 @@ namespace debugger.Hypervisor
                 Context VMContext = Handle.DeepCopy();
                 VMContext.Memory = SavedMemory.DeepCopy();
                 VMContext.InstructionPointer = SavedMemory.EntryPoint;
-                VMContext.Registers = new RegisterGroup(new Dictionary<ByteCode, Register>()
+                VMContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
                     {
-                                { ByteCode.SP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) },
-                                { ByteCode.BP, new Register(SavedMemory.SegmentMap[".stack"].StartAddr) }
+                                { XRegCode.SP, SavedMemory.SegmentMap[".stack"].StartAddr },
+                                { XRegCode.BP, SavedMemory.SegmentMap[".stack"].StartAddr }
                     });
                 VMContext.Flags = new FlagSet();
             });            
@@ -48,11 +49,11 @@ namespace debugger.Hypervisor
         public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
         {
             Context Cloned = Handle.ShallowCopy();
-            Dictionary<ByteCode, byte[]> Registers = Cloned.Registers.FetchAll();
+            Dictionary<XRegCode, byte[]> Registers = Cloned.Registers.FetchAll();
             Dictionary<string, ulong> ParsedRegisters = new Dictionary<string, ulong>();
             foreach (var Reg in Registers)
             {
-                ParsedRegisters.Add(Disassembly.DisassembleRegister(Reg.Key, registerSize), BitConverter.ToUInt64(Reg.Value,0));
+                ParsedRegisters.Add(Disassembly.DisassembleRegister(Reg.Key, registerSize, REX.B), BitConverter.ToUInt64(Reg.Value,0));
             }
             ParsedRegisters.Add("RIP", Cloned.InstructionPointer);
             return ParsedRegisters;

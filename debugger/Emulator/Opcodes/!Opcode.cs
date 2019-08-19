@@ -68,7 +68,7 @@ namespace debugger.Emulator.Opcodes
                     {
                         ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
                     }
-                    else if(Capacity == RegisterCapacity.QWORD)
+                    else if(Capacity == RegisterCapacity.GP_QWORD)
                     {
                         if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
                         {
@@ -103,11 +103,11 @@ namespace debugger.Emulator.Opcodes
             }
             return Output;
         }
-        protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.DWORD)
+        protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.GP_DWORD)
         {
-            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.BYTE;
-            else if (PrefixBuffer.Contains(PrefixByte.REXW)) Capacity = RegisterCapacity.QWORD;
-            else if (PrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.WORD;
+            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.GP_BYTE;
+            else if ((RexByte | REX.W) == RexByte) Capacity = RegisterCapacity.GP_QWORD;
+            else if (PrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.GP_WORD;
             else Capacity = defaultCapacity;
         }
         protected bool TestCondition(Condition condition)
@@ -123,7 +123,7 @@ namespace debugger.Emulator.Opcodes
                 case Condition.NC: // used for signed
                     return Flags.Carry == FlagState.OFF;
                 case Condition.RCXZ: //exists because of loops using C reg as the iterator, have to hard code it like this, risky using Capacity here
-                    return (PrefixBuffer.Contains(PrefixByte.ADDR32) && FetchRegister(ByteCode.A, RegisterCapacity.DWORD).IsZero()) || FetchRegister(ByteCode.A, RegisterCapacity.QWORD).IsZero();
+                    return (PrefixBuffer.Contains(PrefixByte.ADDR32) && FetchRegister(XRegCode.A, RegisterCapacity.GP_DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.GP_QWORD).IsZero();
                 case Condition.Z:
                     return Flags.Zero == FlagState.ON;
                 case Condition.NZ:

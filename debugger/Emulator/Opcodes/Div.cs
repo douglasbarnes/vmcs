@@ -12,21 +12,21 @@ namespace debugger.Emulator.Opcodes
             List<byte[]> DestSource = Fetch();
             if(DestSource.Count == 1)
             {
-                DestSource.Add(ControlUnit.FetchRegister(ByteCode.A, Capacity));
+                DestSource.Add(ControlUnit.FetchRegister(XRegCode.A, Capacity));
             }
             // always a reg, atleast for this opcode
             Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity, out Quotient, out Modulo);
         }
         public override void Execute()
         {
-            if(Capacity == RegisterCapacity.BYTE)
+            if(Capacity == RegisterCapacity.GP_BYTE)
             {
-                ControlUnit.SetRegister(ByteCode.A, Quotient);
-                ControlUnit.SetRegister(ByteCode.AH, Modulo);
+                ControlUnit.SetRegister(XRegCode.A, Quotient);
+                ControlUnit.SetRegister(XRegCode.SP, Modulo);//ah
             } else
             {
-                ControlUnit.SetRegister(ByteCode.A, Quotient);             
-                ControlUnit.SetRegister(ByteCode.D, Modulo);
+                ControlUnit.SetRegister(XRegCode.A, Quotient);             
+                ControlUnit.SetRegister(XRegCode.D, Modulo);
             }
                         
         }

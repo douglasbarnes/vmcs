@@ -4,7 +4,7 @@ using System.Linq;
 using debugger.Util;
 namespace debugger.Emulator
 {
-    public enum ByteCode
+    public enum XRegCode
     {
         A = 0x00,
         C = 0x01,
@@ -14,105 +14,91 @@ namespace debugger.Emulator
         BP = 0x05,
         SI = 0x06,
         DI = 0x07,
-        AH = 0x04,
-        CH = 0x05,
-        DH = 0x06,
-        BH = 0x07
+        R8 = 0x08,
+        R9 = 0x09,
+        R10 = 0xa,
+        R11 = 0xb,
+        R12 = 0xc,
+        R13 = 0xd,
+        R14 = 0xe,
+        R15 = 0xf
     }
     public enum RegisterCapacity
     {
-        BYTE = 1,
-        WORD = 2,
-        DWORD = 4,
-        QWORD = 8
+        GP_BYTE = 1,
+        GP_WORD = 2,
+        GP_DWORD = 4,
+        GP_QWORD = 8
     }
     public class RegisterGroup
-    {
-        public struct Register
-        {
-            private byte[] Data;
-            public Register(byte[] Input)
-            {
-                if(Input.Length != 8)
-                {
-                    throw new Exception("Register: Invalid register size");
-                }
-                Data = Input;
-            }
-            public Register(ulong Input)
-            {
-                Data = BitConverter.GetBytes(Input);
-            }
-    
-            public static implicit operator byte[](Register R)
-            {
-                return R.Data;
-            }
-    
-            public static implicit operator Register(byte[] Input)
-            {
-                return new Register(Input);
-            }
-            private Register(Register toCopy)
-            {
-                Data = toCopy.Data.DeepCopy();
-            }
-            public Register Clone()
-            {
-                return new Register(this);
-            }
-        }
+    {        
+        private byte[][] Registers = new byte[16][] {
+            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], //A,C,D,B,SP,BP,SI,DI
+            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], //8,9,10,11,12,13,14,15
+        }; 
         public RegisterGroup()
         {
-            Registers = new List<Register>();
-            for (int i = 0; i < 8; i++)
+        }
+        public RegisterGroup(Dictionary<XRegCode, byte[]> registers)
+        {
+            foreach (var Register in registers)
             {
-                Registers.Add(new Register(new byte[8]));
+                for (int i = 0; i < 8; i++)
+                {
+                    Registers[(int)Register.Key][i] = Register.Value[i];
+                }                
             }
         }
-        public RegisterGroup(Dictionary<ByteCode, Register> Input)
-        { 
-            for (int RegValue = 0; RegValue < 8; RegValue++)
+        public RegisterGroup(Dictionary<XRegCode, ulong> inputRegs)
+        {
+            foreach (var Register in inputRegs)
             {
-                if (Input.TryGetValue((ByteCode)RegValue, out Register Current))
+                byte[] RegisterBytes = BitConverter.GetBytes(Register.Value);
+                for (int i = 0; i < 8; i++)
                 {
-                    Registers.Add(Current);
-                }
-                else
-                {
-                    Registers.Add(new Register(new byte[8]));
+                    Registers[(int)Register.Key][i] = RegisterBytes[i];
                 }
             }
         }
         private RegisterGroup(RegisterGroup toClone)
         {
-            Registers.AddRange(toClone.Registers);
-            //for (int i = 0; i < toClone.Registers.Count(); i++)
-            //{
-            //    Registers.Add(toClone.Registers[i].Clone());
-            //}
+            for (int i = 0; i < toClone.Registers.Length; i++)
+            {
+                Registers[i] = toClone.Registers[i].DeepCopy();
+            }            
         }
-        private readonly List<Register> Registers = new List<Register>();
-        public byte[] this[ByteCode register, RegisterCapacity size]
+        public RegisterGroup DeepCopy() => new RegisterGroup(this);
+        public byte[] this[RegisterCapacity group, XRegCode register]
         {
-            get => Bitwise.Cut(Registers[(int)register], (int)size);
-            set => Array.Copy(value, 0, Registers[(int)register], 0, (int)size);
+            get {
+                byte[] Output = new byte[(int)group];
+                for (int i = 0; i < Output.Length; i++)
+                {
+                   Output[i] = Registers[(int)register][i];
+                }
+                return Output;
+            }
+            set
+            {
+                if(value.Length > ((int)group))
+                {
+                    throw new Exception("RegisterGroup.cs Attempt to overflow register in base class");
+                }
+                for (int i = 0; i < value.Length; i++)
+                {
+                    Registers[(int)register][i] = value[i];
+                }
+            }
         }
-        public RegisterGroup DeepCopy()
-        {
-            return new RegisterGroup(this);
-        }
-        public Dictionary<ByteCode, byte[]> FetchAll()
+        public Dictionary<XRegCode, byte[]> FetchAll()
         {
             RegisterGroup Cloned = DeepCopy();
-            Dictionary<ByteCode, byte[]> Output = new Dictionary<ByteCode, byte[]>();
-            for (int register = 0; register < Cloned.Registers.Count(); register++)
+            Dictionary<XRegCode, byte[]> Output = new Dictionary<XRegCode, byte[]>();
+            for (int register = 0; register < Cloned.Registers.Length; register++)
             {
-                Output.Add((ByteCode)register, Cloned.Registers[register]);
+                Output.Add((XRegCode)register, Cloned.Registers[register]);
             }
             return Output;
         }
-    
     }
-    
 }
