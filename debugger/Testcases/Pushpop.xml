@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="pushpop">
+    <Hex>48B8AAAAAAAAAAAAAAAA5066FF3500000000FF350000000058665B9048B818293A3B4C4D4E4F6650505B6659906AF266683412687856341258665B595A90</Hex>
+    <Checkpoint tag="Pointer w/qw" position_hex="1b">
+        <Register id="A" size="8">2918B848905B6658</Register>
+        <Register id="B" size="8">35ff</Register>
+        <Memory offset_register="SP" offset="F6">58665B9048B81829FF35</Memory>
+    </Checkpoint>
+    <Checkpoint tag="Reg w/qw" position_hex="2c">
+        <Register id="B" size="8">4f4e4d4c3b3a2918</Register>
+        <Register id="C" size="8">2918</Register>
+    </Checkpoint>
+    <Checkpoint tag="Imm b/w/dw" position_hex="3d">
+        <Register id="A" size="8">12345678</Register>
+        <Register id="B" size="2">1234</Register>
+        <Register id="C" size="8">fffffffffffffff2</Register>
+        <Register id="D" size="8">aaaaaaaaaaaaaaaa</Register>
+        <Memory offset_register="SP" offset="F8">aaaaaaaaaaaaaaaa</Memory>
+        <Register id="SP" size="8">800000</Register>
+    </Checkpoint>
+</Testcase>   

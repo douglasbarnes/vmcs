@@ -13,7 +13,10 @@ namespace debugger.Hypervisor
     {
         private readonly static Dictionary<string, XRegCode> RegisterDecodeTable = new Dictionary<string, XRegCode>() {
             {"A",XRegCode.A }, {"B",XRegCode.B },{"C",XRegCode.C },{"D",XRegCode.D },
-            {"SP",XRegCode.SP }, {"BP",XRegCode.BP },{"SI",XRegCode.SI },{"DI",XRegCode.DI } };
+            {"SP",XRegCode.SP }, {"BP",XRegCode.BP },{"SI",XRegCode.SI },{"DI",XRegCode.DI },
+            {"R8",XRegCode.R8 }, {"R9",XRegCode.R9 },{"R10",XRegCode.R10 },{"R11",XRegCode.R11 },
+            {"R12",XRegCode.R12 }, {"R13",XRegCode.R13 },{"R14",XRegCode.R14 },{"R15",XRegCode.R15 }
+        };
         protected struct CheckpointSubresult
         {
             public bool Passed;
@@ -73,7 +76,8 @@ namespace debugger.Hypervisor
         {
             readonly TestcaseObject CurrentTestcase;
             public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
-                base("TestingEmulator", (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList(), Flags = new FlagSet(FlagState.OFF)}).DeepCopy()) 
+                base("TestingEmulator", 
+                    (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList(), Flags = new FlagSet(FlagState.OFF)}).DeepCopy()) 
             {
                 CurrentTestcase = testcase;
             }

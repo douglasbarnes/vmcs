@@ -5,14 +5,14 @@ namespace debugger.Util
 {
     public static class Disassembly
     {
-        public static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
+        public readonly static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
             {
                 {RegisterCapacity.GP_BYTE, "BYTE"},
                 {RegisterCapacity.GP_WORD, "WORD"},
                 {RegisterCapacity.GP_DWORD, "DWORD"},
                 {RegisterCapacity.GP_QWORD, "QWORD"}
             };
-        private static Dictionary<Condition, string> ConditionMnemonics = new Dictionary<Condition, string>()
+        private readonly static Dictionary<Condition, string> ConditionMnemonics = new Dictionary<Condition, string>()
         {
             { Condition.A, "A" },
             { Condition.NA, "NA" },
@@ -32,7 +32,7 @@ namespace debugger.Util
             { Condition.P, "P" },
             { Condition.NP, "NP" }
         };
-        public static List<string> Mnemonics = new List<string>
+        public readonly static List<string> RegisterMnemonics = new List<string>
         {
             "A","C","D","B","SP","BP","SI","DI","R8","R9","R10","R11","R12","R13","R14","R15"
         };
@@ -41,9 +41,9 @@ namespace debugger.Util
         {            
             if(RegCap == RegisterCapacity.GP_BYTE && RexByte != REX.NONE && Register - 4 > 0)
             {
-                return Mnemonics[(int)Register-4] + "H";
+                return RegisterMnemonics[(int)Register-4] + "H";
             }
-            string Output = Mnemonics[(int)Register];
+            string Output = RegisterMnemonics[(int)Register];
             if (Register <= XRegCode.B && RegCap > RegisterCapacity.GP_BYTE) 
             {
                 Output = $"{Output}X";
@@ -114,11 +114,7 @@ namespace debugger.Util
                     Output += p.Offset > 0 ? "+" : "-";
                 }
                 Output += $"0x{System.Math.Abs(p.Offset).ToString("X")}";
-            }
-            if (p.Size != null)
-            {
-                Output = $"{SizeMnemonics[p.Size.Value]} PTR [{Output}]";
-            }
+            }            
             return Output;
         }
 

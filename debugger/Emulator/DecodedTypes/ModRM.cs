@@ -69,7 +69,7 @@ namespace debugger.Emulator.DecodedTypes
             {
                 if (Fields.Mod == Mod.Pointer && Fields.Mem == 5)
                 {
-                    Offset = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
+                    Offset = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0); //order of these is important!
                     Destination = ControlUnit.InstructionPointer;
                 }
                 else if (Fields.Mem == 4)
@@ -108,7 +108,7 @@ namespace debugger.Emulator.DecodedTypes
             string Dest = Disassembly.DisassemblePointer(DestPtr);
             if (Fields.Mod != Mod.Register)
             {
-                Dest = $"[{Dest}]";
+                Dest = $"{Disassembly.SizeMnemonics[size]} PTR [{Dest}]";
             }
             if (Settings == ModRMSettings.EXTENDED)
             {

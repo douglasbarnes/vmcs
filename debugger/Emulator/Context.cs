@@ -24,9 +24,6 @@ namespace debugger.Emulator
             Breakpoints = toClone.Breakpoints.DeepCopy();
             Registers = toClone.Registers.DeepCopy();
         }
-        public Context DeepCopy()
-        {
-            return new Context(this);
-        }
+        public Context DeepCopy() => new Context(this);
     }
 }

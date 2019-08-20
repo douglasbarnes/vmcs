@@ -142,7 +142,7 @@ namespace debugger.Util
             toConvert = Trim(toConvert); //we don't really have to do this because lists are reference types, but its clearer and compiler will optimize it out anyway
             for (int i = 0; i < toConvert.Length; i++)
             {
-                if(ulong.TryParse(toConvert[i].ToString(), out ulong Parsed))
+                if(ulong.TryParse(toConvert[toConvert.Length-i-1].ToString(), out ulong Parsed))
                 {
                     Output += Parsed.ToString("X");
                     //if(Output.Length % 2 != 0)
@@ -150,30 +150,6 @@ namespace debugger.Util
                     //    Output = Output.Insert(Output.Length - 1, "0");
                     //}                                  
                     if(i+1 != toConvert.Length && addSpaces)
-                    {
-                        Output += " ";
-                    }
-                }
-            }
-            return Output;
-        }
-        public static string Atoi<T>(List<T> toConvert, bool addSpaces=false)
-        {
-            string Output = "";
-            toConvert = Trim(toConvert.ToArray()).ToList(); //we don't really have to do this because lists are reference types, but its clearer and compiler will optimize it out anyway
-            for (int i = 0; i < toConvert.Count; i++)
-            {
-                if (ulong.TryParse(toConvert[i].ToString(), out ulong Parsed))
-                {
-                    if (Parsed != 0 || toConvert.Count == 1)
-                    {
-                        Output += Parsed.ToString("X");
-                        //if (Output.Length % 2 != 0) 
-                        //{
-                        //    Output.Insert(Output.Length - 2, "0");
-                        //}
-                    }
-                    if (i + 1 != toConvert.Count && addSpaces)
                     {
                         Output += " ";
                     }

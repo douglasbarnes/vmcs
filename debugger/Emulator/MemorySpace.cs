@@ -16,13 +16,13 @@ namespace debugger.Emulator
             public byte[] baData = null;
         }
         public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressMap;
-        public MemorySpace(Dictionary<ulong, byte> memory, Dictionary<string, Segment> segmap)
-        {
-            AddressMap = memory;
-            SegmentMap = segmap;
-            EntryPoint = segmap[".main"].StartAddr;
-            End = segmap[".main"].End;
-        }
+        //public MemorySpace(Dictionary<ulong, byte> memory, Dictionary<string, Segment> segmap)
+        //{
+        //    AddressMap = memory;
+        //    SegmentMap = segmap;
+        //    EntryPoint = segmap[".main"].StartAddr;
+        //    End = segmap[".main"].End;
+        //}
         public MemorySpace(byte[] memory)
         {
             EntryPoint = 0;

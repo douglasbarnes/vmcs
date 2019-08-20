@@ -32,7 +32,7 @@ namespace debugger.Emulator.Opcodes
         None = 0,
         BYTEMODE = 1,
         SIGNED = 2,
-        SXBYTE = 4,
+        SXTBYTE = 4,
         ALLOWIMM64 = 8,
         IMMEDIATE = 32,
     }
@@ -64,7 +64,7 @@ namespace debugger.Emulator.Opcodes
             {
                 if (ImmediateBuffer == null) // prevents fetching into adjacent instructions, still dont think its a good idea to call fetch more than once
                 {
-                    if((Settings | OpcodeSettings.SXBYTE) == Settings)
+                    if((Settings | OpcodeSettings.SXTBYTE) == Settings)
                     {
                         ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
                     }
