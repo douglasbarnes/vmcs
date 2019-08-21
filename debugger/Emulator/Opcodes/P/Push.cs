@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     {
         byte[] Result;
         //push imm8 is valid but not push r8                // no 8/32 bit mode for reg push  
-        public Push(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) 
+        public Push(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base("PUSH", input, FindRegCap(input), settings)
         {
             Result = Fetch()[0];

@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         readonly FlagSet ResultFlags;
         readonly List<byte[]> Operands;
         readonly int NumOfOperands;
-        public Mul(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base((settings | OpcodeSettings.SIGNED) == settings ? "IMUL" : "MUL", input, settings)
+        public Mul(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base((settings | OpcodeSettings.SIGNED) == settings ? "IMUL" : "MUL", input, settings)
         {
             Operands = Fetch();
             NumOfOperands = Operands.Count;

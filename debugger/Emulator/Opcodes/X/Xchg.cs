@@ -5,7 +5,7 @@ namespace debugger.Emulator.Opcodes
     public class Xchg : Opcode
     {
         readonly List<byte[]> DestSource;
-        public Xchg(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base("XCHG", input, settings)
+        public Xchg(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("XCHG", input, settings)
         {
             DestSource = Fetch();
         } 

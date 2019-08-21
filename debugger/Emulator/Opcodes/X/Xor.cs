@@ -7,7 +7,7 @@ namespace debugger.Emulator.Opcodes
     {
         readonly byte[] Result;
         readonly FlagSet ResultFlags;
-        public Xor(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base("XOR", input, settings)
+        public Xor(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("XOR", input, settings)
         {
             List<byte[]> DestSource = Fetch();
             ResultFlags = Bitwise.Xor(DestSource[0], DestSource[1], out Result); // fix bitwise stuff

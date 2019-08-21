@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     {
         readonly FlagSet ResultFlags;
         readonly byte[] Result;
-        public Inc(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base("INC", input, settings)
+        public Inc(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("INC", input, settings)
         {
             ResultFlags = Bitwise.Increment(Fetch()[0], (int)Capacity, out Result);
         }

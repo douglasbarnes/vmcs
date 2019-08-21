@@ -29,18 +29,20 @@ namespace debugger.Emulator
     [Flags]
     public enum OpcodeSettings
     {
-        None = 0,
+        NONE = 0,
         BYTEMODE = 1,
         SIGNED = 2,
         SXTBYTE = 4,
         ALLOWIMM64 = 8,
         IMMEDIATE = 32,
+        STRINGOP = 64,
+        STRINGOPCMP = 128,
     }
 
     public abstract class Opcode
     {
         protected RegisterCapacity Capacity;
-        protected readonly OpcodeSettings Settings;
+        public readonly OpcodeSettings Settings;
         private readonly string Mnemonic;              
         private byte[] ImmediateBuffer = null; //registers and memory can change so only do this for immediate.
         private readonly IMyDecoded InputMethod;
@@ -51,7 +53,7 @@ namespace debugger.Emulator
             Settings = settings;
             SetRegCap();            
         }
-        public Opcode(string opcodeMnemonic, IMyDecoded input, RegisterCapacity opcodeCapacity,  OpcodeSettings settings=OpcodeSettings.None)
+        public Opcode(string opcodeMnemonic, IMyDecoded input, RegisterCapacity opcodeCapacity,  OpcodeSettings settings=OpcodeSettings.NONE)
         {
             Mnemonic = opcodeMnemonic;
             InputMethod = input;
@@ -90,7 +92,6 @@ namespace debugger.Emulator
             }
             return Output;
         }
-
         protected void Set(byte[] data) => InputMethod.Set(data);
         protected void SetSource(byte[] data) => InputMethod.SetSource(data); 
         public abstract void Execute();

@@ -3,7 +3,7 @@ using debugger.Util;
 
 namespace debugger.Emulator.DecodedTypes
 {
-    class ImplicitRegister : IMyDecoded
+    public class ImplicitRegister : IMyDecoded
     {
         private readonly XRegCode Destination;
         private readonly XRegCode Source;

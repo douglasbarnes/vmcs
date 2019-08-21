@@ -133,6 +133,9 @@ namespace debugger.Emulator
                   { 0x97, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.DI )) },
                   { 0x98, () => new Cbw(new ImplicitRegister(XRegCode.A)) },
 
+                  { 0xA4, () => new Movs(new StringOperation(), BYTEMODE | STRINGOP) },
+                  { 0xA5, () => new Movs(new StringOperation(), STRINGOP) },
+
                   { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },
 
@@ -163,6 +166,12 @@ namespace debugger.Emulator
 
                   { 0xF6, () => DecodeExtension(0xF6, 1) },
                   { 0xF7, () => DecodeExtension(0xF7, 1) },
+                  { 0xF8, () => new Clc(new NoOperands())},
+                  { 0xF9, () => new Stc(new NoOperands())},
+
+                  { 0xFC, () => new Cld(new NoOperands())},
+                  { 0xFD, () => new Std(new NoOperands())},
+
                   { 0xFF, () => DecodeExtension(0xFF, 1) }
                 }
             },

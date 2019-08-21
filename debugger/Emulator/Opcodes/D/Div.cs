@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     {
         readonly byte[] Quotient;
         readonly byte[] Modulo;
-        public Div(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) 
+        public Div(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base((settings | OpcodeSettings.SIGNED) == settings ? "IDIV" : "DIV", input, settings)
         {
             List<byte[]> DestSource = Fetch();

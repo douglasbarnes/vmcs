@@ -7,7 +7,7 @@ namespace debugger.Emulator.Opcodes
     {
         readonly byte[] Result;
         readonly FlagSet ResultFlags;
-        public Or(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.None) : base("OR", input, settings)
+        public Or(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("OR", input, settings)
         {
             List<byte[]> DestSource = Fetch();
             ResultFlags = Bitwise.Or(DestSource[0], DestSource[1], out Result); // fix bitwise stuff

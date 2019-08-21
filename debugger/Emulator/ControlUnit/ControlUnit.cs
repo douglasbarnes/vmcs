@@ -16,6 +16,8 @@ namespace debugger.Emulator
     {
         ADDR32 = 0x67,
         SIZEOVR = 0x66,
+        REPNZ=0xF2,
+        REPZ =0XF3,
     }
     [Flags]
     public enum REX
@@ -43,7 +45,7 @@ namespace debugger.Emulator
             byte OpcodeWidth = 1;
             Opcode CurrentOpcode = null;
             List<string> TempLastDisas = new List<string>();
-            while (CurrentContext.InstructionPointer != CurrentContext.Memory.End)
+            while (CurrentContext.InstructionPointer <= CurrentContext.Memory.End)
             {
                 byte Fetched = FetchNext();
                 if(Fetched >= 0x40 && Fetched < 0x50 && OpcodeWidth == 1)
@@ -59,9 +61,32 @@ namespace debugger.Emulator
                     PrefixBuffer.Add((PrefixByte)Fetched);
                 }
                 else
-                {
+                {                    
                     CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
                     CurrentOpcode.Execute();
+                    bool IsRepZ = PrefixBuffer.Contains(PrefixByte.REPZ); // save buffer.contains later, dont trust compiler here
+                    if (IsRepZ || PrefixBuffer.Contains(PrefixByte.REPNZ))
+                    {
+                        uint Count = BitConverter.ToUInt32(FetchRegister(XRegCode.C, RegisterCapacity.GP_DWORD),0);
+                        if ((CurrentOpcode.Settings | OpcodeSettings.STRINGOP) == CurrentOpcode.Settings)
+                        {
+                            for (; Count > 0; Count--)
+                            {
+                                CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+                                CurrentOpcode.Execute();
+                            }
+                            SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
+                        }
+                        else if((CurrentOpcode.Settings | OpcodeSettings.STRINGOPCMP) == CurrentOpcode.Settings)
+                        {
+                            for (; Count > 0 || (IsRepZ && Flags.Zero == FlagState.ON) || (!IsRepZ && Flags.Zero == FlagState.OFF); Count--)
+                            {
+                                CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+                                CurrentOpcode.Execute();
+                            }
+                            SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
+                        }                        
+                    }
                     OpcodeWidth = 1;
                     PrefixBuffer.Clear();
                     RexByte = REX.NONE;

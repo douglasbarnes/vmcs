@@ -15,7 +15,9 @@ namespace debugger.Emulator
         public FlagState Overflow;  // true = overflow
         public FlagState Zero;     // zero = false
         public FlagState Sign;     // false = positive
-        public FlagState Parity;   
+        public FlagState Parity;
+        public FlagState Direction; // off = increment, on = decrement
+        public FlagState Interrupt; //off = disallow on = allow
         public FlagSet(FlagState InitialiseAs = FlagState.UNDEFINED)
         {
             Carry = InitialiseAs;
@@ -24,6 +26,8 @@ namespace debugger.Emulator
             Zero = InitialiseAs; // zero = false
             Sign = InitialiseAs; // false = positive
             Parity = InitialiseAs;
+            Direction = InitialiseAs;
+            Interrupt = InitialiseAs;
         }
         public void Set(FlagState SetTo)
         {
@@ -34,6 +38,8 @@ namespace debugger.Emulator
             Carry = FlagState.UNDEFINED;
             Auxiliary = FlagState.UNDEFINED;
             Overflow = FlagState.UNDEFINED;
+            Direction = FlagState.UNDEFINED;
+            Interrupt = FlagState.UNDEFINED;
             Zero = input.IsZero() ? FlagState.ON : FlagState.OFF;
             Sign = input.IsNegative() ? FlagState.ON : FlagState.OFF;
             Parity = Bitwise.GetBits(input[0]).Count(x => x == '1') % 2 == 0 ? FlagState.ON : FlagState.OFF; //parity: even no of 1 bits       

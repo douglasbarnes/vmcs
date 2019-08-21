@@ -5,7 +5,7 @@ namespace debugger.Util
 {
     public static class Disassembly
     {
-        public readonly static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
+        private readonly static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
             {
                 {RegisterCapacity.GP_BYTE, "BYTE"},
                 {RegisterCapacity.GP_WORD, "WORD"},
@@ -117,7 +117,7 @@ namespace debugger.Util
             }            
             return Output;
         }
-
+        public static string DisassembleSize(RegisterCapacity size) => SizeMnemonics[size];
     }
 
 }

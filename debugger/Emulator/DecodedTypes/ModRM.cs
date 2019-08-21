@@ -108,7 +108,7 @@ namespace debugger.Emulator.DecodedTypes
             string Dest = Disassembly.DisassemblePointer(DestPtr);
             if (Fields.Mod != Mod.Register)
             {
-                Dest = $"{Disassembly.SizeMnemonics[size]} PTR [{Dest}]";
+                Dest = $"{Disassembly.DisassembleSize(size)} PTR [{Dest}]";
             }
             if (Settings == ModRMSettings.EXTENDED)
             {
