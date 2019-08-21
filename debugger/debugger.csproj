@@ -77,6 +77,7 @@
     <Compile Include="Emulator\DecodedTypes\IMyDecoded.cs" />
     <Compile Include="Emulator\DecodedTypes\NoOperands.cs" />
     <Compile Include="Emulator\Opcodes\And.cs" />
+    <Compile Include="Emulator\Opcodes\Cbw.cs" />
     <Compile Include="Emulator\Opcodes\Xchg.cs" />
     <Compile Include="Emulator\Opcodes\Test.cs" />
     <Compile Include="Emulator\Opcodes\Xor.cs" />
@@ -164,7 +165,10 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <Content Include="Testcases\Example - Copy.xml">
+    <Content Include="Testcases\Cbw.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Testcases\Xchg.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\Jmptestcmp.xml">

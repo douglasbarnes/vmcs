@@ -131,6 +131,7 @@ namespace debugger.Emulator
                   { 0x95, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.BP )) },
                   { 0x96, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.SI )) },
                   { 0x97, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.DI )) },
+                  { 0x98, () => new Cbw(new ImplicitRegister(XRegCode.A)) },
 
                   { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },

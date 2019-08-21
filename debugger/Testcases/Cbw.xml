@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="cbw">
+    <Hex>BB8080008088D86698906689D8989089D8489890</Hex>
+    <Checkpoint tag="CBW" position_hex="9">
+        <Register id="A" size="2">FF80</Register>
+    </Checkpoint>
+    <Checkpoint tag="CWDE" position_hex="e">
+        <Register id="A" size="4">FFFF8080</Register>
+    </Checkpoint>
+    <Checkpoint tag="CDQE" position_hex="13">
+        <Register id="A" size="8">ffffffff80008080</Register>
+    </Checkpoint>
+</Testcase>   
