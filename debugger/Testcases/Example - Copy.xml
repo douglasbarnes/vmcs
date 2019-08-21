@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="Xchg">
+    <Hex>48B81122333344444444B344B544890424669386E5489287042490</Hex>
+    <Checkpoint tag="Win" position_hex="1a">
+        <Register id="A" size="4">4444444433332211</Register>
+        <Register id="B" size="1">11</Register>
+        <Register id="C" size="1">0</Register>
+        <Register id="D" size="8">4444444433334444</Register>
+        <Memory offset_register="SP">0</Memory>
+    </Checkpoint>
+</Testcase>   

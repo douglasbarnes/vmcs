@@ -57,6 +57,7 @@ namespace debugger.Emulator.DecodedTypes
             }
             return new List<byte[]>() { ImmediateBuffer };
         }
-        public void Set(byte[] data) => new Exception("Immediate.cs Attempt to set value of immediate");        
+        public void Set(byte[] data) => new Exception("Immediate.cs Attempt to set value of immediate");
+        public void SetSource(byte[] data) => new Exception("Immediate.cs Attempt to set value of immediate");
     }
 }

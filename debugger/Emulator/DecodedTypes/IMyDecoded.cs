@@ -6,5 +6,6 @@ namespace debugger.Emulator.DecodedTypes
         public List<string> Disassemble(RegisterCapacity size);
         public List<byte[]> Fetch(RegisterCapacity length);
         public void Set(byte[] data);
+        public void SetSource(byte[] data);
     }
 }

@@ -149,20 +149,26 @@ namespace debugger.Emulator.DecodedTypes
             }
             return Output;
         }
-        public void Set(byte[] data)
+        public void Set(byte[] data) => SetInternal(data, false);
+        public void SetSource(byte[] data) => SetInternal(data, true);
+        private void SetInternal(byte[] data, bool forceSwap)
         {
-            if (Fields.Mod == Mod.Register) {
-                if(Settings == ModRMSettings.SWAP)
+            forceSwap ^= Settings == ModRMSettings.SWAP;
+            if (Fields.Mod == Mod.Register)
+            {
+                if (forceSwap)
                 {
-                    ControlUnit.SetRegister(Source, data);                    
-                } else
+                    ControlUnit.SetRegister(Source, data);
+                }
+                else
                 {
                     ControlUnit.SetRegister((XRegCode)Destination, data);
                 }
-                
-            } else
+
+            }
+            else
             {
-                if (Settings == ModRMSettings.SWAP)
+                if (forceSwap)
                 {
                     ControlUnit.SetRegister(Source, data);
                 }
@@ -170,8 +176,9 @@ namespace debugger.Emulator.DecodedTypes
                 {
                     ControlUnit.SetMemory(Destination + (ulong)Offset, data);
                 }
-                
+
             }
         }
     }
+    
 }

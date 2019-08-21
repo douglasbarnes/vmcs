@@ -92,6 +92,7 @@ namespace debugger.Emulator
         }
 
         protected void Set(byte[] data) => InputMethod.Set(data);
+        protected void SetSource(byte[] data) => InputMethod.SetSource(data); 
         public abstract void Execute();
         public virtual List<string> Disassemble()
         {

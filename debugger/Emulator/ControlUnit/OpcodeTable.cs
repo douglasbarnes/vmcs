@@ -46,28 +46,28 @@ namespace debugger.Emulator
                   { 0x23, () => new And(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x24, () => new And(new ImplicitRegister(XRegCode.A), IMMEDIATE | BYTEMODE) },
                   { 0x25, () => new And(new ImplicitRegister(XRegCode.A), IMMEDIATE)},
-
+                  //0x27 DAA, 32 ONLY
                   { 0x28, () => new Sub(new ModRM(FetchNext()), BYTEMODE,UseBorrow:false)},
                   { 0x29, () => new Sub(new ModRM(FetchNext()), UseBorrow:false) },
                   { 0x2A, () => new Sub(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE, UseBorrow:false)},
                   { 0x2B, () => new Sub(new ModRM(FetchNext(), ModRMSettings.SWAP), UseBorrow:false)},
                   { 0x2C, () => new Sub(new ImplicitRegister(XRegCode.A), BYTEMODE | IMMEDIATE, UseBorrow:false) },
                   { 0x2D, () => new Sub(new ImplicitRegister(XRegCode.A), IMMEDIATE, UseBorrow:false)},
-
+                  //0X2F DAS, 32 ONLY
                   { 0x30, () => new Xor(new ModRM(FetchNext()), BYTEMODE)},
                   { 0x31, () => new Xor(new ModRM(FetchNext())) },
                   { 0x32, () => new Xor(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE)},
                   { 0x33, () => new Xor(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x34, () => new Xor(new ImplicitRegister(XRegCode.A), IMMEDIATE | BYTEMODE) },
                   { 0x35, () => new Xor(new ImplicitRegister(XRegCode.A), IMMEDIATE)},
-
+                  //0x37 AAA 32 ONLY
                   { 0x38, () => new Cmp(new ModRM(FetchNext()), BYTEMODE)},
                   { 0x39, () => new Cmp(new ModRM(FetchNext())) },
                   { 0x3A, () => new Cmp(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE)},
                   { 0x3B, () => new Cmp(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x3C, () => new Cmp(new ImplicitRegister(XRegCode.A), BYTEMODE | IMMEDIATE) },
                   { 0x3D, () => new Cmp(new ImplicitRegister(XRegCode.A), IMMEDIATE)},
-
+                  //0X3F AAS 32 ONLY
                   { 0x50, () => new Push(new ImplicitRegister(XRegCode.A )) },
                   { 0x51, () => new Push(new ImplicitRegister(XRegCode.C )) },
                   { 0x52, () => new Push(new ImplicitRegister(XRegCode.D )) },
@@ -84,7 +84,8 @@ namespace debugger.Emulator
                   { 0x5D, () => new Pop (new ImplicitRegister(XRegCode.BP)) },
                   { 0x5E, () => new Pop (new ImplicitRegister(XRegCode.SI)) },
                   { 0x5F, () => new Pop (new ImplicitRegister(XRegCode.DI)) },
-
+                  //0x60 PUSHA 32 ONLY
+                  //0x61 POPA 32 ONLY
                   { 0x63, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP), "MOVSXD", signExtend:true, RegisterCapacity.GP_DWORD) },
                   //67 prefix
                   { 0x68, () => new Push(new Immediate()) }, // its always 32, weird
@@ -114,6 +115,8 @@ namespace debugger.Emulator
                   { 0x83, () => DecodeExtension(0x83, 1) },
                   { 0x84, () => new Test(new ModRM(FetchNext()), BYTEMODE) },
                   { 0x85, () => new Test(new ModRM(FetchNext())) },
+                  { 0x86, () => new Xchg(new ModRM(FetchNext()), BYTEMODE) },
+                  { 0x87, () => new Xchg(new ModRM(FetchNext())) },
 
                   { 0x88, () => new Mov(new ModRM(FetchNext()), BYTEMODE) },
                   { 0x89, () => new Mov(new ModRM(FetchNext())) },
@@ -121,6 +124,13 @@ namespace debugger.Emulator
                   { 0x8B, () => new Mov(new ModRM(FetchNext(), ModRMSettings.SWAP))},
                   { 0x8F, () => new Pop(new ModRM(FetchNext())) },
                   { 0x90, () => new Nop() },
+                  { 0x91, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.B )) },
+                  { 0x92, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.C )) },
+                  { 0x93, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.D )) },
+                  { 0x94, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.SP )) },
+                  { 0x95, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.BP )) },
+                  { 0x96, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.SI )) },
+                  { 0x97, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.DI )) },
 
                   { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },
