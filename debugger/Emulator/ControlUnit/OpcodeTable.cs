@@ -112,12 +112,18 @@ namespace debugger.Emulator
                   { 0x80, () => DecodeExtension(0x80, 1) },
                   { 0x81, () => DecodeExtension(0x81, 1) },
                   { 0x83, () => DecodeExtension(0x83, 1) },
+                  { 0x84, () => new Test(new ModRM(FetchNext()), BYTEMODE) },
+                  { 0x85, () => new Test(new ModRM(FetchNext())) },
+
                   { 0x88, () => new Mov(new ModRM(FetchNext()), BYTEMODE) },
                   { 0x89, () => new Mov(new ModRM(FetchNext())) },
                   { 0x8A, () => new Mov(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE) },
                   { 0x8B, () => new Mov(new ModRM(FetchNext(), ModRMSettings.SWAP))},
                   { 0x8F, () => new Pop(new ModRM(FetchNext())) },
                   { 0x90, () => new Nop() },
+
+                  { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
+                  { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },
 
                   { 0xB0, () => new Mov(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xB1, () => new Mov(new ImplicitRegister(XRegCode.C ), BYTEMODE | IMMEDIATE) },
@@ -222,6 +228,7 @@ namespace debugger.Emulator
                 },
                 { 0xF6, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Test(InputModRM, BYTEMODE | IMMEDIATE) },
                     { 4, (InputModRM) => new Mul(InputModRM, BYTEMODE) },
                     { 5, (InputModRM) => new Mul(InputModRM, BYTEMODE | SIGNED) },
                     { 6, (InputModRM) => new Div(InputModRM, BYTEMODE) },
@@ -230,6 +237,7 @@ namespace debugger.Emulator
                 },
                 { 0xF7, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Test(InputModRM, IMMEDIATE) },
                     { 4, (InputModRM) => new Mul(InputModRM) },
                     { 5, (InputModRM) => new Mul(InputModRM, SIGNED) },
                     { 6, (InputModRM) => new Div(InputModRM) },
@@ -238,12 +246,14 @@ namespace debugger.Emulator
                 },
                 { 0xFE, new Dictionary<int, ExtendedOpcodeCaller>
                 {
-                     { 0, (InputModRM) => new Inc(InputModRM) },
+                     { 0, (InputModRM) => new Inc(InputModRM, BYTEMODE) },
+                     { 1, (InputModRM) => new Dec(InputModRM, BYTEMODE) },
                 }
                 },
                 { 0xFF, new Dictionary<int, ExtendedOpcodeCaller>
                 {
-                    // { 0, () => new Inc(MultiDefOutput) },
+                    { 0, (InputModRM) => new Inc(InputModRM) },
+                    { 1, (InputModRM) => new Dec(InputModRM) },
                     { 4, (InputModRM) => new Jmp(InputModRM) },
                     { 6, (InputModRM) => new Push(InputModRM) }
                 }

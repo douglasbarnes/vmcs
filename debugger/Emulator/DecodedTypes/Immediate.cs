@@ -40,7 +40,7 @@ namespace debugger.Emulator.DecodedTypes
             }
             else if ((Settings | ImmediateSettings.RELATIVE) == Settings)
             {
-                Util.Bitwise.Add(input, BitConverter.GetBytes(ControlUnit.InstructionPointer), input.Length, out ImmediateBuffer);
+                Bitwise.Add(input, BitConverter.GetBytes(ControlUnit.InstructionPointer), input.Length, out ImmediateBuffer);
             }
             else
             {
