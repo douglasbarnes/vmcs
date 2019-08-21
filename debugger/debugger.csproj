@@ -187,7 +187,7 @@
     <Content Include="Testcases\SIB.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Testcases\Add.xml">
+    <Content Include="Testcases\Adcadd.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="adcadd">
+    <Hex>04106605002005000003004805000000409080C31080C7106681C3001081C3000003004881C300000040906683C2F083C1F290B810000000BB00200000B900000030BA0000000000042466015C2401014C240302042466035C2401034C2403480354240390B800000000BB00000000B900000000BA1122333300D06601D301D190B8FFFFFF7F83C00190B800000080050100008090B800F00000BB00000000660500106683D30090</Hex>
+    <Checkpoint tag="Imm A" position_hex="11">
+        <Register id="A" size="1">10</Register>
+        <Register id="A" size="2">2010</Register>
+        <Register id="A" size="4">40032010</Register>
+    </Checkpoint>
+    <Checkpoint tag="MI" position_hex="2A">
+        <Register id="B" size="1">10</Register>
+        <Register id="B" size="2">2010</Register>
+        <Register id="B" size ="8">40032010</Register>          
+    </Checkpoint>
+    <Checkpoint tag="Sxt b" position_hex="32">
+        <Register id="D" size="2">FFF0</Register>
+        <Register id="C" size="4">FFFFFFF2</Register>
+    </Checkpoint>
+    <Checkpoint tag="RM" position_hex="53">
+        <Memory offset_register="SP">10</Memory>
+        <Memory offset_register="SP" offset="1">0020</Memory>
+        <Memory offset_register="SP" offset="3">00000030</Memory>
+    </Checkpoint>
+    <Checkpoint tag="MR" position_hex="64">
+        <Register id="A" size="1">20</Register>
+        <Register id="B" size="2">4000</Register>
+        <Register id="C" size="4">60000000</Register>
+        <Register id="D" size="8">30000000</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg to reg" position_hex="80">
+        <Register id="A" size="1">11</Register>
+        <Register id="B" size="2">2211</Register>
+        <Register id="C" size="4">33332211</Register>
+    </Checkpoint>
+    <Checkpoint tag="Overflow" position_hex="89">
+        <Flag name="Carry">0</Flag>
+        <Flag name="Sign">1</Flag>
+        <Flag name="Auxiliary">1</Flag>
+        <Flag name="Parity">1</Flag>
+        <Flag name="Overflow">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="OF CF" position_hex="94">
+        <Register id="A" size="8">1</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Sign">0</Flag>
+        <Flag name="Auxiliary">0</Flag>
+        <Flag name="Parity">0</Flag>
+        <Flag name="Overflow">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="ADC" position_hex="a7">
+        <Register id="B" size="2">1</Register>
+        <Flag name="Carry">0</Flag>
+        <Flag name="Sign">0</Flag>
+        <Flag name="Auxiliary">0</Flag>
+        <Flag name="Parity">0</Flag>
+        <Flag name="Overflow">0</Flag>
+    </Checkpoint>
+</Testcase>   

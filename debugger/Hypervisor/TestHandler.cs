@@ -158,6 +158,7 @@ namespace debugger.Hypervisor
         }
         static TestHandler()
         {
+            List<string> LoadingLog = new List<string>();
             foreach (string FilePath in Directory.GetFiles("Testcases")) //each testcase in file
             {
                 if (FilePath.Substring(FilePath.Length - 4) == ".xml") //if its xml file(light filter, invalid xml files still cause errors)
@@ -307,5 +308,20 @@ namespace debugger.Hypervisor
             return Base;
         }
         public static string[] GetTestcases() => Testcases.Keys.ToArray();
+
+        private enum TestcaseExceptionType
+        {
+            DUPLICATETESTCASE,
+            UNEXPECTEDELEMENT,
+            FLAGNONAME,
+
+        }
+        private class TestcaseException : Exception
+        {
+            public TestcaseException(TestcaseExceptionType type, string data="")
+            {
+
+            }
+        }
     }    
 }

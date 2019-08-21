@@ -124,10 +124,9 @@ namespace debugger.Util
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
         {
             Result = new byte[size];
-            bool CarryBit3 = false;
+            bool CarryBit3 = ((input1[0] & 0b111) + (input2[0] & 0b111)) > 0b111; // if we will carry into bit 4 of 1st byte
             for (int i = 0; i < size; i++) // faster doing it my own way http://prntscr.com/ojwfs2
             {
-                CarryBit3 |= i == 0 && (input1[i] & 0b00000100) == (input2[i] & 0b00000100); // if we overflowed into bit 4 of 1st byte
                 int sum = input1[i] + input2[i] + (carry ? 1 : 0); //(any carries
                 if (sum > 0xFF) //overflowed that index
                 {
@@ -150,10 +149,9 @@ namespace debugger.Util
         public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
         {
             Result = new byte[size];
-            bool BorrowBit4 = false;
+            bool BorrowBit4 = (input1[0] & 0b100) < (input2[0] & 0b100); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
             for (int i = 0; i < size; i++)
             {
-                BorrowBit4 |= i == 0 && (input1[i] & 0b00000100) < (input2[i] & 0b00000100); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
                 int sum = input1[i] - input2[i] - (borrow ? 1 : 0);
                 if (sum < 0)
                 {
