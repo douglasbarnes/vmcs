@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using debugger.Emulator.DecodedTypes;
 using debugger.Util;
 using static debugger.Emulator.ControlUnit;
-namespace debugger.Emulator.Opcodes
+namespace debugger.Emulator
 { 
     public enum Condition // for conditional opcodes
     {
@@ -36,6 +36,7 @@ namespace debugger.Emulator.Opcodes
         ALLOWIMM64 = 8,
         IMMEDIATE = 32,
     }
+
     public abstract class Opcode
     {
         protected RegisterCapacity Capacity;
@@ -48,7 +49,7 @@ namespace debugger.Emulator.Opcodes
             Mnemonic = opcodeMnemonic;
             InputMethod = input;
             Settings = settings;
-            SetRegCap();
+            SetRegCap();            
         }
         public Opcode(string opcodeMnemonic, IMyDecoded input, RegisterCapacity opcodeCapacity,  OpcodeSettings settings=OpcodeSettings.None)
         {
@@ -79,7 +80,7 @@ namespace debugger.Emulator.Opcodes
                             ImmediateBuffer = Bitwise.SignExtend(FetchNext(4), 8);
                         }
                     }
-                     else
+                    else
                     {                                                
                         ImmediateBuffer = FetchNext((byte)Capacity);
                     }
@@ -98,8 +99,7 @@ namespace debugger.Emulator.Opcodes
             Output.AddRange(InputMethod.Disassemble(Capacity));
             if(ImmediateBuffer != null)
             {
-                Array.Reverse(ImmediateBuffer); //little to big endian
-                Output.Add($"0x{Core.Atoi(ImmediateBuffer)}");
+                Output.Add($"0x{Core.Atoi(ImmediateBuffer)}"); //atoi also converts little to big endian
             }
             return Output;
         }

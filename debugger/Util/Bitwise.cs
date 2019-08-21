@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Linq;
 using debugger.Emulator;
 namespace debugger.Util
 {
-   
-
     public static class Bitwise
     {
         public static byte[] ReverseEndian(byte[] input)
@@ -13,7 +10,6 @@ namespace debugger.Util
             Array.Reverse(Buffer);
             return Buffer;
         }
-        public static byte[] Zero = Enumerable.Repeat((byte)0, 128).ToArray();
         public static byte[] Cut(byte[] input, int count) // time difference between this and linq.take is huge, 
         {                                                           // http://prntscr.com/od20o4 // linq: http://prntscr.com/od20vw  //my way: http://prntscr.com/od21br
             Array.Resize(ref input, count);
@@ -128,8 +124,10 @@ namespace debugger.Util
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
         {
             Result = new byte[size];
+            bool CarryBit3 = false;
             for (int i = 0; i < size; i++) // faster doing it my own way http://prntscr.com/ojwfs2
             {
+                CarryBit3 |= i == 0 && (input1[i] & 0b00000100) == (input2[i] & 0b00000100); // if we overflowed into bit 4 of 1st byte
                 int sum = input1[i] + input2[i] + (carry ? 1 : 0); //(any carries
                 if (sum > 0xFF) //overflowed that index
                 {
@@ -141,41 +139,40 @@ namespace debugger.Util
                     Result[i] += (byte)sum;
                     carry = false;
                 }
-
             }
             return new FlagSet(Result)
             {
                 Carry = carry ? FlagState.ON : FlagState.OFF,
                 Overflow = (input1.IsNegative() == input2.IsNegative() && Result.IsNegative() != input1.IsNegative()) ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = FlagState.OFF
+                Auxiliary = CarryBit3 ? FlagState.ON : FlagState.OFF
             };
         }
-        public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
+        public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
         {
             Result = new byte[size];
-            bool Borrow = false;
+            bool BorrowBit4 = false;
             for (int i = 0; i < size; i++)
             {
-                int sum = input1[i] - input2[i] - (Borrow ? 1 : 0) + (carry ? 1 : 0);
-                carry = false; //carried from another ins
+                BorrowBit4 |= i == 0 && (input1[i] & 0b00000100) < (input2[i] & 0b00000100); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
+                int sum = input1[i] - input2[i] - (borrow ? 1 : 0);
                 if (sum < 0)
                 {
                     Result[i] = (byte)(sum + 256);
-                    Borrow = true;
+                    borrow = true;
                 }
                 else
                 {
                     Result[i] = (byte)sum;
-                    Borrow = false;
+                    borrow = false;
                 }
             }
             //carry, sign changed
             //overflow, negative - positive = positive
             return new FlagSet(Result) // negative - positive = positive   or positive - negative = negative
             {
-                Carry = Borrow ? FlagState.ON : FlagState.OFF,
+                Carry = borrow ? FlagState.ON : FlagState.OFF,
                 Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = FlagState.OFF // subtracted a bigger number from a smaller number and didnt get a negative
+                Auxiliary = BorrowBit4 ? FlagState.ON : FlagState.OFF // subtracted a bigger number from a smaller number and didnt get a negative
             };
         }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
@@ -301,20 +298,20 @@ namespace debugger.Util
             }
             return input;
         }
-        public static string SignExtend(string sInput, int bLength)
+        public static string SignExtend(string bits, int newLength)
         {
             string sBuffer = "";
-            char cExtension = (sInput[0] == '1') ? '1' : '0';
-            for (int i = sInput.Length; i < bLength; i++)
+            char cExtension = (bits[0] == '1') ? '1' : '0';
+            for (int i = bits.Length; i < newLength; i++)
             {
                 sBuffer += cExtension;
             }
             return sBuffer;
         }
-        public static byte[] ZeroExtend(byte[] Input, byte Length) // http://prntscr.com/ofb1dy
+        public static byte[] ZeroExtend(byte[] input, byte length) // http://prntscr.com/ofb1dy
         {
-            Array.Resize(ref Input, Length);
-            return Input;
+            Array.Resize(ref input, length);
+            return input;
         }
     }
 }

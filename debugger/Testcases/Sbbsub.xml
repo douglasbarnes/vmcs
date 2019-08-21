@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="sbbsub">
+    <Hex>48B811223333444444442C221C44662D0044661D00882D000066661D0000BBBB9048B822222222F1F1F1F1482D00000080481DFEFFFF8F9048BB112233334444444480EB2280DB446681EB00446681DB008881EB0000666681DB0000BBBB9048BB22222222F1F1F1F14881EB000000804881DBFEFFFF8F9048B811223333444444446683E88083E8904883D8A09048B8112233334444444448BB224466668888888848C704244488BBBB28D81804246629D86619042429D81904244829D84819042490</Hex>
+    <Checkpoint tag="A Imm" position_hex="20">
+        <Register id="A" size="4">111256a8</Register>
+    </Checkpoint>
+    <Checkpoint tag="A Imm sxt dw" position_hex="37">
+        <Register id="A" size="8">f1f1f1f212222223</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Sign">1</Flag>
+        <Flag name="Auxiliary">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Reg Imm" position_hex="5e">
+        <Register id="B" size="4">111256a8</Register>
+    </Checkpoint>
+    <Checkpoint tag="Reg Imm sxt dw" position_hex="77">
+        <Register id="B" size="8">f1f1f1f212222223</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Sign">1</Flag>
+        <Flag name="Auxiliary">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Imm sxt b" position_hex="8d">
+        <Register id="A" size="8">33332360</Register>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Sign">0</Flag>
+        <Flag name="Parity">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="Reg to rm" position_hex="c2">
+        <Register id="A" size="8">7777777866675689</Register>
+        <Register id="B" size="8">8888888866664422</Register>
+        <Memory offset_register="SP">50b8868887888888</Memory>
+        <Flag name="Carry">0</Flag>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Sign">1</Flag>
+        <Flag name="Parity">1</Flag>
+    </Checkpoint>
+</Testcase>   

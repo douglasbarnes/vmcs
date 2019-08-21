@@ -6,6 +6,7 @@ using System.Drawing;
 using System.ComponentModel;
 using debugger.Hypervisor;
 using debugger.Util;
+using System.Diagnostics;
 using static debugger.FormSettings;
 namespace debugger
 {
@@ -66,7 +67,8 @@ namespace debugger
                 TextEmphasis = textEmphasis;
             }
             protected override void OnPaint(PaintEventArgs e)
-            {              
+            {
+                Trace.WriteLine("hi");
                 Rectangle Bounds = e.ClipRectangle;
                 e.Graphics.FillRectangle(LayerBrush, Bounds);
                 e.Graphics.FillRectangle(ElevatedTransparentOverlays[(int)DrawingLayer], Bounds);
@@ -87,8 +89,6 @@ namespace debugger
             protected override void OnPaint(PaintEventArgs e)
             {
                 e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(e.ClipRectangle, Text, BaseUI.BaseFont));
-                
-                //base.OnPaint(e);
             }
         }
         public abstract class CustomTextBox : TextBox, IMyCustomControl

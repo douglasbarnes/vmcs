@@ -56,7 +56,7 @@ namespace debugger.Hypervisor
             public string Tag;
             public List<TestRegister> ExpectedRegisters = new List<TestRegister>();
             public List<TestMemoryAddress> ExpectedMemory = new List<TestMemoryAddress>();
-            public FlagSet ExpectedFlags = new FlagSet(FlagState.OFF);
+            public FlagSet ExpectedFlags = new FlagSet();
             public bool TestFlags = false;
         }
         protected struct TestRegister
@@ -97,7 +97,7 @@ namespace debugger.Hypervisor
                             new CheckpointSubresult
                             {
                                 Passed = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0,
-                                Expected = $" ${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
+                                Expected = $"${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
                                 Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.RegisterCode],8),0).ToString("X")}"
                             });
                     }
@@ -142,9 +142,9 @@ namespace debugger.Hypervisor
                         CurrentSubresults.Add(
                         new CheckpointSubresult
                         {
-                            Passed = CurrentCheckpoint.ExpectedFlags == ControlUnit.Flags,
+                            Passed = CurrentCheckpoint.ExpectedFlags.EqualsOrUndefined(ControlUnit.Flags),
                             Expected = CurrentCheckpoint.ExpectedFlags.ToString(),
-                            Found = ControlUnit.Flags.ToString()
+                            Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags)
                         });
                     }                    
                     if(!CurrentSubresults.Last().Passed)
@@ -168,6 +168,10 @@ namespace debugger.Hypervisor
                         foreach (XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
                         {
                             if (InputTestcase.Attribute("noparse") != null && InputTestcase.Attribute("noparse").Value == "true") continue;
+                            if(InputTestcase.Element("Hex") == null)
+                            {
+                                throw new Exception("TestHandler.cs <Hex> element required with shellcode of testcase");
+                            }
                             TestcaseObject ParsedTestcase = new TestcaseObject
                             {
                                 Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)) // memory = <hex>x</hex>

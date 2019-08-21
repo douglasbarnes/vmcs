@@ -36,7 +36,7 @@ namespace debugger.Emulator
             Overflow = FlagState.UNDEFINED;
             Zero = input.IsZero() ? FlagState.ON : FlagState.OFF;
             Sign = input.IsNegative() ? FlagState.ON : FlagState.OFF;
-            Parity = Bitwise.GetBits(input).Count(x => x == '1') % 2 == 0 ? FlagState.ON : FlagState.OFF; //parity: even no of 1 bits       
+            Parity = Bitwise.GetBits(input[0]).Count(x => x == '1') % 2 == 0 ? FlagState.ON : FlagState.OFF; //parity: even no of 1 bits       
         }
         public void Overlap(FlagSet input)
         {
@@ -47,22 +47,19 @@ namespace debugger.Emulator
             Sign = input.Sign == FlagState.UNDEFINED ? Sign : input.Sign;
             Parity = input.Parity == FlagState.UNDEFINED ? Parity : input.Parity;
         }
-        public static bool operator ==(FlagSet right, FlagSet left)
-            =>
-                right.Carry == left.Carry
-                && right.Overflow == left.Overflow
-                && right.Sign == left.Sign
-                && right.Parity == left.Parity
-                && right.Zero == left.Zero
-                && right.Auxiliary == left.Auxiliary;        
-        public static bool operator !=(FlagSet right, FlagSet left)
-            =>
-                right.Carry != left.Carry
-                || right.Overflow != left.Overflow
-                || right.Sign != left.Sign
-                || right.Parity != left.Parity
-                || right.Zero != left.Zero
-                || right.Auxiliary != left.Auxiliary;        
+        public bool EqualsOrUndefined(FlagSet toCompare)
+        => And(toCompare) == ToString();
+        public string And(FlagSet toCompare)
+        {
+            string Output = "";
+            Output += (Carry & toCompare.Carry) == FlagState.ON ? "CF" : "";
+            Output += (Overflow & toCompare.Overflow) == FlagState.ON ? "OF" : "";
+            Output += (Sign & toCompare.Sign) == FlagState.ON ? "SF" : "";
+            Output += (Zero & toCompare.Zero) == FlagState.ON ? "ZF" : "";
+            Output += (Auxiliary & toCompare.Auxiliary) == FlagState.ON ? "AF" : "";
+            Output += (Parity & toCompare.Parity) == FlagState.ON ? "PF" : "";
+            return Output;                                   
+        }
         public FlagState this[string name]
         {
             get

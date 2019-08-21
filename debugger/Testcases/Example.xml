@@ -4,5 +4,6 @@
     <Checkpoint tag="Tag" position_hex="Address">
         <Register id="RegId" size="Size">BigEndianBytes</Register>
         <Memory offset_register="OffsetReg" offset="Offset">LittleEndianBytes</Memory>
+        <Flag name="Carry">1 = On 2 = off</Flag>
     </Checkpoint>
 </Testcase>   

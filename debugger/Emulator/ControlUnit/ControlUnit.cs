@@ -41,7 +41,7 @@ namespace debugger.Emulator
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1;
-            Opcodes.Opcode CurrentOpcode = null;
+            Opcode CurrentOpcode = null;
             List<string> TempLastDisas = new List<string>();
             while (CurrentContext.InstructionPointer != CurrentContext.Memory.End)
             {

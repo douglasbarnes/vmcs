@@ -136,23 +136,16 @@ namespace debugger.Util
             }
             return Output;
         }
-        public static string Atoi<T>(T[] toConvert, bool addSpaces=false)
-        {
+        public static string Atoi(byte[] toConvert, bool addSpaces=false, bool showMinus=true)
+        {            
+            Trim(toConvert);
             string Output = "";
-            toConvert = Trim(toConvert); //we don't really have to do this because lists are reference types, but its clearer and compiler will optimize it out anyway
             for (int i = 0; i < toConvert.Length; i++)
-            {
-                if(ulong.TryParse(toConvert[toConvert.Length-i-1].ToString(), out ulong Parsed))
+            {              
+                Output += toConvert[toConvert.Length - i - 1].ToString("X").PadLeft(2, '0');                            
+                if (i + 1 != toConvert.Length && addSpaces)
                 {
-                    Output += Parsed.ToString("X");
-                    //if(Output.Length % 2 != 0)
-                    //{
-                    //    Output = Output.Insert(Output.Length - 1, "0");
-                    //}                                  
-                    if(i+1 != toConvert.Length && addSpaces)
-                    {
-                        Output += " ";
-                    }
+                    Output += " ";
                 }
             }
             return Output;
@@ -161,22 +154,10 @@ namespace debugger.Util
         {
             for (int i = 0; i < input.Length; i++)
             {
-                if (Convert.ToUInt64(input[i]) != 0 || i == input.Length - 1)
+                if (Convert.ToUInt64(input[input.Length-i-1]) != 0 || i == input.Length - 1)
                 {
                     Array.Copy(input, i, input, 0, input.Length - i);
                     Array.Resize(ref input, input.Length - i);// cut after first non zero                                      
-                    break;
-                }
-            }
-            return input;
-        }
-        public static List<T> Trim<T>(List<T> input)
-        {
-            for (int i = 0; i < input.Count; i++)
-            {
-                if (Convert.ToUInt64(input[i]) == 0 || i == input.Count - 1)
-                {
-                    input.RemoveRange(0, i);
                     break;
                 }
             }

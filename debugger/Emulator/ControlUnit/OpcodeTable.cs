@@ -2,7 +2,7 @@
 using debugger.Emulator.Opcodes;
 using debugger.Emulator.DecodedTypes;
 
-using static debugger.Emulator.Opcodes.OpcodeSettings;
+using static debugger.Emulator.OpcodeSettings;
 namespace debugger.Emulator
 {
     public static partial class ControlUnit
