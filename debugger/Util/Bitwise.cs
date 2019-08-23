@@ -123,6 +123,8 @@ namespace debugger.Util
         }
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
         {
+            input1 = SignExtend(input1, (byte)size);
+            input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
             bool CarryBit3 = ((input1[0] & 0b111) + (input2[0] & 0b111)) > 0b111; // if we will carry into bit 4 of 1st byte
             for (int i = 0; i < size; i++) // faster doing it my own way http://prntscr.com/ojwfs2
@@ -148,6 +150,8 @@ namespace debugger.Util
         }
         public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
         {
+            input1 = SignExtend(input1, (byte)size);
+            input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
             bool BorrowBit4 = (input1[0] & 0b100) < (input2[0] & 0b100); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
             for (int i = 0; i < size; i++)
@@ -287,24 +291,27 @@ namespace debugger.Util
         }
         public static byte[] SignExtend(byte[] input, byte newLength)
         {
-            int startIndex = input.Length;
-            byte sign = (byte)((input[startIndex - 1]) > 0x7F ? 0xFF : 0x00);
-            Array.Resize(ref input, newLength);
-            for (int i = startIndex; i < newLength; i++)
+            if(input.Length < newLength)
             {
-                input[i] = sign;
-            }
+                int startIndex = input.Length;
+                byte sign = (byte)(input[startIndex - 1] > 0x7F ? 0xFF : 0x00);
+                Array.Resize(ref input, newLength);
+                for (int i = startIndex; i < newLength; i++)
+                {
+                    input[i] = sign;
+                }
+            }            
             return input;
         }
         public static string SignExtend(string bits, int newLength)
         {
-            string sBuffer = "";
-            char cExtension = (bits[0] == '1') ? '1' : '0';
+            string Buffer = "";
+            char SignBit = (bits[0] == '1') ? '1' : '0';
             for (int i = bits.Length; i < newLength; i++)
             {
-                sBuffer += cExtension;
+                Buffer += SignBit;
             }
-            return sBuffer;
+            return Buffer;
         }
         public static byte[] ZeroExtend(byte[] input, byte length) // http://prntscr.com/ofb1dy
         {

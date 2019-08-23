@@ -9,6 +9,7 @@ namespace debugger.Emulator
     {
         NONE=0,
         DISASSEMBLEMODE=1,
+        NOJMP=2,
     }
     public static partial class ControlUnit
     {        

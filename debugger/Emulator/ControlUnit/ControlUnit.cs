@@ -36,7 +36,14 @@ namespace debugger.Emulator
         public static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }
         public static FlagSet Flags { get => CurrentContext.Flags; }
-        public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; set => CurrentContext.InstructionPointer = value; }
+        public static ulong InstructionPointer { get => CurrentContext.InstructionPointer;
+            set {
+                if ((CurrentHandle.HandleSettings | HandleParameters.NOJMP) != CurrentHandle.HandleSettings)
+                {
+                    CurrentContext.InstructionPointer = value;
+                }
+            }
+        }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
         public static readonly List<PrefixByte> PrefixBuffer  = new List<PrefixByte>();
         public static REX RexByte = REX.NONE;

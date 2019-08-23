@@ -29,7 +29,7 @@ namespace debugger.Hypervisor
             public Dictionary<Checkpoint, List<CheckpointSubresult>> CheckpointOutputs = new Dictionary<Checkpoint, List<CheckpointSubresult>>();
             public XElement ToXML(string name)
             {
-                XElement Output = new XElement(name);
+                XElement Output = new XElement("TestcaseResult", new XAttribute("name", name));
                 Output.SetAttributeValue("result", Passed ? "Passed" : "Failed");
                 foreach (var CheckpointOutput in CheckpointOutputs)
                 {
@@ -84,19 +84,23 @@ namespace debugger.Hypervisor
             public async Task<TestcaseResult> RunTestcase()
             {
                 TestcaseResult Result = new TestcaseResult();
+                bool TestcasePassed = true;
+                
                 for (int CheckpointNum = 0; CheckpointNum < CurrentTestcase.Checkpoints.Count; CheckpointNum++)
                 {
                     await RunAsync();    
                     Context Snapshot = Handle.ShallowCopy();
                     Checkpoint CurrentCheckpoint = CurrentTestcase.Checkpoints[Snapshot.InstructionPointer];
-                    List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();
+                    List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
-                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size, REX.NONE);                        
+                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size, REX.NONE);
+                        bool RegistersEqual = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0;
+                        TestcasePassed &= RegistersEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
-                                Passed = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0,
+                                Passed = RegistersEqual,
                                 Expected = $"${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
                                 Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.RegisterCode],8),0).ToString("X")}"
                             });
@@ -119,30 +123,33 @@ namespace debugger.Hypervisor
                             Mnemonic += $"0x{Math.Abs(testMem.Offset).ToString("X")}";
                         }
                         ExactAddress += (ulong)testMem.Offset;
-                        bool CompareMemory = true;
+                        bool MemoryEqual = true;
                         byte[] FoundBytes = new byte[testMem.ExpectedBytes.Length];
                         for (uint ByteOffset = 0; ByteOffset < testMem.ExpectedBytes.Length; ByteOffset++)
                         {
                             FoundBytes[ByteOffset] = Snapshot.Memory[ExactAddress + ByteOffset];
                             if (Snapshot.Memory[ExactAddress + ByteOffset] != testMem.ExpectedBytes[ByteOffset])
                             {
-                                CompareMemory = false;
+                                MemoryEqual = false;
                             }                            
-                        }
+                        }                        
+                        TestcasePassed &= MemoryEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
-                                Passed = CompareMemory,
+                                Passed = MemoryEqual,
                                 Expected = $"[{Mnemonic}]={{{ParseBytes(testMem.ExpectedBytes)}}}",
                                 Found = $"[{Mnemonic}]={{{ParseBytes(FoundBytes)}}}"
                             });
                     }
                     if(CurrentCheckpoint.TestFlags)
                     {
+                        bool FlagsEqual = CurrentCheckpoint.ExpectedFlags.EqualsOrUndefined(ControlUnit.Flags);
+                        TestcasePassed &= FlagsEqual;
                         CurrentSubresults.Add(
                         new CheckpointSubresult
                         {
-                            Passed = CurrentCheckpoint.ExpectedFlags.EqualsOrUndefined(ControlUnit.Flags),
+                            Passed = FlagsEqual,
                             Expected = CurrentCheckpoint.ExpectedFlags.ToString(),
                             Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags)
                         });
@@ -158,7 +165,6 @@ namespace debugger.Hypervisor
         }
         static TestHandler()
         {
-            List<string> LoadingLog = new List<string>();
             foreach (string FilePath in Directory.GetFiles("Testcases")) //each testcase in file
             {
                 if (FilePath.Substring(FilePath.Length - 4) == ".xml") //if its xml file(light filter, invalid xml files still cause errors)
@@ -179,7 +185,7 @@ namespace debugger.Hypervisor
                             };
                             foreach (var InputCheckpoint in InputTestcase.Elements("Checkpoint"))//for each <checkpoint> in file
                             {
-                                ulong Offset = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
+                                ulong BreakpointAddr = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
                                 Checkpoint ParsedCheckpoint = new Checkpoint()
                                 {
                                     Tag = InputCheckpoint.Attribute("tag").Value,
@@ -198,26 +204,30 @@ namespace debugger.Hypervisor
                                     }
                                     else if (TestCritera.Name == "Memory") //<memory>
                                     {
-                                        if (TestCritera.Attribute("offset") == null && TestCritera.Attribute("offset_register") == null)
-                                        {
-                                            throw new Exception("Memory needs to have atleast an offset or offset_register attribute");
-                                        }
-                                        if (TestCritera.Attribute("offset") != null
-                                            && Convert.ToInt64(TestCritera.Attribute("offset").Value, 16) < 0
-                                            && TestCritera.Attribute("offset_register") == null)
-                                        {
-                                            throw new Exception("Cannot have a negative memory offset without a register to offset it" +
-                                                                "\nRemember that the offset it in a testcase is signed long values, so put a 0 before, or use a register");
-                                        }
+                                        long Offset = 0;
                                         XRegCode? RegOffset = null;
                                         if (TestCritera.Attribute("offset_register") != null)
                                         {
                                             RegOffset = (XRegCode?)RegisterDecodeTable[TestCritera.Attribute("offset_register").Value];
                                         }
+                                        if (TestCritera.Attribute("offset") != null)
+                                        {
+                                            Offset += BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(ParseHex(TestCritera.Attribute("offset").Value)), 8), 0);  
+                                            if(Offset < 0 && RegOffset == null)
+                                            {
+                                                throw new Exception("Cannot have a negative memory offset without a register to offset it" +
+                                                                "\nRemember that the offset it in a testcase is a signed long value, so put a 0 before, or use a register");
+                                            }
+                                        }
+                                        else if (RegOffset == null)
+                                        {
+                                            throw new Exception("Memory needs to have atleast an offset or offset_register attribute");
+                                        }                                      
+                                        
                                         ParsedCheckpoint.ExpectedMemory.Add(
                                             new TestMemoryAddress()
                                             {
-                                                Offset = TestCritera.Attribute("offset") == null ? 0 : BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(ParseHex(TestCritera.Attribute("offset").Value)), 8), 0),
+                                                Offset = Offset,
                                                 OffsetRegister = RegOffset,
                                                 ExpectedBytes = ParseHex(TestCritera.Value)
                                             });
@@ -236,7 +246,7 @@ namespace debugger.Hypervisor
                                         throw new Exception($"Unexpected element {TestCritera.Name}");//throw error if it wasnt memory of register
                                     }
                                 }
-                                ParsedTestcase.Checkpoints.Add(Offset, ParsedCheckpoint);
+                                ParsedTestcase.Checkpoints.Add(BreakpointAddr, ParsedCheckpoint);
                             }
                             string TestcaseName = InputTestcase.Attribute("name").Value.ToLower();
                             if(Testcases.ContainsKey(TestcaseName))

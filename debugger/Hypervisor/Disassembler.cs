@@ -22,7 +22,7 @@ namespace debugger.Hypervisor
         }
         private Handle TargetHandle;
         private Context TargetContext { get => TargetHandle.ShallowCopy(); }
-        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.ShallowCopy(), HandleParameters.DISASSEMBLEMODE)
+        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.ShallowCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
         {
             TargetHandle = targetHandle;
         }

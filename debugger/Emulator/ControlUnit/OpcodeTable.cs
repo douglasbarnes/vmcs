@@ -135,10 +135,16 @@ namespace debugger.Emulator
 
                   { 0xA4, () => new Movs(new StringOperation(), BYTEMODE | STRINGOP) },
                   { 0xA5, () => new Movs(new StringOperation(), STRINGOP) },
-
+                  { 0xA6, () => new Cmp(new StringOperation(), BYTEMODE | STRINGOP) },
+                  { 0xA7, () => new Cmp(new StringOperation(), STRINGOP) },
                   { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },
-
+                  { 0xAA, () => new Stos(new StringOperation(), BYTEMODE | STRINGOP) },
+                  { 0xAB, () => new Stos(new StringOperation(), STRINGOP) },
+                  { 0xAC, () => new Lods(new StringOperation(), BYTEMODE | STRINGOP) },
+                  { 0xAD, () => new Lods(new StringOperation(), STRINGOP) },
+                  { 0xAE, () => new Scas(new StringOperation(), BYTEMODE | STRINGOP) },
+                  { 0xAF, () => new Scas(new StringOperation(), STRINGOP) },
                   { 0xB0, () => new Mov(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xB1, () => new Mov(new ImplicitRegister(XRegCode.C ), BYTEMODE | IMMEDIATE) },
                   { 0xB2, () => new Mov(new ImplicitRegister(XRegCode.D ), BYTEMODE | IMMEDIATE) },
