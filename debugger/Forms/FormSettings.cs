@@ -32,9 +32,9 @@ namespace debugger.Forms
             BaseFont = InputFont;
             BackgroundColour = InputBackgroundColour;
             SurfaceColour = InputTextColour;            
-            PrimaryColour = Color.FromArgb(200, InputBackgroundColour.R + 0xA9, InputBackgroundColour.B + 0x74, InputBackgroundColour.G + 0xEA);
+            PrimaryColour = Color.FromArgb(200, (byte)(InputBackgroundColour.R + 0xA9), (byte)(InputBackgroundColour.B + 0x74), (byte)(InputBackgroundColour.G + 0xEA));
             PrimaryVariantColour = InputTextColour;
-            SecondaryColour = Color.FromArgb(240, InputBackgroundColour.R + 0xF1, InputBackgroundColour.B + 0xC8, InputBackgroundColour.G + 0xB3);
+            SecondaryColour = Color.FromArgb(240, (byte)(InputBackgroundColour.R + 0xF1), (byte)(InputBackgroundColour.B + 0xC8), (byte)(InputBackgroundColour.G + 0xB3));
         }
     }    
     public class FormSettings

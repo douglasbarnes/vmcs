@@ -112,7 +112,7 @@ namespace debugger.Util
             switch (formatType)
             {
                 case FormatType.Hex:
-                    Output = Number.ToString("X").PadLeft(Padding, '0');
+                    Output = $"0x{Number.ToString("X").PadLeft(Padding, '0')}";
                     break;
                 case FormatType.String:
                     byte[] Bytes = BitConverter.GetBytes(Number);

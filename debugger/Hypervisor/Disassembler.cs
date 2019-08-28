@@ -18,7 +18,6 @@ namespace debugger.Hypervisor
                 RIP = 1,
             }
             public string DisassembledLine;
-            public ulong Address;
             public AddressState AddressInfo;
         }
         private Handle TargetHandle;
@@ -38,16 +37,10 @@ namespace debugger.Hypervisor
             Dictionary<ulong, DisassembledItem> Output = new Dictionary<ulong, DisassembledItem>();
             for (ulong CurrentAddr = startAddress; CurrentAddr < endAddress; Handle.Invoke(() => CurrentAddr = Handle.ShallowCopy().InstructionPointer))
             {
-                DisassembledItem CurrentLine = new DisassembledItem() { Address = CurrentAddr };
-                string ExtraInfo;              
+                DisassembledItem CurrentLine = new DisassembledItem();          
                 if (CurrentAddr == TargetContext.InstructionPointer)
                 {
-                    ExtraInfo = "←RIP";
                     CurrentLine.AddressInfo |= DisassembledItem.AddressState.RIP;
-                }
-                else
-                {
-                    ExtraInfo = "    ";
                 }
                 string Disassembly = JoinDisassembled((await RunAsync(true)).LastDisassembled);
                 CurrentLine.DisassembledLine = $"{Disassembly}";

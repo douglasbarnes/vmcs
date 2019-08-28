@@ -9,15 +9,9 @@ namespace debugger.Hypervisor
     public class VM : HypervisorBase
     {
         
-        public struct VMSettings
-        {
-            public int UndoHistoryLength;
-            public RunCallback OnRunComplete;
-        }
         private readonly MemorySpace SavedMemory;       
-        public VMSettings CurrentSettings;
         public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(Handle.ShallowCopy().Breakpoints); }
-        public VM(VMSettings inputSettings, MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
+        public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             InstructionPointer = inputMemory.EntryPoint,
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
@@ -26,8 +20,6 @@ namespace debugger.Hypervisor
             }),          
             })            
         {
-            CurrentSettings = inputSettings;
-            RunComplete += CurrentSettings.OnRunComplete;
             SavedMemory = inputMemory.DeepCopy();
         }
         public void Reset()

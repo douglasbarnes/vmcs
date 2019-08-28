@@ -12,11 +12,7 @@ namespace debugger.Forms
     public class DisassemblyListView : CustomListView
     {
         public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
-        private SolidBrush[] ItemColours = new SolidBrush[]
-        {
-                LayerBrush,
-                BreakpointBrush
-        };
+
         public DisassemblyListView(Size size) : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
             OwnerDraw = true;
@@ -50,7 +46,7 @@ namespace debugger.Forms
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
             ulong CurrentAddr = IndexToAddr[e.ItemIndex];
-            e.Graphics.FillRectangle(ItemColours[(BreakpointSource.Contains(CurrentAddr) ? 1 : 0)], e.Bounds);
+            e.Graphics.FillRectangle(LayerBrush, e.Bounds);
             Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
             Drawing.DrawFormattedText(IndexToLine[e.ItemIndex], e.Graphics, HeightCenteredBounds);
         }
@@ -84,7 +80,10 @@ namespace debugger.Forms
                 }
                 string FormattedLine = "";
                 string[] CutAddress = Core.SeparateString(Core.FormatNumber(Line.Key, FormatType.Hex), "0", stopAtFirstDifferent: true);
-                if(Line.Value.AddressInfo | Disassembler.DisassembledItem.AddressState.Break)
+                if(BreakpointSource.Contains(Line.Key))
+                {
+                    CutAddress[0] = $"^{CutAddress[0]}^";
+                }
                 if (CutAddress[1].Length > 0) // if there are trailing 0's, make them darker
                 {
                     FormattedLine += $"0x\"{CutAddress[1]}\"";

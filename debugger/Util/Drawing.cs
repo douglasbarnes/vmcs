@@ -23,6 +23,10 @@ namespace debugger.Util
         public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis = Emphasis.Medium)
         {
             string[] Output = new string[FormatModifiers.Length];
+            for (int i = 0; i < Output.Length; i++)
+            {
+                Output[i] = "";
+            }
             Stack<int> ModifierHistory = new Stack<int>();
             ModifierHistory.Push((int)defaultEmphasis);
             bool Escaped = false;
@@ -51,6 +55,7 @@ namespace debugger.Util
                         if (NewModifier == ModifierHistory.Peek())
                         {
                             ModifierHistory.Pop();
+                            CurrentModifier = ModifierHistory.Peek();
                         }
                         else
                         {
@@ -65,11 +70,24 @@ namespace debugger.Util
                         continue; // ^ or the escape
                     }
                 }
-                Output[CurrentModifier] = Output[CurrentModifier].PadRight(InputPosition) + Cursor;
+                for (int Modifier = 0; Modifier < Output.Length; Modifier++)
+                {
+                    if (Modifier == CurrentModifier)
+                    {
+                        Output[Modifier] += Cursor;
+                    }
+                    else
+                    {
+                        Output[Modifier] += " ";
+                    }                    
+                }
             }
             for (int ModifierType = 0; ModifierType < FormatModifiers.Length; ModifierType++)
             {
-                graphicsHandler.DrawString(Output[ModifierType], BaseUI.BaseFont, ModifierTypes[ModifierType], bounds);
+                if (Output[ModifierType].Trim() != "")
+                {
+                    graphicsHandler.DrawString(Output[ModifierType], BaseUI.BaseFont, ModifierTypes[ModifierType], bounds);
+                }                           
             }            
         }
         public static void DrawShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer, int penSize = 1)

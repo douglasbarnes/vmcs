@@ -43,17 +43,14 @@ namespace debugger
 
 
 );
-            VM.VMSettings settings = new VM.VMSettings()
+            VMInstance = new VM(ins);
+            VMInstance.RunComplete += (context) =>
             {
-                OnRunComplete = (context) => 
-                {                    
-                    RefreshCallback();
-                    ListViewDisassembly.SetRIP(context.InstructionPointer);
-                }
-            };
-            VMInstance = new VM(settings, ins);
+                RefreshCallback();
+                ListViewDisassembly.SetRIP(context.InstructionPointer);
+            };            
+            VMInstance.Breakpoints.ListChanged += (s, lc_args) => ListViewDisassembly.Refresh();
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
-            ListViewDisassembly.BreakpointSource.ListChanged += (s, lc_args) => Refresh();
             Task.Run(() =>
             {
                 using (Disassembler DisassemblerInstance = new Disassembler(VMInstance.Handle))

@@ -47,25 +47,53 @@ namespace debugger.Forms
         {
             int RegLabelIndex = 0;
             foreach (var Register in inputRegs)
-            {
+            {                
                 string FormattedValue;
                 if(RegisterLabels[RegLabelIndex].NoFormat)
                 {
-                    FormattedValue = Core.FormatNumber(Register.Value, FormatType.Hex).Insert(2, "%").Insert(0, "%");
+                    FormattedValue = ReplaceAtNonZero(Core.FormatNumber(Register.Value, FormatType.Hex), "$").Insert(2, "$").Insert(2,"%").Insert(0, "%");
                 }
                 else if(RegSize == 1 && RegisterLabels[RegLabelIndex].ShowUpper)
                 {
-                    FormattedValue = 
-                        Core.FormatNumber(inputRegs[Disassembly.DisassembleRegister((XRegCode)RegLabelIndex - 5, (RegisterCapacity)RegSize, REX.NONE)], FormatType.Hex).Insert(16, "%").Insert(14, "%").Insert(0, "%");
+                    ulong TargetValue = inputRegs[Disassembly.DisassembleRegister((XRegCode)RegLabelIndex - 5, (RegisterCapacity)RegSize, REX.NONE)];
+                    FormattedValue = Core.FormatNumber(TargetValue, FormatType.Hex);
+                    if (((ushort)TargetValue >> 8) > 0) { // get lower short, then rsh to remove lower byte
+                        FormattedValue = FormattedValue.Insert(16, "%").Insert(14, "%").Insert(0, "%"); 
+                    }
+                    else
+                    {
+                        FormattedValue = FormattedValue.Insert(16, "$").Insert(14, "$").Insert(0, "%");
+                    }
                 }
                 else
                 {
-                    FormattedValue = Core.FormatNumber(Register.Value, FormatType.Hex).Insert(2 + 16 - (RegSize * 2), "%").Insert(0, "%");
+                    FormattedValue = Core.FormatNumber(Register.Value, FormatType.Hex);
+                    if (Register.Value >  (ulong)Math.Pow(2, RegSize*8)-1)
+                    {
+                        FormattedValue = FormattedValue.Insert(2 + 16 - (RegSize * 2), "%$").Insert(0, "%");
+                    }
+                    else
+                    {
+                        FormattedValue = ReplaceAtNonZero(FormattedValue,"$%").Insert(2 + 16 - (RegSize * 2), "$").Insert(0, "%");
+                    }
                 }
                 RegisterLabels[RegLabelIndex].Text = $"{Register.Key.PadRight(5)} : {FormattedValue}";
                 RegisterLabels[RegLabelIndex].Update();
                 RegLabelIndex++;
             }
+        }
+        public static string ReplaceAtNonZero(string input, string toInsert)
+        {
+            string ReadCopy = input;
+            for (int i = 1; i < (input.Length / 2); i++)
+            {
+                if (ReadCopy[i * 2] != '0' || ReadCopy[i * 2 + 1] != '0')
+                {
+                    input = input.Insert(i * 2, toInsert);
+                    break;
+                }
+            }
+            return input;
         }
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
