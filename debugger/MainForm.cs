@@ -11,7 +11,8 @@ using System.Xml.Linq;
 using debugger.Util;
 using debugger.Hypervisor;
 using debugger.Emulator;
-using static debugger.FormSettings;
+using debugger.Forms;
+using System.Diagnostics;
 
 namespace debugger
 {  
@@ -23,11 +24,13 @@ namespace debugger
         public Dictionary<string, ulong> Registers = new Dictionary<string, ulong>();
         public MainForm()
         {
-            Font = BaseUI.BaseFont;           
+            Font = FormSettings.BaseUI.BaseFont;
+            SuspendLayout();
             InitializeComponent();
-            CustomDraw();
-            ForeColor = BaseUI.SurfaceColour;
-            BackColor = BaseUI.BackgroundColour;
+            InitialiseCustom();            
+            MouseDoubleClick += (s, e) => Trace.WriteLine($"X: {e.X} Y: {e.Y}");
+            ForeColor = FormSettings.BaseUI.SurfaceColour;
+            BackColor = FormSettings.BaseUI.BackgroundColour;
         }
         VM VMInstance;
         private void Form1_Load(object sender, EventArgs e)
@@ -42,14 +45,27 @@ namespace debugger
 );
             VM.VMSettings settings = new VM.VMSettings()
             {
-                UndoHistoryLength = 5,
-                RunCallback = RefreshAll
+                OnRunComplete = (context) => 
+                {                    
+                    RefreshCallback();
+                    ListViewDisassembly.SetRIP(context.InstructionPointer);
+                }
             };
             VMInstance = new VM(settings, ins);
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
             ListViewDisassembly.BreakpointSource.ListChanged += (s, lc_args) => Refresh();
-            PanelRegisters.OnRegSizeChanged += RefreshRegisters;
-            RefreshAll();            
+            Task.Run(() =>
+            {
+                using (Disassembler DisassemblerInstance = new Disassembler(VMInstance.Handle))
+                {
+                    ListViewDisassembly.AddParsed(DisassemblerInstance.StepAll().Result);
+
+                }
+            });
+            RefreshCallback();
+            ResumeLayout();
+            Refresh();
+            Update();
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {
@@ -63,64 +79,19 @@ namespace debugger
 
         //refresh methods
         private void RefreshRegisters()
+        {            
+            PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(VMInstance.GetRegisters((RegisterCapacity)PanelRegisters.RegSize))));
+        }
+        private void RefreshRegisters(int size)
         {
-            RegisterCapacity RegCap = RegisterCapacity.GP_QWORD;
-            Registers = VMInstance.GetRegisters(RegCap); //qword regs
-            PanelRegisters.Invoke(new Action(() => RegCap = (RegisterCapacity)PanelRegisters.RegSize));
-            string[] ParsedRegValues = new string[9];
-            for (int i = 0; i < ParsedRegValues.Length; i++)
-            {
-                string Value;
-                if(i == 0) //always format rip the same
-                {
-                    Value = Core.FormatNumber(Registers["RIP"], SelectedFormatType);
-                    if (SelectedFormatType == FormatType.Hex)
-                    {
-                        Value = Value.Insert(2, "%").Insert(0, "%");
-                    }
-                }
-                else if (RegCap == RegisterCapacity.GP_BYTE & i > 4) //higher bit reg
-                {
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((XRegCode)i-5, RegisterCapacity.GP_QWORD, REX.B)], SelectedFormatType);
-                    if (SelectedFormatType == FormatType.Hex)
-                    {
-                        Value = Value.Insert(16, "%").Insert(14, "%").Insert(0, "%");
-                    }
-                } else
-                {      //anything else                     
-                    Value = Core.FormatNumber(Registers[Disassembly.DisassembleRegister((XRegCode)i-1, RegisterCapacity.GP_QWORD, REX.NONE)], SelectedFormatType);
-                    if (SelectedFormatType == FormatType.Hex)
-                    {
-                        Value = Value.Insert(2 + 16 - ((byte)RegCap * 2), "%").Insert(0, "%");
-                    }
-                }                
-                ParsedRegValues[i] = Value;
-            }
-            Invoke(new Action(() =>
-            {
-                Label[] LabelOrder = new Label[] { RIPLABEL, RSPLABEL, RBPLABEL, RSILABEL, RDILABEL, RAXLABEL, RBXLABEL, RCXLABEL, RDXLABEL };
-                for (int i = 0; i < LabelOrder.Length; i++)
-                {
-                    string Mnemonic = (i == 0) ? "RIP" : Disassembly.DisassembleRegister((XRegCode)i-1, RegCap, REX.B);
-                    LabelOrder[i].Text = $"{Mnemonic}{(((byte)RegCap < 4 & i != 0) ? " " : "")} : {ParsedRegValues[i]}";
-                }
-                PanelRegisters.Refresh();           //extra space so stuff stays in line
-            })); 
+            Registers = VMInstance.GetRegisters((RegisterCapacity)size); //qword regs
+            PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(Registers)));
+            //a little better than without specifying because less time is spent in the invoke, so we will have less stalls for the thread
         }
         private void RefreshFlags()
         {            
             Dictionary<string, bool> FetchedFlags = VMInstance.GetFlags();
-            
-            Invoke(new Action(() =>
-            {
-                Label[] LabelOrder = new Label[] { LabelCarry, LabelOverflow, LabelSign, LabelZero, LabelParity, LabelAuxiliary };
-                for (int i = 0; i < LabelOrder.Length; i++)
-                {
-                    string Flag = LabelOrder[i].Tag.ToString();
-                    LabelOrder[i].Text = $"{Flag.PadRight(9)}: ";
-                    LabelOrder[i].Text += (FetchedFlags[Flag] == true) ? "True" : "$False$";
-                }
-            }));            
+            PanelFlags.Invoke(new Action(() => PanelFlags.UpdateFlags(FetchedFlags)));          
         } 
         private void RefreshMemory()
         {
@@ -153,43 +124,30 @@ namespace debugger
                 memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
             })));                    
         }      
-        private void RefreshDisassembly()
-        {
-            using (Disassembler DisassemblerInstance = new Disassembler(VMInstance.Handle))
-            {
-                ListViewDisassembly.AddParsed(DisassemblerInstance.StepAll().Result);           
-            }                
-        }
-        private void RefreshTestcases()
-        {
-
-        }
-        private async void RefreshAll()
+        private async void RefreshCallback()
         {
             List<Task> RefreshTasks = new List<Task>
             {
-                new Task(() => RefreshDisassembly()),
                 new Task(() => RefreshRegisters()),
-                new Task(() => RefreshMemory()),                
+                new Task(() => RefreshMemory()),
                 new Task(() => RefreshFlags())
             };
-
             RefreshTasks.ForEach(x => x.Start());
             await Task.WhenAll(RefreshTasks);
-            Invoke(new Action(() =>Refresh()));
+            Invoke(new Action(() => Refresh()));
         }
         //     
         private void SetMemviewPos(object sender, EventArgs e)
         {
 
-            string GotoInput = gotoMemSrc.Text;
+            string GotoInput = "";//gotoMemSrc.Text; abandoned
             if (GotoInput.Length >= 2 && GotoInput.Substring(0,2).ToLower() == "0x") { GotoInput = GotoInput.Substring(2); }
             GotoInput = GotoInput.PadLeft(16, '0');
             //if it is a name of reg
             if (Registers.ContainsKey(GotoInput)) { GotoInput = Registers[GotoInput].ToString("X"); }
             if (Registers.ContainsKey(GotoInput)) { GotoInput = Registers[GotoInput].ToString("X"); }
 
-            if (GotoInput.Where(x => !"1234567890ABCDEF".Contains(x) ).Count() != 0) { gotoMemSrc.Text = "Invalid address"; } else
+            if (GotoInput.Where(x => !"1234567890ABCDEF".Contains(x) ).Count() != 0) {  } else
             {
                 ulong inputAddr = Convert.ToUInt64(GotoInput, 16);
 
@@ -218,10 +176,6 @@ namespace debugger
             
 
             
-        }
-        private void GotoMemSrc_MouseEnter(object sender, EventArgs e)
-        {
-            if(gotoMemSrc.Text == "Invalid address") { gotoMemSrc.Clear(); }
         }
         private const string ResultOutputPath = "Results\\";
         private void OnTestcaseSelected(string name)
@@ -259,10 +213,7 @@ namespace debugger
             }
                        
         }
-        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshAll(); }
-        //Format methods
-        private FormatType SelectedFormatType = FormatType.Hex;        
-        //
+        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshCallback(); }
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
 
     }

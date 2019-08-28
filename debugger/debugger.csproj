@@ -71,7 +71,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CustomControls.cs" />
     <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
     <Compile Include="Emulator\DecodedTypes\StringOperation.cs" />
     <Compile Include="Emulator\DecodedTypes\ImplicitRegister.cs" />
@@ -105,6 +104,76 @@
     <Compile Include="Emulator\Opcodes\M\Mul.cs" />
     <Compile Include="Emulator\Opcodes\N\Nop.cs" />
     <Compile Include="Emulator\Opcode.cs" />
+    <Compile Include="Forms\AdaptedControls\FlagPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\TestcaseSearchTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\ThemedToolStripMenuItem.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\EndToolStripMenuItem.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\ThemedToolStripRadioButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\ThemedMenuStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\RegisterLabel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\MemoryListView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\RegisterPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomLabel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomToolStripMenuItem.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomToolStripTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomToolStripButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\DisassemblyListView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\ControlButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\BorderedPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\ThemedToolStripMenuHeader.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\AdaptedControls\FlagLabel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomMenuStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomListView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\BaseControls\CustomPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Forms\FormSettings.cs" />
     <Compile Include="Hypervisor\Disassembler.cs" />
     <Compile Include="Emulator\Context.cs" />
     <Compile Include="Emulator\ControlUnit\ControlUnit.cs" />
@@ -112,7 +181,9 @@
     <Compile Include="Emulator\ControlUnit\Handle.cs" />
     <Compile Include="Emulator\MemorySpace.cs" />
     <Compile Include="Emulator\RegisterGroup.cs" />
+    <Compile Include="Forms\BaseControls\IMyCustomControl.cs" />
     <Compile Include="Hypervisor\HypervisorBase.cs" />
+    <Compile Include="Logging\Log.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>

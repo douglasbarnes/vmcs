@@ -17,7 +17,7 @@ namespace debugger.Emulator.Opcodes
         {
            if(TestCondition(JmpCondition)) {
 
-                ControlUnit.InstructionPointer = BitConverter.ToUInt64(Bitwise.SignExtend(Fetch()[0], 8),0);
+                ControlUnit.Jump(BitConverter.ToUInt64(Bitwise.SignExtend(Fetch()[0], 8), 0));
            }            
         }
     }

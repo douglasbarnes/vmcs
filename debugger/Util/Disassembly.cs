@@ -39,7 +39,7 @@ namespace debugger.Util
         public static string DisassembleCondition(Condition condition) => ConditionMnemonics[condition];
         public static string DisassembleRegister(XRegCode Register, RegisterCapacity RegCap, REX RexByte)
         {            
-            if(RegCap == RegisterCapacity.GP_BYTE && RexByte != REX.NONE && Register - 4 > 0)
+            if(RegCap == RegisterCapacity.GP_BYTE && RexByte != REX.NONE && Register > XRegCode.B && Register < XRegCode.R8)
             {
                 return RegisterMnemonics[(int)Register-4] + "H";
             }

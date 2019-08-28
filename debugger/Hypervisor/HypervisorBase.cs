@@ -9,7 +9,8 @@ namespace debugger.Hypervisor
     public abstract class HypervisorBase : IDisposable
     {
         protected internal readonly Handle Handle;
-        public event Action RunComplete = () => { };
+        public delegate void RunCallback(Context input);
+        public event RunCallback RunComplete = (input) => { };
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
             inputContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
@@ -19,16 +20,13 @@ namespace debugger.Hypervisor
             });
             Handle = new Handle(inputName, inputContext, handleParameters);
         }
-        public virtual Status Run(bool Step = false)
-        {
-            return Handle.Run(Step);
-        }
+        public virtual Status Run(bool Step = false) => Handle.Run(Step);
         public virtual async Task<Status> RunAsync(bool Step = false)
         {
             Task<Status> RunTask = new Task<Status>(() => Run(Step));
             RunTask.Start();
             Status Result = await RunTask;
-            RunComplete.Invoke();
+            RunComplete.Invoke(Handle.DeepCopy());
             return Result;
         }
         public Dictionary<string, bool> GetFlags()
@@ -44,10 +42,7 @@ namespace debugger.Hypervisor
                 {"Overflow", VMFlags.Overflow   == FlagState.ON},
                 };
         }
-        public MemorySpace GetMemory()
-        {
-            return Handle.ShallowCopy().Memory;
-        }
+        public MemorySpace GetMemory() => Handle.ShallowCopy().Memory;
         public void Dispose()
         {
             Handle.Dispose();

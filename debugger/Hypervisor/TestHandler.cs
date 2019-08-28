@@ -7,6 +7,7 @@ using System.IO;
 using System.Xml.Linq;
 using debugger.Emulator;
 using debugger.Util;
+using debugger.Logging;
 namespace debugger.Hypervisor
 {
     static class TestHandler
@@ -64,6 +65,20 @@ namespace debugger.Hypervisor
             public XRegCode RegisterCode;
             public RegisterCapacity Size;
             public ulong ExpectedValue;
+            public bool TryParse(XElement testCriteria)
+            {
+                try
+                {
+                    RegisterCode = RegisterDecodeTable[testCriteria.Attribute("id").Value];
+                    Size = (RegisterCapacity)(int)testCriteria.Attribute("size");
+                    ExpectedValue = Convert.ToUInt64(testCriteria.Value, 16);
+                    return true;
+                }
+                catch
+                {
+                    return false;                    
+                }
+            }
         }
         protected struct TestMemoryAddress
         {
@@ -154,10 +169,6 @@ namespace debugger.Hypervisor
                             Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags)
                         });
                     }                    
-                    if(!CurrentSubresults.Last().Passed)
-                    {
-                        Result.Passed = false;
-                    }
                     Result.CheckpointOutputs.Add(CurrentCheckpoint, CurrentSubresults);
                 }
                 return Result;
@@ -169,100 +180,108 @@ namespace debugger.Hypervisor
             {
                 if (FilePath.Substring(FilePath.Length - 4) == ".xml") //if its xml file(light filter, invalid xml files still cause errors)
                 {
+                    XDocument TestcaseFile;
                     try
                     {
-                        XDocument TestcaseFile = XDocument.Load(FilePath);
-                        foreach (XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
+                        TestcaseFile = XDocument.Load(FilePath);
+                    }
+                    catch(Exception e)
+                    {
+                        Logger.Log(LogCode.TESTCASE_IOERROR, new string[] { FilePath, e.Message });
+                        continue;
+                    }
+                    foreach (XElement InputTestcase in TestcaseFile.Elements("Testcase"))//for each <testcase> in the file
+                    {
+                        if (InputTestcase.Attribute("noparse") != null && InputTestcase.Attribute("noparse").Value == "true") continue;
+                        string TestcaseName = InputTestcase.Attribute("name").Value.ToLower();
+                        if (Testcases.ContainsKey(TestcaseName))
                         {
-                            if (InputTestcase.Attribute("noparse") != null && InputTestcase.Attribute("noparse").Value == "true") continue;
-                            if(InputTestcase.Element("Hex") == null)
+                            Logger.Log(LogCode.TESTCASE_DUPLICATE, TestcaseName);
+                            continue;
+                        }
+                        TestcaseObject ParsedTestcase = new TestcaseObject();                           
+                        try
+                        {
+                            ParsedTestcase.Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)); // memory = <hex>x</hex>   
+                        } catch
+                        {
+                            Logger.Log(LogCode.TESTCASE_BADHEX, TestcaseName);
+                            continue;
+                        }                            
+                        foreach (var InputCheckpoint in InputTestcase.Elements("Checkpoint"))//for each <checkpoint> in file
+                        {
+                            ulong BreakpointAddr = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
+                            Checkpoint ParsedCheckpoint = new Checkpoint()
                             {
-                                throw new Exception("TestHandler.cs <Hex> element required with shellcode of testcase");
-                            }
-                            TestcaseObject ParsedTestcase = new TestcaseObject
-                            {
-                                Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)) // memory = <hex>x</hex>
+                                Tag = InputCheckpoint.Attribute("tag") == null ? "Unnamed" : InputCheckpoint.Attribute("tag").Value,
                             };
-                            foreach (var InputCheckpoint in InputTestcase.Elements("Checkpoint"))//for each <checkpoint> in file
+                            foreach (XElement TestCriteria in InputCheckpoint.Elements())//for each criteria in the checkpoint
                             {
-                                ulong BreakpointAddr = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
-                                Checkpoint ParsedCheckpoint = new Checkpoint()
+                                if (TestCriteria.Name == "Register") //<register>
                                 {
-                                    Tag = InputCheckpoint.Attribute("tag").Value,
-                                };
-                                foreach (XElement TestCritera in InputCheckpoint.Elements())//for each criteria in the checkpoint
+                                    TestRegister Reg = new TestRegister();
+                                    if(Reg.TryParse(TestCriteria))
+                                    {
+                                        ParsedCheckpoint.ExpectedRegisters.Add(Reg);
+                                    } else
+                                    {
+                                        Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Invalid syntax of register element" });
+                                    }                                        
+                                }
+                                else if (TestCriteria.Name == "Memory") //<memory>
                                 {
-                                    if (TestCritera.Name == "Register") //<register>
+                                    TestMemoryAddress Mem = new TestMemoryAddress();
+                                    if (TestCriteria.Attribute("offset_register") != null)
                                     {
-                                        ParsedCheckpoint.ExpectedRegisters.Add(
-                                            new TestRegister()
-                                            {
-                                                RegisterCode = RegisterDecodeTable[TestCritera.Attribute("id").Value],
-                                                Size = (RegisterCapacity)(int)TestCritera.Attribute("size"),
-                                                ExpectedValue = Convert.ToUInt64(TestCritera.Value, 16)
-                                            });
+                                        Mem.OffsetRegister = (XRegCode?)RegisterDecodeTable[TestCriteria.Attribute("offset_register").Value];
+                                    }                                        
+                                    if (TestCriteria.Attribute("offset") != null)
+                                    {
+                                        byte[] Bytes;
+                                        try
+                                        {
+                                            Bytes = ParseHex(TestCriteria.Attribute("offset").Value);
+                                            
+                                        }
+                                        catch
+                                        {
+                                            Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Invalid hex bytes enclosed in hex tags" });
+                                            continue;
+                                        }
+                                        Mem.Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(Bytes), 8), 0);
+                                        if (Mem.Offset < 0 && Mem.OffsetRegister == null)
+                                        {
+                                            Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Cannot have a negative memory offset without a register to offset it" });
+                                            continue;
+                                        }
                                     }
-                                    else if (TestCritera.Name == "Memory") //<memory>
+                                    else if (Mem.OffsetRegister == null)
                                     {
-                                        long Offset = 0;
-                                        XRegCode? RegOffset = null;
-                                        if (TestCritera.Attribute("offset_register") != null)
-                                        {
-                                            RegOffset = (XRegCode?)RegisterDecodeTable[TestCritera.Attribute("offset_register").Value];
-                                        }
-                                        if (TestCritera.Attribute("offset") != null)
-                                        {
-                                            Offset += BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(ParseHex(TestCritera.Attribute("offset").Value)), 8), 0);  
-                                            if(Offset < 0 && RegOffset == null)
-                                            {
-                                                throw new Exception("Cannot have a negative memory offset without a register to offset it" +
-                                                                "\nRemember that the offset it in a testcase is a signed long value, so put a 0 before, or use a register");
-                                            }
-                                        }
-                                        else if (RegOffset == null)
-                                        {
-                                            throw new Exception("Memory needs to have atleast an offset or offset_register attribute");
-                                        }                                      
-                                        
-                                        ParsedCheckpoint.ExpectedMemory.Add(
-                                            new TestMemoryAddress()
-                                            {
-                                                Offset = Offset,
-                                                OffsetRegister = RegOffset,
-                                                ExpectedBytes = ParseHex(TestCritera.Value)
-                                            });
+                                        Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Must have an offset attribute, offset_register attribute, or both" });
+                                        continue;
                                     }
-                                    else if (TestCritera.Name == "Flag")
+                                    ParsedCheckpoint.ExpectedMemory.Add(Mem);
+                                }
+                                else if (TestCriteria.Name == "Flag")
+                                {
+                                    if (TestCriteria.Attribute("name") == null)
                                     {
-                                        if(TestCritera.Attribute("name") == null)
-                                        {
-                                            throw new Exception("Flag must have a name");
-                                        }
+                                        Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Missing flag name attribute" });
+                                    }
+                                    else if(!FlagSet.ValidateString(TestCriteria.Attribute("name").Value))
+                                    {
+                                        Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Flag name attribute invalid" });
+                                    } else
+                                    {
                                         ParsedCheckpoint.TestFlags = true;
-                                        ParsedCheckpoint.ExpectedFlags[TestCritera.Attribute("name").Value] = TestCritera.Value == "1" ? FlagState.ON : FlagState.OFF;                                        
-                                    }
-                                    else
-                                    {
-                                        throw new Exception($"Unexpected element {TestCritera.Name}");//throw error if it wasnt memory of register
+                                        ParsedCheckpoint.ExpectedFlags[TestCriteria.Attribute("name").Value] = TestCriteria.Value == "1" ? FlagState.ON : FlagState.OFF;
                                     }
                                 }
-                                ParsedTestcase.Checkpoints.Add(BreakpointAddr, ParsedCheckpoint);
                             }
-                            string TestcaseName = InputTestcase.Attribute("name").Value.ToLower();
-                            if(Testcases.ContainsKey(TestcaseName))
-                            {
-                                MessageBox.Show("Duplicate testcase entry " + TestcaseName);
-                            } else
-                            {
-                                Testcases.Add(TestcaseName, ParsedTestcase);
-                            }
-                            
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        MessageBox.Show($"Error reading testcase file {FilePath}:\n{e.ToString()}");
-                    }
+                            ParsedTestcase.Checkpoints.Add(BreakpointAddr, ParsedCheckpoint);
+                        }                                                       
+                        Testcases.Add(TestcaseName, ParsedTestcase);
+                    }                               
                 }
             }
         }
@@ -284,8 +303,7 @@ namespace debugger.Hypervisor
                 Output[i] += bytes[i].ToString("X");
             }
             return string.Join(", ", Output);
-        }
-        public static event Action OnTestcaseNotFound = () => MessageBox.Show("Testcase not found");      
+        }    
         public static async Task<XElement> ExecuteTestcase(string name)
         {
             name = name.ToLower();
@@ -298,7 +316,7 @@ namespace debugger.Hypervisor
             }
             else
             {
-                OnTestcaseNotFound.Invoke();
+                Logger.Log(LogCode.TESTCASE_NOT_FOUND, "name");
                 Output = new XElement(name, new XAttribute("result", "error: testcase not found"));
             }
             return Output;
@@ -318,20 +336,6 @@ namespace debugger.Hypervisor
             return Base;
         }
         public static string[] GetTestcases() => Testcases.Keys.ToArray();
-
-        private enum TestcaseExceptionType
-        {
-            DUPLICATETESTCASE,
-            UNEXPECTEDELEMENT,
-            FLAGNONAME,
-
-        }
-        private class TestcaseException : Exception
-        {
-            public TestcaseException(TestcaseExceptionType type, string data="")
-            {
-
-            }
-        }
+        
     }    
 }

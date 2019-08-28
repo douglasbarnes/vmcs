@@ -11,6 +11,7 @@ namespace debugger.Emulator
         }
         public ExitStatus ExitCode; // initialises to breakpoint reached
         public List<string> LastDisassembled;
+        public ulong InstructionPointer;
     }
     public enum PrefixByte
     {
@@ -34,14 +35,12 @@ namespace debugger.Emulator
 
         public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE);
         public static Handle CurrentHandle = EmptyHandle;
-        private static Context CurrentContext { get => CurrentHandle.DeepCopy(); }
+        private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); }
         public static FlagSet Flags { get => CurrentContext.Flags; }
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer;
-            set {
-                if ((CurrentHandle.HandleSettings | HandleParameters.NOJMP) != CurrentHandle.HandleSettings)
-                {
-                    CurrentContext.InstructionPointer = value;
-                }
+            private set
+            {
+                CurrentContext.InstructionPointer = value;
             }
         }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
@@ -107,7 +106,7 @@ namespace debugger.Emulator
                     }                    
                 }
             }
-            return new Status { LastDisassembled = TempLastDisas };
+            return new Status { LastDisassembled = TempLastDisas, InstructionPointer = InstructionPointer };
         }
         public static byte[] Fetch(ulong address, int length = 1)
         {
@@ -175,6 +174,13 @@ namespace debugger.Emulator
                 baOutput[i] = FetchNext();
             }
             return baOutput;
+        }
+        public static void Jump(ulong address)
+        {
+            if ((CurrentHandle.HandleSettings | HandleParameters.NOJMP) != CurrentHandle.HandleSettings)
+            {
+                CurrentContext.InstructionPointer = address;
+            }
         }
     }
 }

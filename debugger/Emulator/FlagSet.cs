@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using debugger.Util;
+using debugger.Logging;
 namespace debugger.Emulator
 {
     public enum FlagState
@@ -52,6 +53,8 @@ namespace debugger.Emulator
             Zero = input.Zero == FlagState.UNDEFINED ? Zero : input.Zero;
             Sign = input.Sign == FlagState.UNDEFINED ? Sign : input.Sign;
             Parity = input.Parity == FlagState.UNDEFINED ? Parity : input.Parity;
+            Direction = input.Direction == FlagState.UNDEFINED ? Direction : input.Direction;
+            Interrupt = input.Interrupt == FlagState.UNDEFINED ? Interrupt : input.Interrupt;
         }
         public bool EqualsOrUndefined(FlagSet toCompare)
         => And(toCompare) == ToString();
@@ -64,30 +67,27 @@ namespace debugger.Emulator
             Output += (Zero & toCompare.Zero) == FlagState.ON ? "ZF" : "";
             Output += (Auxiliary & toCompare.Auxiliary) == FlagState.ON ? "AF" : "";
             Output += (Parity & toCompare.Parity) == FlagState.ON ? "PF" : "";
+            Output += (Direction & toCompare.Direction) == FlagState.ON ? "DF" : "";
+            Output += (Interrupt & toCompare.Interrupt) == FlagState.ON ? "IF" : "";
             return Output;                                   
         }
         public FlagState this[string name]
         {
             get
             {
-                switch(name.ToLower())
+                return name.ToLower() switch
                 {
-                    case "carry":
-                        return Carry;
-                    case "sign":
-                        return Sign;                        
-                    case "overflow":
-                        return Overflow; 
-                    case "parity":
-                        return Parity; 
-                    case "zero":
-                        return Zero; 
-                    case "auxiliary":
-                        return Auxiliary;
-                    default:
-                        throw new System.Exception("Flag name invalid");
-                }
-            
+                    "carry" => Carry,
+                    "sign" => Sign,
+                    "overflow" => Overflow,
+                    "parity" => Parity,
+                    "zero" => Zero,
+                    "auxiliary" => Auxiliary,
+                    "direction" => Direction,
+                    "interrupt" => Interrupt,
+                    _ => throw new LoggedException(LogCode.FLAGSET_INVALIDINPUT, name)
+
+                };
             }
             set
             {
@@ -111,10 +111,28 @@ namespace debugger.Emulator
                     case "auxiliary":
                         Auxiliary = value;
                         return;
+                    case "direction":
+                        Direction = value;
+                        return;
+                    case "interrupt":
+                        Interrupt = value;
+                        return;
                     default:
-                        throw new System.Exception("Flag name invalid");
+                        throw new LoggedException(LogCode.FLAGSET_INVALIDINPUT, name);
                 }
             }
+        }
+        public static bool ValidateString(string input)
+        {
+            return
+                input == "zero"
+             || input == "carry"
+             || input == "overflow"
+             || input == "sign"
+             || input == "parity"
+             || input == "auxiliary"
+             || input == "direction"
+             || input == "interrupt";
         }
         public override string ToString()
         {

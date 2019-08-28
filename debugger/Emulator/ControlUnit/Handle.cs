@@ -15,32 +15,24 @@ namespace debugger.Emulator
     {        
         public static bool IsBusy
         {
-            get { return Interlocked.Read(ref _busy) == 1; }
+            get { lock (ControlUnitLock) { return _busy; } }
             private set
             {
-                if (value == true && Interlocked.Read(ref _busy) == 0)
+                lock(ControlUnitLock)
                 {
-                    Interlocked.Increment(ref _busy);
-                }
-                else if (value == false && Interlocked.Read(ref _busy) == 1)
-                {
-                    Interlocked.Decrement(ref _busy);
-                }
-                else
-                {
-                    throw new Exception();
+                     _busy = value;
                 }
             }
         }
         private static void WaitNotBusy()
         {
-            while (Interlocked.Read(ref _busy) == 1)
+            while (IsBusy)
             {
-                Thread.Sleep(1);
+                Thread.Sleep(10);
             }
         }
-       
-        private static long _busy = 0;
+        private static readonly object ControlUnitLock = "L"; 
+        private static bool _busy = false;
 
         public struct Handle
         {
@@ -72,8 +64,8 @@ namespace debugger.Emulator
                 toExecute.Invoke();
                 IsBusy = false;
             }
-            public Context ShallowCopy() => StoredContexts[this].DeepCopy();
-            public Context DeepCopy() => StoredContexts[this];
+            public Context DeepCopy() => StoredContexts[this].DeepCopy();
+            public Context ShallowCopy() => StoredContexts[this];
             public Status Run(bool step)
             {
                 Status Result = new Status();

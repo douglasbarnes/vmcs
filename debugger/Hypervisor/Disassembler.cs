@@ -14,15 +14,16 @@ namespace debugger.Hypervisor
             [Flags]
             public enum AddressState
             {
-                Default = 0,
+                NONE = 0,
+                RIP = 1,
             }
             public string DisassembledLine;
             public ulong Address;
             public AddressState AddressInfo;
         }
         private Handle TargetHandle;
-        private Context TargetContext { get => TargetHandle.ShallowCopy(); }
-        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.ShallowCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
+        private Context TargetContext { get => TargetHandle.DeepCopy(); }
+        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
         {
             TargetHandle = targetHandle;
         }
@@ -33,37 +34,24 @@ namespace debugger.Hypervisor
         }
         public async Task<Dictionary<ulong, DisassembledItem>> Step(ulong startAddress, ulong endAddress)
         {
-            Handle.DeepCopy().InstructionPointer = startAddress;
+            Handle.ShallowCopy().InstructionPointer = startAddress;
             Dictionary<ulong, DisassembledItem> Output = new Dictionary<ulong, DisassembledItem>();
             for (ulong CurrentAddr = startAddress; CurrentAddr < endAddress; Handle.Invoke(() => CurrentAddr = Handle.ShallowCopy().InstructionPointer))
             {
+                DisassembledItem CurrentLine = new DisassembledItem() { Address = CurrentAddr };
                 string ExtraInfo;              
                 if (CurrentAddr == TargetContext.InstructionPointer)
                 {
                     ExtraInfo = "←RIP";
+                    CurrentLine.AddressInfo |= DisassembledItem.AddressState.RIP;
                 }
                 else
                 {
                     ExtraInfo = "    ";
                 }
                 string Disassembly = JoinDisassembled((await RunAsync(true)).LastDisassembled);
-                if (Output.ContainsKey(CurrentAddr))
-                {
-                    Output[CurrentAddr] = new DisassembledItem()
-                    {
-                        Address = CurrentAddr,                                         // } 1 space (←rip/4 spaces) 15 spaces {                    
-                        DisassembledLine = $"{Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {Disassembly}"
-                    };
-                } else
-                {
-                    Output.Add(CurrentAddr, new DisassembledItem()
-                    {
-                        Address = CurrentAddr,                                         // } 1 space (←rip/4 spaces) 15 spaces {                    
-                        DisassembledLine = $"{Core.FormatNumber(CurrentAddr, FormatType.Hex)} {ExtraInfo}               {Disassembly}"
-                    });
-                }
-                
-
+                CurrentLine.DisassembledLine = $"{Disassembly}";
+                Output.Add(CurrentAddr, CurrentLine);
             }
             return Output;
         }
@@ -83,10 +71,10 @@ namespace debugger.Hypervisor
                 return Output;
             }
         }
-        public async Task<List<DisassembledItem>> StepAll()
+        public async Task<Dictionary<ulong, DisassembledItem>> StepAll()
         {
             Context DisasContext = Handle.ShallowCopy();
-            return new List<DisassembledItem>((await Step(DisasContext.Memory.EntryPoint, DisasContext.Memory.SegmentMap[".main"].End)).Values);
+            return await Step(DisasContext.Memory.EntryPoint, DisasContext.Memory.SegmentMap[".main"].End);
         }
     }
 

@@ -4,8 +4,8 @@ using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 using static debugger.Util.Drawing;
-using static debugger.CustomControls;
-using static debugger.FormSettings;
+using debugger.Forms;
+using static debugger.Forms.FormSettings;
 namespace debugger
 {
     public partial class MainForm
@@ -16,13 +16,124 @@ namespace debugger
         internal ThemedMenuStrip TopMenuStrip;
         internal ThemedToolStripMenuItem SelectDebugMenu;
         internal ThemedToolStripMenuItem AllDebugMenu;
-        internal TestcaseSearchTextbox SearchDebugMenu;
+        internal TestcaseSearchTextBox SearchDebugMenu;
         internal ThemedToolStripMenuItem FormatViewMenu;
-        private void CustomDraw()
+        internal MemoryListView memviewer;
+        internal BorderedPanel PanelMemory;
+        internal RegisterPanel PanelRegisters;     
+        internal ControlButton ButtonStep;
+        internal ControlButton ButtonRun;
+        internal ControlButton ButtonReset;
+        internal DisassemblyListView ListViewDisassembly;
+        internal BorderedPanel DisassemblyBorder;
+        internal Panel DisassemblyPadding;
+        internal FlagPanel PanelFlags;
+        private const int DOCK_TOP_Y = 45;
+        private const int DOCK_BOT_Y = 510;
+        private const int DOCK_LEFT_X = 40;
+        private const int DOCK_RIGHT_X = 675;
+        private readonly Point Dock_LeftTop = new Point(DOCK_LEFT_X, DOCK_TOP_Y);
+        private readonly Point Dock_LeftBot = new Point(DOCK_LEFT_X, DOCK_BOT_Y);
+        private readonly Point Dock_RightTop = new Point(DOCK_RIGHT_X, DOCK_TOP_Y);
+        private readonly Point Dock_RightBot = new Point(DOCK_RIGHT_X, DOCK_BOT_Y);
+        private void InitialiseCustom()
         {
-            DrawMenuBar();
+            CreateMenuBar();
+            CreateMemView();
+            CreatePanelRegisters();
+            CreatePanelFlags();
+            CreateControlButtons();
+            CreateDisassemblyView();
         }
-        private void DrawMenuBar()
+        private void CreateDisassemblyView()
+        {
+            ListViewDisassembly = new DisassemblyListView(new Size(620, 382))
+            {
+                Location = new Point(0, 0),
+                BackColor = LayerBrush.Color,
+            };
+            DisassemblyPadding = new Panel()
+            {
+                Location = new Point(15, 15),
+                Size = new Size(583, 382) // slightly smaller + offsetted to prevent overlapping the border
+            };
+            
+            DisassemblyBorder = new BorderedPanel()
+            {
+                BackColor = LayerBrush.Color,
+                Location = Dock_LeftTop,
+                Size = new Size(600, 400),
+                Tag = "Disassembly"
+            };
+            DisassemblyPadding.Controls.Add(ListViewDisassembly);
+            DisassemblyBorder.Controls.Add(DisassemblyPadding);
+            Controls.Add(DisassemblyBorder);
+        }
+        private void CreateControlButtons()
+        {
+            //this.ButtonStep.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            //this.ButtonReset.UseVisualStyleBackColor = true;
+            ButtonStep = new ControlButton()
+            {
+                Location = new Point(600 + 80 * 1, 430),           
+                Text = "Step",
+                
+            };
+            ButtonStep.Click += new EventHandler(VMContinue_ButtonEvent);
+            ButtonRun = new ControlButton()
+            {
+                Location = new Point(600 + 80 * 2, 430),
+                Text = "Run",
+
+            };
+            ButtonRun.Click += new EventHandler(VMContinue_ButtonEvent);
+            ButtonReset = new ControlButton()
+            {
+                Location = new Point(600 + 80 * 3, 430),
+                Text = "Reset"
+            };            
+            ButtonReset.Click += new EventHandler(Reset_Click);
+            Controls.Add(ButtonStep);
+            Controls.Add(ButtonRun);
+            Controls.Add(ButtonReset);
+        }
+        private void CreatePanelFlags()
+        {
+            PanelFlags = new FlagPanel()
+            {
+                Tag = "Flags",
+                Location = Dock_RightBot
+            };
+            Controls.Add(PanelFlags);
+        }
+        private void CreatePanelRegisters()
+        {
+            PanelRegisters = new RegisterPanel()
+            {
+                Tag = "Registers",
+                Location = Dock_RightTop,
+            };
+            PanelRegisters.OnRegSizeChanged += RefreshRegisters;
+            Controls.Add(PanelRegisters);
+        }
+        private void CreateMemView()
+        {
+            PanelMemory = new BorderedPanel
+            {
+                Location = Dock_LeftBot,
+                AutoSize = false,
+                Size = new Size(0x1a0, 383), // for some reason makes itsself bigger later?? looks like (size of child + c)
+                TabIndex = 28,
+                Tag = "Memory"
+            };
+            memviewer = new MemoryListView(new Size(0x1d8, 383))
+            {
+                Location = new Point(3, 16),
+            };
+            PanelMemory.Controls.Add(memviewer);
+            Controls.Add(PanelMemory);
+        }
+        private void CreateMenuBar()
         {
             TopMenuStrip = new ThemedMenuStrip(Layer.Background, Emphasis.Medium)
             {
@@ -36,10 +147,8 @@ namespace debugger
             CreateMenuDebug();
             CreateMenuExit();
             CreateMenuView();
-            TopMenuStrip.Items.AddRange(new[] { DebugMenu, ViewMenu, ExitMenu });
-            TopMenuStrip.PerformLayout();
-            
-            
+            TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { DebugMenu, ViewMenu, ExitMenu });
+            TopMenuStrip.PerformLayout();           
         }
         private void CreateMenuExit()
         {
@@ -81,7 +190,7 @@ namespace debugger
                 Text = "All"
             };
             AllDebugMenu.Click += (s, a) => OnTestcaseSelected("all");
-            SearchDebugMenu = new TestcaseSearchTextbox(
+            SearchDebugMenu = new TestcaseSearchTextBox(
                 () => Hypervisor.TestHandler.GetTestcases(),
                 (name) =>  OnTestcaseSelected(name),
                 Layer.Background, 
@@ -118,78 +227,5 @@ namespace debugger
             FormatViewMenu.DropDownItems.AddRange(new[] { new ThemedToolStripRadioButton(), new ThemedToolStripRadioButton()});
             ViewMenu.DropDownItems.Add(FormatViewMenu);
         }
-    }
-
-    public static class FormSettings
-    {
-        public enum Emphasis
-        {
-            Imminent = 0,
-            High = 1,
-            Medium = 2,
-            Disabled = 3,
-            Ignored = 4
-        }
-        public enum Layer
-        {
-            Background = 0,
-            Foreground = 1,
-            Surface = 2,
-            Imminent = 3
-        }
-        public static List<SolidBrush> ElevatedTransparentOverlays = new List<SolidBrush>();
-        public static List<SolidBrush> TextBrushes = new List<SolidBrush>();
-        public static SolidBrush LayerBrush;
-        public static SolidBrush PrimaryBrush;
-
-        public static List<Color> SurfaceShades = new List<Color>();
-        public struct UISettings
-        {
-            public readonly Font BaseFont;
-            public readonly Color BackgroundColour;
-            public readonly Color SurfaceColour;
-            public readonly Color PrimaryColour;
-            public readonly Color PrimaryVariantColour;
-            public readonly Color SecondaryColour;
-
-            public UISettings(Font InputFont, Color InputBackgroundColour, Color InputTextColour)
-            {
-                BaseFont = InputFont;
-                BackgroundColour = InputBackgroundColour;
-                SurfaceColour = InputTextColour;
-                //
-                PrimaryColour = Color.FromArgb(240, InputBackgroundColour.R + 0xA9, InputBackgroundColour.B + 0x74, InputBackgroundColour.G + 0xEA);
-                PrimaryVariantColour = InputTextColour;
-                SecondaryColour = InputTextColour;
-            }
-        }
-        public static UISettings BaseUI;
-        static FormSettings()
-        {
-            BaseUI = new UISettings(new Font("Consolas", 9), Color.FromArgb(18, 18, 18), Color.FromArgb(220, 255, 255, 255));
-            LayerBrush = new SolidBrush(BaseUI.BackgroundColour);
-            ElevatedTransparentOverlays = new List<SolidBrush>()
-            {
-                new SolidBrush(Color.FromArgb(0,Color.White)),
-                new SolidBrush(Color.FromArgb(17,Color.White)), //~93%
-                new SolidBrush(Color.FromArgb(22,Color.White)), //~91%
-                new SolidBrush(Color.FromArgb(30,Color.White)), //~88%
-                new SolidBrush(Color.FromArgb(38,Color.White)), //~85%
-            };
-
-            SurfaceShades = new List<Color>()
-            {
-                BaseUI.SurfaceColour,
-                Color.FromArgb(220, BaseUI.SurfaceColour), // ~87%
-                Color.FromArgb(153, BaseUI.SurfaceColour), // 60%
-                Color.FromArgb(97, BaseUI.SurfaceColour), // ~38%
-                Color.FromArgb(17, BaseUI.SurfaceColour) // 20%
-            };
-            TextBrushes = SurfaceShades.Select(x => new SolidBrush(x)).ToList();
-
-            PrimaryBrush = new SolidBrush(BaseUI.PrimaryColour);
-
-        }
-
     }
 }

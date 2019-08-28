@@ -1,61 +1,86 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Drawing;
-using static debugger.FormSettings;
 using System.Windows.Forms;
-
+using debugger.Forms;
+using static debugger.Forms.FormSettings;
 namespace debugger.Util
 {
+
     public static class Drawing
     {
-        private static string FormatModifiers = "!\"£$%";
-        public static void DrawFormattedText(string text, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis = Emphasis.Medium)
+        private const string FormatModifiers = "!\"£$%^&";
+        private static readonly Dictionary<int, SolidBrush> ModifierTypes = new Dictionary<int, SolidBrush>
         {
-            string[] Output = new string[5];
-            string Position = "";
+            { 0, TextBrushes[0] },
+            { 1, TextBrushes[1] },
+            { 2, TextBrushes[2] },
+            { 3, TextBrushes[3] },
+            { 4, TextBrushes[4] },
+            { 5, PrimaryBrush },
+            { 6, SecondaryBrush },
+        };
+        public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis = Emphasis.Medium)
+        {
+            string[] Output = new string[FormatModifiers.Length];
             Stack<int> ModifierHistory = new Stack<int>();
             ModifierHistory.Push((int)defaultEmphasis);
             bool Escaped = false;
-            for (int i = 0; i < text.Length; i++)
+            char Cursor;
+            int CurrentModifier = (int)defaultEmphasis;
+            for (int InputPosition = 0; InputPosition < input.Length; InputPosition++)
             {
-                if (Escaped & !"!\"£$%".Contains(text[i]))
+                Cursor = input[InputPosition];
+                if (Escaped)
                 {
-                    Output[ModifierHistory.Peek()] += "\\";
-
-                }
-
-                if (FormatModifiers.Contains(text[i]) & !Escaped)
-                {
-                    if (FormatModifiers.IndexOf(text[i]) == ModifierHistory.Peek())
+                    if (FormatModifiers.Contains(Cursor))
                     {
-                        ModifierHistory.Pop();
+                        Output[CurrentModifier] = Output[CurrentModifier].PadRight(InputPosition) + Cursor;
                     }
                     else
                     {
-                        ModifierHistory.Push(FormatModifiers.IndexOf(text[i]));
+                        Output[ModifierHistory.Peek()] += "\\";
                     }
-                }
-                else if (text[i] == '\\' & !Escaped)
-                {
-                    Escaped = true;
+                    Escaped = false;                    
                 }
                 else
                 {
-                    Escaped = false;
-                    graphicsHandler.DrawString(Position + text[i], BaseUI.BaseFont, TextBrushes[ModifierHistory.Peek()], bounds);
-                    Position += " ";
+                    if(FormatModifiers.Contains(Cursor))
+                    {
+                        int NewModifier = FormatModifiers.IndexOf(Cursor);
+                        if (NewModifier == ModifierHistory.Peek())
+                        {
+                            ModifierHistory.Pop();
+                        }
+                        else
+                        {
+                            CurrentModifier = NewModifier;
+                            ModifierHistory.Push(NewModifier);
+                        }
+                        continue; // dont add the modifier to the output
+                    }
+                    else if(Cursor == '\\')
+                    {
+                        Escaped = true;
+                        continue; // ^ or the escape
+                    }
                 }
+                Output[CurrentModifier] = Output[CurrentModifier].PadRight(InputPosition) + Cursor;
             }
+            for (int ModifierType = 0; ModifierType < FormatModifiers.Length; ModifierType++)
+            {
+                graphicsHandler.DrawString(Output[ModifierType], BaseUI.BaseFont, ModifierTypes[ModifierType], bounds);
+            }            
         }
         public static void DrawShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer, int penSize = 1)
         {
             graphics.DrawRectangle(new Pen(LayerBrush, penSize), bounds);
-            graphics.DrawRectangle(new Pen(ElevatedTransparentOverlays[(int)overlayLayer], penSize), bounds);
+            graphics.DrawRectangle(new Pen(ElevationBrushes[(int)overlayLayer], penSize), bounds);
         }
         public static void FillShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer)
         {
             graphics.FillRectangle(LayerBrush, bounds);
-            graphics.FillRectangle(ElevatedTransparentOverlays[(int)overlayLayer], bounds);
+            graphics.FillRectangle(ElevationBrushes[(int)overlayLayer], bounds);
         }
         public static Rectangle GetCenter(Rectangle bounds, string text, Font font)
         {
