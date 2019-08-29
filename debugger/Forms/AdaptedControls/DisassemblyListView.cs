@@ -59,8 +59,7 @@ namespace debugger.Forms
         public void SetRIP(ulong insPtr)
         {
             try
-            {
-                
+            {                
                 for (int i = 0; i < 4; i++)
                 {
                     IndexToLine[RIPIndex][23 + i] = ' ';
@@ -68,7 +67,7 @@ namespace debugger.Forms
                 }
                 RIPIndex = AddrToIndex[insPtr];
             }
-            finally
+            catch
             {
                 Logging.Logger.Log(Logging.LogCode.DISASSEMBLY_RIPNOTFOUND, insPtr.ToString("X"));
             }

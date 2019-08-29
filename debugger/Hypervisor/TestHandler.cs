@@ -231,24 +231,28 @@ namespace debugger.Hypervisor
                                 else if (TestCriteria.Name == "Memory") //<memory>
                                 {
                                     TestMemoryAddress Mem = new TestMemoryAddress();
+                                    if(!TryParseHex(TestCriteria.Value, out Mem.ExpectedBytes))
+                                    {
+                                        Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid value of expected memory." });
+                                        continue;
+                                    }
                                     if (TestCriteria.Attribute("offset_register") != null)
                                     {
-                                        Mem.OffsetRegister = (XRegCode?)RegisterDecodeTable[TestCriteria.Attribute("offset_register").Value];
+                                        XRegCode Result;
+                                        if(!RegisterDecodeTable.TryGetValue(TestCriteria.Attribute("offset_register").Value, out Result))
+                                        {
+                                            Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid value of offset register." });
+                                        }
+                                        Mem.OffsetRegister = (XRegCode?)Result;
                                     }                                        
                                     if (TestCriteria.Attribute("offset") != null)
                                     {
-                                        byte[] Bytes;
-                                        try
+                                        byte[] OffsetBytes;
+                                        if(!TryParseHex(TestCriteria.Attribute("offset").Value, out OffsetBytes))
                                         {
-                                            Bytes = ParseHex(TestCriteria.Attribute("offset").Value);
-                                            
+                                            Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid hex bytes in memory offset attribute" });
                                         }
-                                        catch
-                                        {
-                                            Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Invalid hex bytes enclosed in hex tags" });
-                                            continue;
-                                        }
-                                        Mem.Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(Bytes), 8), 0);
+                                        Mem.Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(OffsetBytes), 8), 0);                                   
                                         if (Mem.Offset < 0 && Mem.OffsetRegister == null)
                                         {
                                             Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Cannot have a negative memory offset without a register to offset it" });
@@ -260,6 +264,7 @@ namespace debugger.Hypervisor
                                         Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Must have an offset attribute, offset_register attribute, or both" });
                                         continue;
                                     }
+                                    
                                     ParsedCheckpoint.ExpectedMemory.Add(Mem);
                                 }
                                 else if (TestCriteria.Name == "Flag")
@@ -284,6 +289,24 @@ namespace debugger.Hypervisor
                     }                               
                 }
             }
+        }
+        private static bool TryParseHex(string hex, out byte[] Output)
+        {
+            if (hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
+            Output = new byte[hex.Length / 2];
+            for (int ByteIndex = 0; ByteIndex < hex.Length / 2; ByteIndex++)
+            {
+                byte NextByte;
+                if(byte.TryParse(hex.Substring(ByteIndex * 2, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out NextByte))
+                {
+                    Output[ByteIndex] = NextByte;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
         }
         private static byte[] ParseHex(string hex)
         {            

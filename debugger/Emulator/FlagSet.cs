@@ -124,6 +124,7 @@ namespace debugger.Emulator
         }
         public static bool ValidateString(string input)
         {
+            input = input.ToLower();
             return
                 input == "zero"
              || input == "carry"
