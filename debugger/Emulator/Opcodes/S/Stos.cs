@@ -1,24 +1,15 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
-namespace debugger.Emulator.Opcodes
+﻿namespace debugger.Emulator.Opcodes
 {
-    public class Stos : Opcode 
+    public class Stos : StringOperation 
     {
         readonly byte[] SourceBytes;
-        public Stos(DecodedTypes.StringOperation input, OpcodeSettings settings = OpcodeSettings.NONE) : base("STOS", input, settings)
+        public Stos(StringOpSettings settings = StringOpSettings.NONE) : base("STOS", settings | StringOpSettings.A_SRC)
         {
-            SourceBytes = ControlUnit.FetchRegister(XRegCode.A, Capacity);
-            input.IncrementDI(Capacity);
+            SourceBytes = Fetch()[1];
         }
-        public override void Execute()
+        protected override void OnExecute()
         {
             Set(SourceBytes);
-        }
-        public override List<string> Disassemble()
-        {
-            List<string> Output = base.Disassemble();
-            Output[1] = Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE);
-            return Output;
         }
     }
 }

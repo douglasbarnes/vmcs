@@ -47,7 +47,7 @@ namespace debugger.Emulator
             }
             Bits = new DeconstructedSIB(scale, index ,_base);
             Mod = mod;
-            PointerSize = (ControlUnit.PrefixBuffer.Contains(PrefixByte.ADDR32) ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD);
+            PointerSize = (ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD);
             if (index != 4)//4 == none
             {
                 IndexValue = (byte)Math.Pow(2,scale) * BitConverter.ToUInt64(Bitwise.SignExtend(ControlUnit.FetchRegister((XRegCode)index, PointerSize), 8), 0);

@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.NONE) 
             : base(condition == Condition.NONE ? "JMP" : "J" + Disassembly.DisassembleCondition(condition)
                   , input
-                  , (ControlUnit.PrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_DWORD))
+                  , (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_DWORD))
         {
             JmpCondition = condition;
         }

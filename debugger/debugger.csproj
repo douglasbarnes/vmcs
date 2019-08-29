@@ -4,6 +4,7 @@
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -12,7 +13,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>debugger</RootNamespace>
     <AssemblyName>debugger</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
@@ -72,10 +73,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
-    <Compile Include="Emulator\DecodedTypes\StringOperation.cs" />
+    <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
+    <Compile Include="Emulator\Opcodes\StringOperation.cs" />
     <Compile Include="Emulator\DecodedTypes\ImplicitRegister.cs" />
     <Compile Include="Emulator\DecodedTypes\IMyDecoded.cs" />
     <Compile Include="Emulator\DecodedTypes\NoOperands.cs" />
+    <Compile Include="Emulator\Opcodes\Opcode.cs" />
     <Compile Include="Emulator\Opcodes\A\And.cs" />
     <Compile Include="Emulator\Opcodes\C\Cbw.cs" />
     <Compile Include="Emulator\Opcodes\C\Clx.cs" />
@@ -103,7 +106,7 @@
     <Compile Include="Emulator\Opcodes\P\Pop.cs" />
     <Compile Include="Emulator\Opcodes\M\Mul.cs" />
     <Compile Include="Emulator\Opcodes\N\Nop.cs" />
-    <Compile Include="Emulator\Opcode.cs" />
+    <Compile Include="Emulator\Opcodes\IMyOpcode.cs" />
     <Compile Include="Forms\AdaptedControls\FlagPanel.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -214,6 +217,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">

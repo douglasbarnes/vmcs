@@ -2,25 +2,17 @@
 using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
-    public class Scas : Opcode 
+    public class Scas : StringOperation 
     {
-        readonly byte[] SourceBytes;
         readonly FlagSet ResultFlags;
-        public Scas(DecodedTypes.StringOperation input, OpcodeSettings settings = OpcodeSettings.NONE) : base("SCAS", input, settings)
+        public Scas(StringOpSettings settings = StringOpSettings.NONE) : base("SCAS", settings | StringOpSettings.A_SRC | StringOpSettings.COMPARE)
         {
-            SourceBytes = ControlUnit.FetchRegister(XRegCode.A, Capacity);
-            ResultFlags = Bitwise.Subtract(SourceBytes, Fetch()[0], (int)Capacity, out _);
-            input.IncrementDI(Capacity);
+            List<byte[]> Operands = Fetch();
+            ResultFlags = Bitwise.Subtract(Operands[1], Operands[0], (int)Capacity, out _);
         }
-        public override void Execute()
+        protected override void OnExecute()
         {
             ControlUnit.SetFlags(ResultFlags);
-        }
-        public override List<string> Disassemble()
-        {
-            List<string> Output = base.Disassemble();
-            Output[1] = Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE);
-            return Output;
         }
     }
 }

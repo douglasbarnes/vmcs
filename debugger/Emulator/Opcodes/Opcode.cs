@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using debugger.Emulator.DecodedTypes;
 using debugger.Util;
 using static debugger.Emulator.ControlUnit;
-namespace debugger.Emulator
+namespace debugger.Emulator.Opcodes
 { 
     public enum Condition // for conditional opcodes
     {
@@ -38,8 +38,7 @@ namespace debugger.Emulator
         STRINGOP = 64,
         STRINGOPCMP = 128,
     }
-
-    public abstract class Opcode
+    public abstract class Opcode : IMyOpcode
     {
         protected RegisterCapacity Capacity;
         public readonly OpcodeSettings Settings;
@@ -109,7 +108,7 @@ namespace debugger.Emulator
         {
             if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.GP_BYTE;
             else if ((RexByte | REX.W) == RexByte) Capacity = RegisterCapacity.GP_QWORD;
-            else if (PrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.GP_WORD;
+            else if (LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.GP_WORD;
             else Capacity = defaultCapacity;
         }
         protected bool TestCondition(Condition condition)
@@ -125,7 +124,7 @@ namespace debugger.Emulator
                 case Condition.NC: // used for signed
                     return Flags.Carry == FlagState.OFF;
                 case Condition.RCXZ: //exists because of loops using C reg as the iterator, have to hard code it like this, risky using Capacity here
-                    return (PrefixBuffer.Contains(PrefixByte.ADDR32) && FetchRegister(XRegCode.A, RegisterCapacity.GP_DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.GP_QWORD).IsZero();
+                    return (LPrefixBuffer.Contains(PrefixByte.ADDROVR) && FetchRegister(XRegCode.A, RegisterCapacity.GP_DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.GP_QWORD).IsZero();
                 case Condition.Z:
                     return Flags.Zero == FlagState.ON;
                 case Condition.NZ:

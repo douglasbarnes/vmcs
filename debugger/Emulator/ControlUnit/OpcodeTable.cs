@@ -2,12 +2,12 @@
 using debugger.Emulator.Opcodes;
 using debugger.Emulator.DecodedTypes;
 
-using static debugger.Emulator.OpcodeSettings;
+using static debugger.Emulator.Opcodes.OpcodeSettings;
 namespace debugger.Emulator
 {
     public static partial class ControlUnit
     {        
-        private delegate Opcode OpcodeCaller();
+        private delegate IMyOpcode OpcodeCaller();
         // format <byte size of opcode, <determining byte of opcode, method to return opcode>>
         private static readonly Dictionary<byte, Dictionary<byte, OpcodeCaller>> OpcodeTable = new Dictionary<byte, Dictionary<byte, OpcodeCaller>>()
         {
@@ -133,18 +133,18 @@ namespace debugger.Emulator
                   { 0x97, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.DI )) },
                   { 0x98, () => new Cbw(new ImplicitRegister(XRegCode.A)) },
 
-                  { 0xA4, () => new Movs(new StringOperation(), BYTEMODE | STRINGOP) },
-                  { 0xA5, () => new Movs(new StringOperation(), STRINGOP) },
-                  { 0xA6, () => new Cmp(new StringOperation(), BYTEMODE | STRINGOP) },
-                  { 0xA7, () => new Cmp(new StringOperation(), STRINGOP) },
+                  { 0xA4, () => new Movs(StringOpSettings.BYTEMODE) },
+                  { 0xA5, () => new Movs() },
+                  { 0xA6, () => new Cmps(StringOpSettings.BYTEMODE) },
+                  { 0xA7, () => new Cmps() },
                   { 0xA8, () => new Test(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xA9, () => new Test(new ImplicitRegister(XRegCode.A ), IMMEDIATE) },
-                  { 0xAA, () => new Stos(new StringOperation(), BYTEMODE | STRINGOP) },
-                  { 0xAB, () => new Stos(new StringOperation(), STRINGOP) },
-                  { 0xAC, () => new Lods(new StringOperation(), BYTEMODE | STRINGOP) },
-                  { 0xAD, () => new Lods(new StringOperation(), STRINGOP) },
-                  { 0xAE, () => new Scas(new StringOperation(), BYTEMODE | STRINGOP) },
-                  { 0xAF, () => new Scas(new StringOperation(), STRINGOP) },
+                  { 0xAA, () => new Stos(StringOpSettings.BYTEMODE) },
+                  { 0xAB, () => new Stos() },
+                  { 0xAC, () => new Lods(StringOpSettings.BYTEMODE) },
+                  { 0xAD, () => new Lods() },
+                  { 0xAE, () => new Scas(StringOpSettings.BYTEMODE) },
+                  { 0xAF, () => new Scas() },
                   { 0xB0, () => new Mov(new ImplicitRegister(XRegCode.A ), BYTEMODE | IMMEDIATE) },
                   { 0xB1, () => new Mov(new ImplicitRegister(XRegCode.C ), BYTEMODE | IMMEDIATE) },
                   { 0xB2, () => new Mov(new ImplicitRegister(XRegCode.D ), BYTEMODE | IMMEDIATE) },

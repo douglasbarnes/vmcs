@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using debugger.Util;
+using debugger.Emulator.Opcodes;
 namespace debugger.Emulator
 {
     public struct Status
@@ -15,9 +16,17 @@ namespace debugger.Emulator
     }
     public enum PrefixByte
     {
-        ADDR32 = 0x67,
+        NONE = 0,
+        CS = 0x2E,
+        SS = 0x36,
+        DS = 0x3E,
+        ES = 0x26,
+        FS = 0x64,
+        GS = 0x65,
+        ADDROVR = 0x67,
         SIZEOVR = 0x66,
-        REPNZ=0xF2,
+        LOCK = 0xF0,
+        REPNZ =0xF2,
         REPZ =0XF3,
     }
     [Flags]
@@ -32,7 +41,47 @@ namespace debugger.Emulator
     }
     public static partial class ControlUnit
     {
-
+        public static class LPrefixBuffer
+        {            
+            private static readonly PrefixByte[] Prefixes = new PrefixByte[4];
+            private static int DetermineIndex(PrefixByte input)
+            {
+                if (input == PrefixByte.ADDROVR) //https://wiki.osdev.org/X86-64_Instruction_Encoding#Legacy_Prefixes
+                {
+                    return 3;
+                }
+                else if (input == PrefixByte.SIZEOVR)
+                {
+                    return 2;
+                }
+                else if (input == PrefixByte.REPZ || input == PrefixByte.REPNZ || input == PrefixByte.LOCK)
+                {
+                    return 1;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            public static PrefixByte GetGroup(int group) => Prefixes[group-1];            
+            public static void Add(PrefixByte input)
+            {
+                Prefixes[DetermineIndex(input)] = input;
+            }
+            public static void Clear() => Array.Clear(Prefixes, 0, 4);
+            public static bool Contains(PrefixByte input) => Prefixes[DetermineIndex(input)] == input;
+            public static bool IsPrefix(byte input) => input == (byte)PrefixByte.CS ||
+                                                       input == (byte)PrefixByte.SS ||
+                                                       input == (byte)PrefixByte.DS ||
+                                                       input == (byte)PrefixByte.ES ||
+                                                       input == (byte)PrefixByte.FS ||
+                                                       input == (byte)PrefixByte.GS ||
+                                                       input == (byte)PrefixByte.ADDROVR ||
+                                                       input == (byte)PrefixByte.SIZEOVR ||
+                                                       input == (byte)PrefixByte.LOCK ||
+                                                       input == (byte)PrefixByte.REPNZ ||
+                                                       input == (byte)PrefixByte.REPZ;
+        }
         public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE);
         public static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); }
@@ -44,57 +93,35 @@ namespace debugger.Emulator
             }
         }
         public static MemorySpace Memory { get => CurrentContext.Memory; }
-        public static readonly List<PrefixByte> PrefixBuffer  = new List<PrefixByte>();
+        //public static readonly List<PrefixByte> PrefixBuffer  = new List<PrefixByte>();
         public static REX RexByte = REX.NONE;
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1;
-            Opcode CurrentOpcode = null;
             List<string> TempLastDisas = new List<string>();
             while (CurrentContext.InstructionPointer <= CurrentContext.Memory.End)
             {
-                byte Fetched = FetchNext();
-                if(Fetched >= 0x40 && Fetched < 0x50 && OpcodeWidth == 1)
-                {// shift to avoid 0(NONE)
-                    RexByte = (REX)((Fetched << 1) & 0b00011110); // remove upper half so [flags] can be inferred
-                }
-                else if (Fetched == 0x0F)
+                byte Fetched = FetchNext();                
+                if (LPrefixBuffer.IsPrefix(Fetched))
                 {
-                    OpcodeWidth = 2;
-                }
-                else if (Enum.IsDefined(typeof(PrefixByte), (int)Fetched))
-                {
-                    PrefixBuffer.Add((PrefixByte)Fetched);
+                    LPrefixBuffer.Add((PrefixByte)Fetched);
                 }
                 else
-                {                    
-                    CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-                    CurrentOpcode.Execute();
-                    bool IsRepZ = PrefixBuffer.Contains(PrefixByte.REPZ); // save buffer.contains later, dont trust compiler here
-                    if (IsRepZ || PrefixBuffer.Contains(PrefixByte.REPNZ))
-                    {
-                        uint Count = BitConverter.ToUInt32(FetchRegister(XRegCode.C, RegisterCapacity.GP_DWORD),0);
-                        if ((CurrentOpcode.Settings | OpcodeSettings.STRINGOP) == CurrentOpcode.Settings)
-                        {
-                            for (; Count > 0; Count--)
-                            {
-                                CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-                                CurrentOpcode.Execute();
-                            }
-                            SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
-                        }
-                        else if((CurrentOpcode.Settings | OpcodeSettings.STRINGOPCMP) == CurrentOpcode.Settings)
-                        {
-                            for (; Count > 0 || (IsRepZ && Flags.Zero == FlagState.ON) || (!IsRepZ && Flags.Zero == FlagState.OFF); Count--)
-                            {
-                                CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-                                CurrentOpcode.Execute();
-                            }
-                            SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
-                        }                        
+                {
+                    if (Fetched >= 0x40 && Fetched < 0x50 && OpcodeWidth == 1) //Rex must be immediately before the opcode
+                    {// shift to avoid 0(NONE)
+                        RexByte = (REX)((Fetched << 1) & 0b00011110); // remove upper half so [flags] can be inferred
+                        Fetched = FetchNext();
                     }
+                    if (Fetched == 0x0F)
+                    {
+                        OpcodeWidth = 2;
+                        Fetched = FetchNext();
+                    }
+                    IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+                    CurrentOpcode.Execute();
                     OpcodeWidth = 1;
-                    PrefixBuffer.Clear();
+                    LPrefixBuffer.Clear();
                     RexByte = REX.NONE;
                     if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {

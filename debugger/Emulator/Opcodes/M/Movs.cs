@@ -1,13 +1,13 @@
 ﻿namespace debugger.Emulator.Opcodes
 {
-    public class Movs : Opcode
+    public class Movs : StringOperation
     {
         readonly byte[] SourceBytes;
-        public Movs(DecodedTypes.StringOperation input, OpcodeSettings settings = OpcodeSettings.NONE) : base("MOVS", input, RegisterCapacity.GP_QWORD, settings)
+        public Movs(StringOpSettings settings = StringOpSettings.NONE) : base("MOVS", settings)
         {            
             SourceBytes = Fetch()[1];
         } 
-        public override void Execute()
+        protected override void OnExecute()
         {
             Set(SourceBytes);
         }
