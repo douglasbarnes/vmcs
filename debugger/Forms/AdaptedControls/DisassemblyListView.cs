@@ -4,9 +4,8 @@ using System.Drawing;
 using System.ComponentModel;
 using System.Collections.Generic;
 using debugger.Hypervisor;
-using static debugger.Forms.FormSettings;
 using debugger.Util;
-
+using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {
     public class DisassemblyListView : CustomListView
@@ -45,17 +44,28 @@ namespace debugger.Forms
         }
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
-            ulong CurrentAddr = IndexToAddr[e.ItemIndex];
             e.Graphics.FillRectangle(LayerBrush, e.Bounds);
             Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
-            Drawing.DrawFormattedText(IndexToLine[e.ItemIndex], e.Graphics, HeightCenteredBounds);
+            if (BreakpointSource.Contains(IndexToAddr[e.ItemIndex]))
+            {
+                Drawing.DrawFormattedText(Drawing.CleanString(new string(IndexToLine[e.ItemIndex])).Insert(18, "^").Insert(0, "^"), e.Graphics, HeightCenteredBounds);
+            }
+            else
+            {
+                Drawing.DrawFormattedText(new string(IndexToLine[e.ItemIndex]), e.Graphics, HeightCenteredBounds);
+            }
+            
         }
         public void SetRIP(ulong insPtr)
         {
             try
-            {   
-                AddrToLine[insPtr] = AddrToLine[insPtr].Remove(21, 4).Insert(19, "←RIP");
-                IndexToLine[RIPIndex] = IndexToLine[RIPIndex].Remove(21, 4).Insert(19, "    ");
+            {
+                
+                for (int i = 0; i < 4; i++)
+                {
+                    IndexToLine[RIPIndex][23 + i] = ' ';
+                    AddrToLine[insPtr][23 + i] = "←RIP"[i];                    
+                }
                 RIPIndex = AddrToIndex[insPtr];
             }
             finally
@@ -63,8 +73,8 @@ namespace debugger.Forms
                 Logging.Logger.Log(Logging.LogCode.DISASSEMBLY_RIPNOTFOUND, insPtr.ToString("X"));
             }
         }
-        private readonly Dictionary<ulong, string> AddrToLine = new Dictionary<ulong, string>();
-        private readonly Dictionary<int, string> IndexToLine = new Dictionary<int, string>();
+        private readonly Dictionary<ulong, char[]> AddrToLine = new Dictionary<ulong, char[]>();
+        private readonly Dictionary<int, char[]> IndexToLine = new Dictionary<int, char[]>();
         private readonly Dictionary<ulong, int> AddrToIndex = new Dictionary<ulong, int>();
         private readonly Dictionary<int, ulong> IndexToAddr = new Dictionary<int, ulong>();
         private int RIPIndex;
@@ -74,25 +84,25 @@ namespace debugger.Forms
             int Index = 0;
             foreach (var Line in ParsedLines)
             {
-                if((Line.Value.AddressInfo | Disassembler.DisassembledItem.AddressState.RIP) == Line.Value.AddressInfo)
-                {
-                    RIPIndex = Index;
-                }
-                string FormattedLine = "";
-                string[] CutAddress = Core.SeparateString(Core.FormatNumber(Line.Key, FormatType.Hex), "0", stopAtFirstDifferent: true);
-                if(BreakpointSource.Contains(Line.Key))
-                {
-                    CutAddress[0] = $"^{CutAddress[0]}^";
-                }
+                
+                string FormattedNumber = Core.FormatNumber(Line.Key, FormatType.Hex);
+                string[] CutAddress = Core.SeparateString(FormattedNumber.Substring(2,FormattedNumber.Length-2), "0", stopAtFirstDifferent: true);
+                char[] Reference;
+                
                 if (CutAddress[1].Length > 0) // if there are trailing 0's, make them darker
                 {
-                    FormattedLine += $"0x\"{CutAddress[1]}\"";
+                    CutAddress[1] = $"%{CutAddress[1]}%";
                 }
-                FormattedLine += $"{CutAddress[0].Trim()}                  {Line.Value.DisassembledLine}";
-                AddrToLine.Add(Line.Key, FormattedLine);
-                IndexToLine.Add(Index, FormattedLine);
+                Reference = $"%0x%{CutAddress[1]}{CutAddress[0].Trim()}                  {Line.Value.DisassembledLine}".ToCharArray();       
+                AddrToLine.Add(Line.Key, Reference);
+                IndexToLine.Add(Index, Reference);
                 AddrToIndex.Add(Line.Key, Index);
                 IndexToAddr.Add(Index, Line.Key);
+                if ((Line.Value.AddressInfo | Disassembler.DisassembledItem.AddressState.RIP) == Line.Value.AddressInfo)
+                {
+                    RIPIndex = Index;
+                    SetRIP(Line.Key);
+                }
                 Index++;
             }
             Invoke(new Action(() =>
@@ -101,7 +111,7 @@ namespace debugger.Forms
                 Items.Clear();
                 foreach (var Line in IndexToLine)
                 {
-                    Items.Add(Line.Value);
+                    Items.Add(new string(Line.Value));
                 }
                 EnsureVisible(RIPIndex);               
                 EndUpdate();

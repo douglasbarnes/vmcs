@@ -90,6 +90,18 @@ namespace debugger.Util
                 }                           
             }            
         }
+        public static string CleanString(string input)
+        {
+            string Output = "";
+            for (int i = 0; i < input.Length; i++)
+            {
+                if(!FormatModifiers.Contains(input[i]))
+                {
+                    Output += input[i];
+                }
+            }
+            return Output;
+        }
         public static void DrawShadedRect(Graphics graphics, Rectangle bounds, Layer overlayLayer, int penSize = 1)
         {
             graphics.DrawRectangle(new Pen(LayerBrush, penSize), bounds);

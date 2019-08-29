@@ -58,6 +58,7 @@ namespace debugger
                     ListViewDisassembly.AddParsed(DisassemblerInstance.StepAll().Result);
 
                 }
+                ListViewDisassembly.SetRIP(VMInstance.GetMemory().EntryPoint);
             });
             RefreshCallback();
             ResumeLayout();
