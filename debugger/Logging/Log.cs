@@ -5,8 +5,7 @@ using static debugger.Logging.LogCode;
 namespace debugger.Logging
 {    
     public enum LogCode
-    {
-        
+    {        
         DISASSEMBLY_RIPNOTFOUND,
         FLAGSET_INVALIDINPUT,
         TESTCASE_PARSEFAIL,
@@ -39,7 +38,7 @@ namespace debugger.Logging
         {            
             { DISASSEMBLY_RIPNOTFOUND, (Severity.CRITICAL, "RIP('{0}') pointed to an address not in the internal disassembly list view dictionary.") },
             { FLAGSET_INVALIDINPUT, (Severity.CRITICAL, "Attempt to access invalid flag, '{0}'.") },
-            { TESTCASE_PARSEFAIL, (Severity.WARNING, "Data in '{0}' could not be parsed: '{1}'") },
+            { TESTCASE_PARSEFAIL, (Severity.WARNING, "Data in '{0}' could not be parsed: '{1}'.") },
             { TESTCASE_IOERROR, (Severity.WARNING, "Error parsing testcase file {0}:'{1}'.") },
             { TESTCASE_NOT_FOUND, (Severity.WARNING, "Could not run testcase '{0}', file not found.") },            
             { TESTCASE_RESULT, (Severity.INFO, "Testcase '{0}' completed with result '{1}'.") },

@@ -92,8 +92,6 @@ namespace debugger.Emulator
                 CurrentContext.InstructionPointer = value;
             }
         }
-        public static MemorySpace Memory { get => CurrentContext.Memory; }
-        //public static readonly List<PrefixByte> PrefixBuffer  = new List<PrefixByte>();
         public static REX RexByte = REX.NONE;
         private static Status Execute(bool step)
         {
@@ -119,14 +117,19 @@ namespace debugger.Emulator
                         Fetched = FetchNext();
                     }
                     IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-                    CurrentOpcode.Execute();
-                    OpcodeWidth = 1;
-                    LPrefixBuffer.Clear();
-                    RexByte = REX.NONE;
                     if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {
                         TempLastDisas = CurrentOpcode.Disassemble();
-                    }                   
+                    } 
+                    else
+                    {
+                        CurrentOpcode.Execute();
+                    }
+                    
+                    OpcodeWidth = 1;
+                    LPrefixBuffer.Clear();
+                    RexByte = REX.NONE;
+                                    
                     if (step || CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
                     {
                         break;

@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Testcase name="jmptestcmp">
-    <Hex>4883ED2048C7C12000000048FFC9884C0D014885C97FF483F9FF75EF90</Hex>
-    <Checkpoint tag="Win" position_hex="1c">
-        <Register id="C" size="8">FF</Register>
+    <Hex>4889E548C7C12000000048FFC9884C0D004885C97FF483F9FF75EF90</Hex>
+    <Checkpoint tag="Win" position_hex="1b">
+        <Register id="C" size="1">FF</Register>
         <Memory offset_register="BP" offset="FF">FF000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F</Memory>
         <Flag name="Zero">1</Flag>
         <Flag name="Parity">1</Flag>

@@ -162,8 +162,16 @@ namespace debugger.Emulator
                   { 0xBE, () => new Mov(new ImplicitRegister(XRegCode.SI), IMMEDIATE | ALLOWIMM64) },
                   { 0xBF, () => new Mov(new ImplicitRegister(XRegCode.DI), IMMEDIATE | ALLOWIMM64) },
 
+                  { 0xC0, () => DecodeExtension(0xC0, 1) },
+                  { 0xC1, () => DecodeExtension(0xC1, 1) },
+
                   { 0xC6, () => new Mov(new ModRM(FetchNext(), ModRMSettings.EXTENDED), IMMEDIATE | BYTEMODE)},
-                  { 0xC7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.EXTENDED), "MOV", signExtend:true, RegisterCapacity.GP_DWORD, IMMEDIATE)},
+                  { 0xC7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.EXTENDED), "MOV", signExtend:true, RegisterCapacity.GP_QWORD, IMMEDIATE)},
+
+                  { 0xD0, () => DecodeExtension(0xD0, 1) },
+                  { 0xD1, () => DecodeExtension(0xD1, 1) },
+                  { 0xD2, () => DecodeExtension(0xD2, 1) },
+                  { 0xD3, () => DecodeExtension(0xD3, 1) },
 
                   { 0xE3, () => new Jmp(new Immediate(RegisterCapacity.GP_BYTE, ImmediateSettings.RELATIVE), Condition.RCXZ) },
 
@@ -250,6 +258,54 @@ namespace debugger.Emulator
                     { 5, (InputModRM) => new Sub(InputModRM,IMMEDIATE | SXTBYTE, UseBorrow: false) } ,
                     { 6, (InputModRM) => new Xor(InputModRM,IMMEDIATE | SXTBYTE) },
                     { 7, (InputModRM) => new Cmp(InputModRM,IMMEDIATE | SXTBYTE) },
+                }
+                },
+                { 0xC0, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
+
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                }
+                },
+                { 0xC1, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, IMMEDIATE | SXTBYTE) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, IMMEDIATE | SXTBYTE) },
+
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, IMMEDIATE | SXTBYTE) },
+                }
+                },
+                { 0xD0, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | EXTRA_1) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | EXTRA_1) },
+
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_1) },
+                }
+                },
+                { 0xD1, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, EXTRA_1) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_1) },
+
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_1) },
+                }
+                },
+                { 0xD2, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE |  EXTRA_CL) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE |EXTRA_CL ) },
+                                                                                        
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_CL  ) },
+                }
+                },
+                { 0xD3, new Dictionary<int, ExtendedOpcodeCaller>
+                {
+                    { 4, (InputModRM) => new Shl(InputModRM, EXTRA_CL) },
+                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_CL) },
+
+                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_CL) },
                 }
                 },
                 { 0xF6, new Dictionary<int, ExtendedOpcodeCaller>

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.IO;
 using System.Xml.Linq;
 using debugger.Emulator;
@@ -66,12 +65,16 @@ namespace debugger.Hypervisor
             public RegisterCapacity Size;
             public ulong ExpectedValue;
             public bool TryParse(XElement testCriteria)
-            {
+            {                
                 try
-                {
+                {                    
                     RegisterCode = RegisterDecodeTable[testCriteria.Attribute("id").Value];
                     Size = (RegisterCapacity)(int)testCriteria.Attribute("size");
-                    ExpectedValue = Convert.ToUInt64(testCriteria.Value, 16);
+                    if (testCriteria.Value.Length > (int)Size * 2)
+                    {
+                        return false;
+                    }
+                    ExpectedValue = Convert.ToUInt64(testCriteria.Value, 16);                    
                     return true;
                 }
                 catch
@@ -98,9 +101,7 @@ namespace debugger.Hypervisor
             }
             public async Task<TestcaseResult> RunTestcase()
             {
-                TestcaseResult Result = new TestcaseResult();
-                bool TestcasePassed = true;
-                
+                TestcaseResult Result = new TestcaseResult();                
                 for (int CheckpointNum = 0; CheckpointNum < CurrentTestcase.Checkpoints.Count; CheckpointNum++)
                 {
                     await RunAsync();    
@@ -111,7 +112,7 @@ namespace debugger.Hypervisor
                     {
                         string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size, REX.NONE);
                         bool RegistersEqual = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0;
-                        TestcasePassed &= RegistersEqual;
+                        Result.Passed &= RegistersEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
@@ -147,8 +148,8 @@ namespace debugger.Hypervisor
                             {
                                 MemoryEqual = false;
                             }                            
-                        }                        
-                        TestcasePassed &= MemoryEqual;
+                        }
+                        Result.Passed &= MemoryEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
@@ -160,7 +161,7 @@ namespace debugger.Hypervisor
                     if(CurrentCheckpoint.TestFlags)
                     {
                         bool FlagsEqual = CurrentCheckpoint.ExpectedFlags.EqualsOrUndefined(ControlUnit.Flags);
-                        TestcasePassed &= FlagsEqual;
+                        Result.Passed &= FlagsEqual;
                         CurrentSubresults.Add(
                         new CheckpointSubresult
                         {

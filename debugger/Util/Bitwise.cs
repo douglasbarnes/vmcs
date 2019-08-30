@@ -2,8 +2,9 @@
 using debugger.Emulator;
 namespace debugger.Util
 {
+
     public static class Bitwise
-    {
+    {         
         public static byte[] ReverseEndian(byte[] input)
         {
             byte[] Buffer = input.DeepCopy(); // MIGHT be unnecessary, depends on whether reverse sets the array to a new value(unlikely, no ref keyword) iterates each value
@@ -180,8 +181,8 @@ namespace debugger.Util
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
         {
             Quotient = new byte[size];
-            //divide dont set flags
-            while (dividend.CompareTo(divisor, signed) == 1)
+            //divide doesnt set flags
+            while (dividend.CompareTo(divisor, signed) == 1) // dividend > divisor
             {
                 Subtract(dividend, divisor, size, out dividend);
                 Increment(Quotient, size, out Quotient);
@@ -255,6 +256,83 @@ namespace debugger.Util
                 Auxiliary = FlagState.OFF,
             };
         }
+        public static FlagSet ShiftLeft(byte[] input, byte count, byte mask, int size, out byte[] Result)
+        {
+            count &= mask;
+            int StartCount = count; // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed                   
+            Result = input;
+            Array.Resize(ref Result, size);
+            if (count == 0) {
+                return new FlagSet();
+            }
+            //Arith
+            bool Pull = false;
+            for (; count > 0; count--)
+            {
+                Pull = false;
+                for (int i = 0; i < Result.Length; i++)
+                {
+                    int PullMask = Pull ? 0b1 : 0;
+                    Pull = (MSB(Result[i]) == 1);
+                    Result[i] = (byte)(((Result[i]) << 1) | PullMask); 
+                }
+                
+            }
+            //Flags
+            FlagSet OutputFlags = new FlagSet(Result);
+            if(StartCount == 1)
+            {
+                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF;
+            }
+            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
+            return OutputFlags;
+        }
+        public static FlagSet ShiftRight(byte[] input, byte count, byte mask, int size,  out byte[] Result, bool arithmetic)
+        {
+            count &= mask;
+            int StartCount = count; // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed 
+            Result = new byte[size];
+            Array.Copy(input, Result, input.Length);
+            if (StartCount == 0)
+            {
+                return new FlagSet();
+            }            
+            //Arith
+            for (; count > 0; count--)
+            {
+                bool Push = false;
+                for (int i = Result.Length - 1; i >= 0; i--)
+                {
+                    int PushMask = Push ? 0b10000000 : 0;
+                    Push = ((Result[i] & 1) == 1);
+                    Result[i] = (byte)((Result[i] >> 1) | PushMask);
+                }
+                
+            }
+            //Flags
+            int InputMSB = (input.Length == size) ? MSB(input) : 0; // if the input was less than the intended size, the msb would be 0
+            if (arithmetic) // sar keeps the sign of the input in the result, shl keeps it in of
+            {
+                Result[Result.Length - 1] |= (byte)(InputMSB << 8);
+            }
+            FlagSet OutputFlags = new FlagSet(Result);
+            if(StartCount == 1)
+            {
+                if (arithmetic) // sar keeps the sign of the input in the result, shl keeps it in of
+                {
+                    OutputFlags.Overflow = FlagState.OFF;
+                }
+                else
+                {
+                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF;
+                }
+            }
+            return OutputFlags;
+        }
+        public static byte MSB(byte input) => (byte)((input >> 7) & 1);
+        public static byte MSB(byte[] input) => (byte)((input[input.Length - 1] >> 7) & 1);//readable i guess? some reason its a good idea
+        public static byte LSB(byte input) => (byte)((input >> 7) & 1);
+        public static byte LSB(byte[] input) => (byte)((input[0] >> 7) & 1); 
         public static string GetBits(byte[] input)
         {
             string sOutput = "";

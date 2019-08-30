@@ -35,8 +35,8 @@ namespace debugger.Emulator.Opcodes
         SXTBYTE = 4,
         ALLOWIMM64 = 8,
         IMMEDIATE = 32,
-        STRINGOP = 64,
-        STRINGOPCMP = 128,
+        EXTRA_1 = 64,
+        EXTRA_CL = 128,
     }
     public abstract class Opcode : IMyOpcode
     {
@@ -44,13 +44,15 @@ namespace debugger.Emulator.Opcodes
         public readonly OpcodeSettings Settings;
         private readonly string Mnemonic;              
         private byte[] ImmediateBuffer = null; //registers and memory can change so only do this for immediate.
+        private byte[] CLBuffer = null;
         private readonly IMyDecoded InputMethod;
         public Opcode(string opcodeMnemonic, IMyDecoded input, OpcodeSettings settings)
         {
             Mnemonic = opcodeMnemonic;
             InputMethod = input;
             Settings = settings;
-            SetRegCap();            
+            SetRegCap();
+            Initialise();
         }
         public Opcode(string opcodeMnemonic, IMyDecoded input, RegisterCapacity opcodeCapacity,  OpcodeSettings settings=OpcodeSettings.NONE)
         {
@@ -58,35 +60,57 @@ namespace debugger.Emulator.Opcodes
             InputMethod = input;
             Settings = settings;
             Capacity = opcodeCapacity;
+            Initialise();
         }
+        private void Initialise()
+        {
+            if((Settings | OpcodeSettings.EXTRA_CL) == Settings)
+            {
+                CLBuffer = FetchRegister(XRegCode.C, RegisterCapacity.GP_BYTE, true);
+            }
+            if((Settings | OpcodeSettings.IMMEDIATE) == Settings)
+            {
+                if ((Settings | OpcodeSettings.SXTBYTE) == Settings)
+                {
+                    ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
+                }
+                else if (Capacity == RegisterCapacity.GP_QWORD)
+                {
+                    if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
+                    {
+                        ImmediateBuffer = FetchNext(8);
+                    }
+                    else
+                    {
+                        ImmediateBuffer = Bitwise.SignExtend(FetchNext(4), 8);
+                    }
+                }
+                else
+                {
+                    ImmediateBuffer = FetchNext((byte)Capacity);
+                }
+            }            
+        }
+        ///<summary>
+        /// Priority
+        /// (Input method output)
+        /// Extra 1
+        /// Extra CL
+        /// Immediate
+        /// </summary>    
         protected List<byte[]> Fetch()
         {
             List<byte[]> Output = InputMethod.Fetch(Capacity);
+            if((Settings | OpcodeSettings.EXTRA_1) == Settings)
+            {
+                Output.Add(Bitwise.ZeroExtend(new byte[] { 1 }, (byte)Capacity));
+            }
+            if((Settings | OpcodeSettings.EXTRA_CL) == Settings)
+            {
+                Output.Add(CLBuffer);
+            }
             if ((Settings | OpcodeSettings.IMMEDIATE) == Settings)
             {
-                if (ImmediateBuffer == null) // prevents fetching into adjacent instructions, still dont think its a good idea to call fetch more than once
-                {
-                    if((Settings | OpcodeSettings.SXTBYTE) == Settings)
-                    {
-                        ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
-                    }
-                    else if(Capacity == RegisterCapacity.GP_QWORD)
-                    {
-                        if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
-                        {
-                            ImmediateBuffer = FetchNext(8);
-                        }
-                        else
-                        {
-                            ImmediateBuffer = Bitwise.SignExtend(FetchNext(4), 8);
-                        }
-                    }
-                    else
-                    {                                                
-                        ImmediateBuffer = FetchNext((byte)Capacity);
-                    }
-                    
-                } 
                 Output.Add(ImmediateBuffer);
             }
             return Output;
@@ -94,11 +118,26 @@ namespace debugger.Emulator.Opcodes
         protected void Set(byte[] data) => InputMethod.Set(data);
         protected void SetSource(byte[] data) => InputMethod.SetSource(data); 
         public abstract void Execute();
+        ///<summary>
+        /// Priority
+        /// (Input method output)
+        /// Extra 1
+        /// Extra CL
+        /// Immediate
+        /// </summary>  
         public virtual List<string> Disassemble()
         {
             List<string> Output = new List<string> { Mnemonic };
             Output.AddRange(InputMethod.Disassemble(Capacity));
-            if(ImmediateBuffer != null)
+            if((Settings | OpcodeSettings.EXTRA_1) == Settings)
+            {
+                Output.Add("0x1");
+            }
+            if ((Settings | OpcodeSettings.EXTRA_CL) == Settings)
+            {
+                Output.Add("CL");
+            }
+            if (ImmediateBuffer != null)
             {
                 Output.Add($"0x{Core.Atoi(ImmediateBuffer)}"); //atoi also converts little to big endian
             }

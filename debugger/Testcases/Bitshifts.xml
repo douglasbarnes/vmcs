@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="bit shifts">
+    <Hex>B10848C7C0FF0000004889C3D0E34889C266D3E24889042448C124243F904889C3D0EB904889C266D3EA904889042448C12C2403904889C2D0FB904889C266D3FA4889042448C13C240490</Hex>
+    <Checkpoint tag="Shift left" position_hex="1d">
+        <Register id="B" size="1">FE</Register>
+        <Register id="D" size="2">FF00</Register>
+        <Memory offset_register="SP">0000000000000080</Memory>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+        <Flag name="Parity">1</Flag>
+        <Flag name="Sign">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="SHR OF" position_hex="23">
+        <Register id="B" size="1">7F</Register>
+        <Flag name="Overflow">1</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="SHR NO OF" position_hex="2a">
+        <Register id="D" size="1">0</Register>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="SHR" position_hex="34">
+        <Memory offset_register="SP">1f00000000000000</Memory>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="SAR NO OF" position_hex="3a">
+        <Register id="B" size="1">3f</Register>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="SAR" position_hex="4a">
+        <Register id="D" size="1">0</Register>
+        <Memory offset_register="SP">0f00000000000000</Memory>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+</Testcase>   

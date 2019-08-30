@@ -84,9 +84,11 @@
     <Compile Include="Emulator\Opcodes\C\Clx.cs" />
     <Compile Include="Emulator\Opcodes\L\Lods.cs" />
     <Compile Include="Emulator\Opcodes\S\Scas.cs" />
+    <Compile Include="Emulator\Opcodes\S\Sxr.cs" />
     <Compile Include="Emulator\Opcodes\S\Stx.cs" />
     <Compile Include="Emulator\Opcodes\M\Movs.cs" />
     <Compile Include="Emulator\Opcodes\S\Stos.cs" />
+    <Compile Include="Emulator\Opcodes\S\Shl.cs" />
     <Compile Include="Emulator\Opcodes\X\Xchg.cs" />
     <Compile Include="Emulator\Opcodes\T\Test.cs" />
     <Compile Include="Emulator\Opcodes\X\Xor.cs" />
@@ -248,6 +250,9 @@
   <ItemGroup />
   <ItemGroup>
     <Content Include="Testcases\Cbw.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Testcases\Bitshifts.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\stringops.xml">

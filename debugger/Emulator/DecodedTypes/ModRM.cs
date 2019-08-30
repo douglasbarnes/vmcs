@@ -7,7 +7,7 @@ namespace debugger.Emulator.DecodedTypes
     {
         NONE = 0,
         SWAP = 1,
-        EXTENDED
+        EXTENDED = 2,
     }
     
     public class ModRM : IMyDecoded
