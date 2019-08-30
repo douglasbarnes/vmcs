@@ -94,9 +94,9 @@ namespace debugger.Util
             if(p.BaseReg != null)
             {
                 Output += p.BaseReg;
-                if (p.Coefficient > 1)
+                if (p.Coefficient > 0)
                 {
-                    Output += $"*{p.Coefficient}";
+                    Output += $"*{(int)System.Math.Pow(2, p.Coefficient)}";
                 }
                 if(p.AdditionalReg != null)
                 {
