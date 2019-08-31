@@ -86,12 +86,7 @@ namespace debugger.Emulator
         public static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); }
         public static FlagSet Flags { get => CurrentContext.Flags; }
-        public static ulong InstructionPointer { get => CurrentContext.InstructionPointer;
-            private set
-            {
-                CurrentContext.InstructionPointer = value;
-            }
-        }
+        public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; private set { CurrentContext.InstructionPointer = value; } }
         public static REX RexByte = REX.NONE;
         private static Status Execute(bool step)
         {
@@ -99,6 +94,7 @@ namespace debugger.Emulator
             List<string> TempLastDisas = new List<string>();
             while (CurrentContext.InstructionPointer <= CurrentContext.Memory.End)
             {
+                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer;
                 byte Fetched = FetchNext();                
                 if (LPrefixBuffer.IsPrefix(Fetched))
                 {

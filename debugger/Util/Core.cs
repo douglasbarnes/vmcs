@@ -138,7 +138,6 @@ namespace debugger.Util
         }
         public static string Atoi(byte[] toConvert, bool addSpaces=false)
         {            
-            Trim(toConvert);
             string Output = "";
             bool Significant = false;
             for (int i = 0; i < toConvert.Length; i++)
