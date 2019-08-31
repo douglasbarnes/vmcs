@@ -136,17 +136,27 @@ namespace debugger.Util
             }
             return Output;
         }
-        public static string Atoi(byte[] toConvert, bool addSpaces=false, bool showMinus=true)
+        public static string Atoi(byte[] toConvert, bool addSpaces=false)
         {            
             Trim(toConvert);
             string Output = "";
+            bool Significant = false;
             for (int i = 0; i < toConvert.Length; i++)
             {              
-                Output += toConvert[toConvert.Length - i - 1].ToString("X").PadLeft(2, '0');                            
-                if (i + 1 != toConvert.Length && addSpaces)
+                byte Cursor = toConvert[toConvert.Length - i - 1];
+                if(Significant || Cursor != 0)
                 {
-                    Output += " ";
-                }
+                    Significant = true;
+                    Output += Cursor.ToString("X").PadLeft(2, '0');
+                    if (i + 1 != toConvert.Length && addSpaces)
+                    {
+                        Output += " ";
+                    }
+                }                
+            }
+            if(Output.Length == 0)
+            {
+                Output += "0";
             }
             return Output;
         }
