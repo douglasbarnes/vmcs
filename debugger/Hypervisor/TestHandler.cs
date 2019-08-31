@@ -110,6 +110,7 @@ namespace debugger.Hypervisor
                     if (!CurrentTestcase.Checkpoints.TryGetValue(Snapshot.InstructionPointer, out CurrentCheckpoint))
                     {
                         Logger.Log(LogCode.TESTCASE_RUNTIME, "");
+                        break;
                     }
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)

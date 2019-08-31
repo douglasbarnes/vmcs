@@ -13,6 +13,7 @@
         protected override void OnExecute()
         {
             Set(SourceBytes);
+            AdjustSI();
         }
     }
 }

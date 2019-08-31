@@ -15,6 +15,8 @@ namespace debugger.Emulator.Opcodes
         {
             //basically all cmp does flags-wise is subtract, but doesn't care about the result               
             ControlUnit.SetFlags(Result);
+            AdjustDI();
+            AdjustSI();
         }
     }
 }

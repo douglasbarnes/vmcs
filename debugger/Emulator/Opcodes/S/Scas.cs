@@ -16,6 +16,7 @@ namespace debugger.Emulator.Opcodes
         protected override void OnExecute()
         {
             ControlUnit.SetFlags(ResultFlags);
+            AdjustDI();
         }
     }
 }

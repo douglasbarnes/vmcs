@@ -11,6 +11,8 @@
         protected override void OnExecute()
         {
             Set(SourceBytes);
+            AdjustDI();
+            AdjustSI();
         }
     }
 }
