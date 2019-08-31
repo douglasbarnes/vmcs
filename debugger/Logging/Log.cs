@@ -8,6 +8,7 @@ namespace debugger.Logging
     {        
         DISASSEMBLY_RIPNOTFOUND,
         FLAGSET_INVALIDINPUT,
+        TESTCASE_RUNTIME,
         TESTCASE_PARSEFAIL,
         TESTCASE_IOERROR,
         TESTCASE_NOT_FOUND,
@@ -38,6 +39,7 @@ namespace debugger.Logging
         {            
             { DISASSEMBLY_RIPNOTFOUND, (Severity.CRITICAL, "RIP('{0}') pointed to an address not in the internal disassembly list view dictionary.") },
             { FLAGSET_INVALIDINPUT, (Severity.CRITICAL, "Attempt to access invalid flag, '{0}'.") },
+            { TESTCASE_RUNTIME, (Severity.ERROR, "Runtime error in testcase. There was no checkpoint at the end of execution.") },
             { TESTCASE_PARSEFAIL, (Severity.WARNING, "Data in '{0}' could not be parsed: '{1}'.") },
             { TESTCASE_IOERROR, (Severity.WARNING, "Error parsing testcase file {0}:'{1}'.") },
             { TESTCASE_NOT_FOUND, (Severity.WARNING, "Could not run testcase '{0}', file not found.") },            

@@ -154,7 +154,7 @@ namespace debugger.Util
             input1 = SignExtend(input1, (byte)size);
             input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
-            bool BorrowBit4 = (input1[0] & 0b100) < (input2[0] & 0b100); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
+            bool BorrowBit4 = (input1[0] & 0b111) < (input2[0] & 0b111); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
             for (int i = 0; i < size; i++)
             {
                 int sum = input1[i] - input2[i] - (borrow ? 1 : 0);
@@ -175,7 +175,7 @@ namespace debugger.Util
             {
                 Carry = borrow ? FlagState.ON : FlagState.OFF,
                 Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = BorrowBit4 ? FlagState.ON : FlagState.OFF // subtracted a bigger number from a smaller number and didnt get a negative
+                Auxiliary = (input1[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
@@ -222,38 +222,48 @@ namespace debugger.Util
         }
         public static FlagSet Increment(byte[] input, int size, out byte[] Result)
         {
-            Result = new byte[size];//0xffffffff+0x1=0x00000000, change it otherwise
-            for (int i = 0; i < input.Length; i++)
+            Result = new byte[size];
+            Array.Copy(input, Result, input.Length);
+            bool CarryBit3 = ((input[0] & 0b111) + 1) > 0b111; // if we will carry into bit 4 of 1st byte
+            for (int i = 0; i < Result.Length; i++)
             {
-                if (input[i] < 0xFF)
+                if (Result[i] < 0xFF)
                 {
-                    input[i]++;
-                    Result = input;
+                    Result[i]++;
                     break;
+                }
+                else
+                {
+                    Result[i] = 0;
                 }
             }
             return new FlagSet(Result)
             {
                 Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
-                Auxiliary = FlagState.OFF,
+                Auxiliary = CarryBit3 ? FlagState.ON : FlagState.OFF,
             };
         }
         public static FlagSet Decrement(byte[] input, int size, out byte[] Result)
         {
-            Result = SignExtend(new byte[] { 0xFF }, (byte)size);//0x0-0x1=0xffffffff, change it otherwise
-            for (int i = 0; i < input.Length; i++)
+            Result = new byte[size];
+            Array.Copy(input, Result, input.Length);
+
+            for (int i = 0; i < Result.Length; i++)
             {
-                if (input[i] > 0x00)
+                if (Result[i] > 0x00)
                 {
-                    input[i]--;
-                    Result = input;
+                    Result[i]--;
                     break;
+                }
+                else
+                {
+                    Result[i] = 0xFF;
                 }
             }
             return new FlagSet(Result)
             {
                 Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
-                Auxiliary = FlagState.OFF,
+                Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
         public static FlagSet ShiftLeft(byte[] input, byte count, byte mask, int size, out byte[] Result)

@@ -4,8 +4,9 @@ namespace debugger.Emulator.Opcodes
 {
     public class Cmps : StringOperation
     {
-        readonly FlagSet Result;
-        public Cmps(StringOpSettings settings = StringOpSettings.NONE): base("CMPS", settings | StringOpSettings.COMPARE)
+        FlagSet Result;
+        public Cmps(StringOpSettings settings = StringOpSettings.NONE): base("CMPS", settings | StringOpSettings.COMPARE) {  }
+        protected override void OnInitialise()
         {
             List<byte[]> DestSource = Fetch();
             Result = Bitwise.Subtract(DestSource[0], DestSource[1], (int)Capacity, out _);

@@ -10,7 +10,7 @@ namespace debugger.Hypervisor
     {
         protected internal readonly Handle Handle;
         public delegate void RunCallback(Context input);
-        public event RunCallback RunComplete = (input) => { };
+        public event RunCallback OnRunComplete = (input) => { };
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
             inputContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
@@ -26,7 +26,7 @@ namespace debugger.Hypervisor
             Task<Status> RunTask = new Task<Status>(() => Run(Step));
             RunTask.Start();
             Status Result = await RunTask;
-            RunComplete.Invoke(Handle.DeepCopy());
+            OnRunComplete.Invoke(Handle.DeepCopy());
             return Result;
         }
         public Dictionary<string, bool> GetFlags()

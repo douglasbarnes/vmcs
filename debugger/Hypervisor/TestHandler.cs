@@ -106,7 +106,11 @@ namespace debugger.Hypervisor
                 {
                     await RunAsync();    
                     Context Snapshot = Handle.ShallowCopy();
-                    Checkpoint CurrentCheckpoint = CurrentTestcase.Checkpoints[Snapshot.InstructionPointer];
+                    Checkpoint CurrentCheckpoint;
+                    if (!CurrentTestcase.Checkpoints.TryGetValue(Snapshot.InstructionPointer, out CurrentCheckpoint))
+                    {
+                        Logger.Log(LogCode.TESTCASE_RUNTIME, "");
+                    }
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {

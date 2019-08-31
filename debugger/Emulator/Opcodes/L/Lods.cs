@@ -2,8 +2,11 @@
 {
     public class Lods : StringOperation
     {
-        readonly byte[] SourceBytes;
+        byte[] SourceBytes;
         public Lods(StringOpSettings settings = StringOpSettings.NONE) : base("LODS", settings | StringOpSettings.A_DEST)
+        {
+        }
+        protected override void OnInitialise()
         {
             SourceBytes = Fetch()[1];
         }

@@ -21,17 +21,33 @@ namespace debugger.Emulator.Opcodes
         protected StringOpSettings Settings;
         
         public StringOperation(string mnemonic, StringOpSettings settings)
-        {
-            Mnemonic = mnemonic;
+        {            
             Settings = settings;
-            if ((Settings | StringOpSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.GP_BYTE;
-            else if ((ControlUnit.RexByte | REX.W) == ControlUnit.RexByte) Capacity = RegisterCapacity.GP_QWORD;
-            else if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.GP_WORD;
-            else Capacity = RegisterCapacity.GP_DWORD;
-
+            if ((Settings | StringOpSettings.BYTEMODE) == Settings)
+            {
+                Capacity = RegisterCapacity.GP_BYTE;
+                mnemonic += 'B';
+            }
+            else if ((ControlUnit.RexByte | REX.W) == ControlUnit.RexByte)
+            {
+                Capacity = RegisterCapacity.GP_QWORD;
+                mnemonic += 'W';
+            }
+            else if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR))
+            {
+                Capacity = RegisterCapacity.GP_WORD;
+                mnemonic += 'D';
+            }
+            else
+            {
+                Capacity = RegisterCapacity.GP_DWORD;
+                mnemonic += 'Q';
+            }
+            Mnemonic = mnemonic;
             PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD;
             SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), 8), 0);
             DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), 8), 0);
+            OnInitialise();
         }
         public void AdjustDI(RegisterCapacity size)
         {
@@ -39,11 +55,13 @@ namespace debugger.Emulator.Opcodes
             byte[] Constant = new byte[] { (byte)size };
             if (ControlUnit.Flags.Direction == FlagState.ON)
             {
-                Bitwise.Add(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), Constant, (int)size, out NewSI);
+                DestPtr -= (byte)size;
+                Bitwise.Subtract(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), Constant, (int)size, out NewSI);
             }
             else
             {
-                Bitwise.Subtract(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), Constant, (int)size, out NewSI);
+                DestPtr += (byte)size;
+                Bitwise.Add(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), Constant, (int)size, out NewSI);                
             }
             ControlUnit.SetRegister(XRegCode.DI, NewSI);
         }
@@ -53,16 +71,19 @@ namespace debugger.Emulator.Opcodes
             byte[] Constant = new byte[] { (byte)size };
             if (ControlUnit.Flags.Direction == FlagState.ON)
             {
-                Bitwise.Add(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), Constant, (int)size, out NewSI);
+                SrcPtr -= (byte)size;
+                Bitwise.Subtract(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), Constant, (int)size, out NewSI);
             }
             else
             {
-                Bitwise.Subtract(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), Constant, (int)size, out NewSI);
+                SrcPtr += (byte)size;
+                Bitwise.Add(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), Constant, (int)size, out NewSI);                
             }
             ControlUnit.SetRegister(XRegCode.SI, NewSI);
         }
         public virtual List<string> Disassemble()
         {
+            
             List<string> Output = new List<string>(3) { Mnemonic };
             if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ))
             {
@@ -81,19 +102,19 @@ namespace debugger.Emulator.Opcodes
             }
             if ((Settings | StringOpSettings.A_DEST) == Settings)
             {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}]");
+                Output.Add($"{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}");
             }
             else
             {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.DI, Capacity, REX.NONE)}]");
+                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.DI, PtrSize, REX.NONE)}]");
             }
             if ((Settings | StringOpSettings.A_SRC) == Settings)
             {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}]");
+                Output.Add($"{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}");
             }
             else
             {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.SI, Capacity, REX.NONE)}]");
+                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.SI, PtrSize, REX.NONE)}]");
             }
             return Output;
         }
@@ -104,23 +125,23 @@ namespace debugger.Emulator.Opcodes
                 
                 for (uint Count = BitConverter.ToUInt32(ControlUnit.FetchRegister(XRegCode.C, RegisterCapacity.GP_DWORD), 0); Count > 0; Count--)
                 {
-                    if((Settings | StringOpSettings.COMPARE) == Settings)
+                    if((Settings | StringOpSettings.COMPARE) == Settings
+                        && ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero == FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas
+                           || (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && ControlUnit.Flags.Zero == FlagState.OFF))) 
                     {
-                        if ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero == FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas
-                         || (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && ControlUnit.Flags.Zero == FlagState.OFF))
-                        {
-                            break;
-                        }
-                    }
+                        break;
+                    }                    
                     OnExecute();
+                    OnInitialise();
                 }
                 ControlUnit.SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
             }
             else
-            {
+            {                
                 OnExecute();
             }            
         }
+        protected abstract void OnInitialise();
         protected abstract void OnExecute();
         public List<byte[]> Fetch()
         {

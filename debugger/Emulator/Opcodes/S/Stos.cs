@@ -2,8 +2,9 @@
 {
     public class Stos : StringOperation 
     {
-        readonly byte[] SourceBytes;
-        public Stos(StringOpSettings settings = StringOpSettings.NONE) : base("STOS", settings | StringOpSettings.A_SRC)
+        byte[] SourceBytes;
+        public Stos(StringOpSettings settings = StringOpSettings.NONE) : base("STOS", settings | StringOpSettings.A_SRC) {  }
+        protected override void OnInitialise()
         {
             SourceBytes = Fetch()[1];
         }

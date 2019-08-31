@@ -4,8 +4,11 @@ namespace debugger.Emulator.Opcodes
 {
     public class Scas : StringOperation 
     {
-        readonly FlagSet ResultFlags;
+        FlagSet ResultFlags;
         public Scas(StringOpSettings settings = StringOpSettings.NONE) : base("SCAS", settings | StringOpSettings.A_SRC | StringOpSettings.COMPARE)
+        {            
+        }
+        protected override void OnInitialise()
         {
             List<byte[]> Operands = Fetch();
             ResultFlags = Bitwise.Subtract(Operands[1], Operands[0], (int)Capacity, out _);
