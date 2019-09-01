@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="setbyte">
+    <Hex>B31080FB100F940424B3FF80FB100F9D44240190</Hex>
+    <Checkpoint tag="Win" position_hex="13">
+        <Memory offset_register="SP">0100</Memory>
+    </Checkpoint>
+</Testcase>   
