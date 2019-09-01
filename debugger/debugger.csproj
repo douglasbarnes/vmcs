@@ -74,6 +74,7 @@
   <ItemGroup>
     <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
     <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
+    <Compile Include="Emulator\Opcodes\R\Rxl.cs" />
     <Compile Include="Emulator\Opcodes\StringOperation.cs" />
     <Compile Include="Emulator\DecodedTypes\ImplicitRegister.cs" />
     <Compile Include="Emulator\DecodedTypes\IMyDecoded.cs" />
@@ -253,6 +254,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\Bitshifts.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Testcases\Rotate.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\stringops.xml">

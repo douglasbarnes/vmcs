@@ -205,7 +205,7 @@ namespace debugger.Hypervisor
                             Logger.Log(LogCode.TESTCASE_DUPLICATE, TestcaseName);
                             continue;
                         }
-                        TestcaseObject ParsedTestcase = new TestcaseObject();                           
+                        TestcaseObject ParsedTestcase = new TestcaseObject();   
                         try
                         {
                             ParsedTestcase.Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)); // memory = <hex>x</hex>   

@@ -266,9 +266,9 @@ namespace debugger.Util
                 Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
-        public static FlagSet ShiftLeft(byte[] input, byte count, byte mask, int size, out byte[] Result)
+        public static FlagSet ShiftLeft(byte[] input, byte count, int size, out byte[] Result)
         {
-            count &= mask;
+            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed, in reality is cut down for performance
             int StartCount = count; // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed                   
             Result = input;
             Array.Resize(ref Result, size);
@@ -297,10 +297,10 @@ namespace debugger.Util
             OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
             return OutputFlags;
         }
-        public static FlagSet ShiftRight(byte[] input, byte count, byte mask, int size,  out byte[] Result, bool arithmetic)
+        public static FlagSet ShiftRight(byte[] input, byte count, int size,  out byte[] Result, bool arithmetic)
         {
-            count &= mask;
-            int StartCount = count; // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed 
+            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed, in reality is cut down for performance
+            int StartCount = count; 
             Result = new byte[size];
             Array.Copy(input, Result, input.Length);
             if (StartCount == 0)
@@ -339,6 +339,65 @@ namespace debugger.Util
             }
             return OutputFlags;
         }
+        public static FlagSet RotateLeft(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
+        {
+            byte StartCount;
+            if(useCarry)
+            {
+                StartCount = size switch
+                {
+                    RegisterCapacity.GP_BYTE => (byte)((bitRotates & 0x1F) % 9),
+                    RegisterCapacity.GP_WORD => (byte)((bitRotates & 0x1F) % 17),
+                    RegisterCapacity.GP_DWORD => (byte)(bitRotates & 0x1F),
+                    RegisterCapacity.GP_QWORD => (byte)(bitRotates & 0x3F),
+                    _ => throw new Exception(),
+                };
+            }
+            else
+            {
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.GP_QWORD) ? 0x3F : 0x1F));
+            }            
+            Result = new byte[(int)size];
+            if (StartCount == 0) { return new FlagSet(); }
+            Array.Copy(input, Result, input.Length);
+            bool Carry = carryPresent;
+            byte tempMSB = (byte)((carryPresent && useCarry) ? 1 : 0);
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
+            {                
+                for (int i = 0; i < (int)size; i++)
+                {
+                    byte Mask = tempMSB;
+                    tempMSB = MSB(Result[i]);
+                    Result[i] = (byte)((Result[i] << 1) | Mask);
+                    
+                }
+                if (useCarry)
+                {
+                    Result[0] |= (byte)(Carry ? 1 : 0);
+                    Carry = tempMSB > 0;
+                    
+                }
+                else
+                {
+                    Result[0] |= tempMSB;
+                }
+                tempMSB = 0;
+            }
+            FlagSet ResultFlags = new FlagSet();
+            if(useCarry)
+            {
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
+            }
+            else
+            {
+                ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
+            }
+            ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON;
+                        
+            return ResultFlags;
+        }
+        public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(0x80 >> bit % 8));
+        public static byte GetBit(byte[] input, byte bit) => (byte)(input[bit / 8] & (0x80 >> bit % 8));
         public static byte MSB(byte input) => (byte)((input >> 7) & 1);
         public static byte MSB(byte[] input) => (byte)((input[input.Length - 1] >> 7) & 1);//readable i guess? some reason its a good idea
         public static byte LSB(byte input) => (byte)((input >> 7) & 1);

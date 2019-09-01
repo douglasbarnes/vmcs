@@ -262,6 +262,10 @@ namespace debugger.Emulator
                 },
                 { 0xC0, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | IMMEDIATE | SXTBYTE) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
 
@@ -270,6 +274,10 @@ namespace debugger.Emulator
                 },
                 { 0xC1, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, IMMEDIATE | SXTBYTE) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, IMMEDIATE | SXTBYTE) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, IMMEDIATE | SXTBYTE) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, IMMEDIATE | SXTBYTE) },
 
@@ -278,6 +286,10 @@ namespace debugger.Emulator
                 },
                 { 0xD0, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | EXTRA_1) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | EXTRA_1) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | EXTRA_1) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | EXTRA_1) },
 
@@ -286,6 +298,10 @@ namespace debugger.Emulator
                 },
                 { 0xD1, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_1) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_1) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, EXTRA_1) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_1) },
 
@@ -294,6 +310,10 @@ namespace debugger.Emulator
                 },
                 { 0xD2, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE |  EXTRA_CL) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE |  EXTRA_CL) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE |  EXTRA_CL) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE |EXTRA_CL ) },
                                                                                         
@@ -302,6 +322,10 @@ namespace debugger.Emulator
                 },
                 { 0xD3, new Dictionary<int, ExtendedOpcodeCaller>
                 {
+                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_CL) },
+
+                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_CL) },
+
                     { 4, (InputModRM) => new Shl(InputModRM, EXTRA_CL) },
                     { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_CL) },
 
