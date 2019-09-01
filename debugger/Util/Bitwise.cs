@@ -374,8 +374,7 @@ namespace debugger.Util
                 if (useCarry)
                 {
                     Result[0] |= (byte)(Carry ? 1 : 0);
-                    Carry = tempMSB > 0;
-                    
+                    Carry = tempMSB > 0;                    
                 }
                 else
                 {
@@ -392,8 +391,10 @@ namespace debugger.Util
             {
                 ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
             }
-            ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON;
-                        
+            if(StartCount == 1)
+            {
+                ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON;
+            }                        
             return ResultFlags;
         }
         public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(0x80 >> bit % 8));

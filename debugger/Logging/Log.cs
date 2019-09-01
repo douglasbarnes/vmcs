@@ -5,7 +5,8 @@ using static debugger.Logging.LogCode;
 namespace debugger.Logging
 {    
     public enum LogCode
-    {        
+    {  
+        NONE,
         DISASSEMBLY_RIPNOTFOUND,
         FLAGSET_INVALIDINPUT,
         TESTCASE_RUNTIME,
@@ -16,6 +17,7 @@ namespace debugger.Logging
         TESTCASE_DUPLICATE,
         TESTCASE_BADHEX,
         TESTCASE_BADCHECKPOINT,
+        TESTCASE_NOHEX,
     }
     public class LoggedException : Exception
     {
@@ -45,8 +47,9 @@ namespace debugger.Logging
             { TESTCASE_NOT_FOUND, (Severity.WARNING, "Could not run testcase '{0}', file not found.") },            
             { TESTCASE_RESULT, (Severity.INFO, "Testcase '{0}' completed with result '{1}'.") },
             { TESTCASE_DUPLICATE, (Severity.WARNING, "Multiple testcases with the name '{0}' found. Only the first will be parsed.") },
-            { TESTCASE_BADHEX, (Severity.WARNING, "Could not parse testcase '{0}', make sure there is a <Hex></Hex> tag pair with valid hex bytes between") },
-            { TESTCASE_BADCHECKPOINT, (Severity.WARNING, "Could not parse checkpoint in '{0}':'{1}'") }
+            { TESTCASE_BADHEX, (Severity.WARNING, "Could not parse testcase '{0}', shellcode in the hex tags could not be parsed as bytes") },
+            { TESTCASE_BADCHECKPOINT, (Severity.WARNING, "Could not parse checkpoint in '{0}':'{1}'") },
+            { TESTCASE_NOHEX, (Severity.WARNING, "Could not parse testcase '{0}', there was no <Hex></Hex> tags with shellcode present") },
         };
         private static Dictionary<Severity, char> SeverityPrefix = new Dictionary<Severity, char>()
         {

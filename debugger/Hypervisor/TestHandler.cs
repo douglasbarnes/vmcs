@@ -88,6 +88,46 @@ namespace debugger.Hypervisor
             public XRegCode? OffsetRegister;
             public long Offset;
             public byte[] ExpectedBytes;
+            public bool TryParse(XElement input, out (LogCode, string) ErrorInfo)
+            {
+                if (!TryParseHex(input.Value, out ExpectedBytes))
+                {
+                    ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid value of expected memory.");
+                    return false;
+                }
+                if (input.Attribute("offset_register") != null)
+                {
+                    XRegCode Result;
+                    if (!RegisterDecodeTable.TryGetValue(input.Attribute("offset_register").Value, out Result))
+                    {
+                        ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid value of offset register.");
+                        return false;
+                    }
+                    OffsetRegister = (XRegCode?)Result;
+                }
+                if (input.Attribute("offset") != null)
+                {
+                    byte[] OffsetBytes;
+                    if (!TryParseHex(input.Attribute("offset").Value, out OffsetBytes))
+                    {
+                        ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid hex bytes in memory offset attribute");
+                        return false;
+                    }
+                    Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(OffsetBytes), 8), 0);
+                    if (Offset < 0 && OffsetRegister == null)
+                    {
+                        ErrorInfo = (LogCode.TESTCASE_BADCHECKPOINT, "Cannot have a negative memory offset without a register to offset it");
+                        return false;
+                    }
+                }
+                else if (OffsetRegister == null)
+                {
+                    ErrorInfo = (LogCode.TESTCASE_BADCHECKPOINT, "Must have an offset attribute, offset_register attribute, or both");
+                    return false;
+                }
+                ErrorInfo = (LogCode.NONE, null);
+                return true;
+            }
         }
         private static Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
         private class TestingEmulator : HypervisorBase
@@ -200,20 +240,28 @@ namespace debugger.Hypervisor
                     {
                         if (InputTestcase.Attribute("noparse") != null && InputTestcase.Attribute("noparse").Value == "true") continue;
                         string TestcaseName = InputTestcase.Attribute("name").Value.ToLower();
+                        //Testcase elements validation
                         if (Testcases.ContainsKey(TestcaseName))
                         {
                             Logger.Log(LogCode.TESTCASE_DUPLICATE, TestcaseName);
                             continue;
                         }
-                        TestcaseObject ParsedTestcase = new TestcaseObject();   
-                        try
+                        TestcaseObject ParsedTestcase = new TestcaseObject();
+                        if (InputTestcase.Element("Hex") == null)
                         {
-                            ParsedTestcase.Memory = new MemorySpace(ParseHex(InputTestcase.Element("Hex").Value)); // memory = <hex>x</hex>   
-                        } catch
+                            Logger.Log(LogCode.TESTCASE_NOHEX, TestcaseName);
+                            continue;
+                        }
+                        else if(TryParseHex(InputTestcase.Element("Hex").Value, out byte[] TestcaseMemory))
+                        {
+                            ParsedTestcase.Memory = new MemorySpace(TestcaseMemory); // memory = <hex>x</hex>
+                        }
+                        else
                         {
                             Logger.Log(LogCode.TESTCASE_BADHEX, TestcaseName);
                             continue;
-                        }                            
+                        }
+                        // Checkpoint validation
                         foreach (var InputCheckpoint in InputTestcase.Elements("Checkpoint"))//for each <checkpoint> in file
                         {
                             ulong BreakpointAddr = Convert.ToUInt64(InputCheckpoint.Attribute("position_hex").Value, 16);//what the instruction pointer will be when the checkpoint is tested
@@ -236,41 +284,14 @@ namespace debugger.Hypervisor
                                 }
                                 else if (TestCriteria.Name == "Memory") //<memory>
                                 {
+
                                     TestMemoryAddress Mem = new TestMemoryAddress();
-                                    if(!TryParseHex(TestCriteria.Value, out Mem.ExpectedBytes))
+                                    (LogCode, string) ErrorInfo;
+                                    if (!Mem.TryParse(TestCriteria, out ErrorInfo))
                                     {
-                                        Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid value of expected memory." });
+                                        Logger.Log(ErrorInfo.Item1, new string[] { TestcaseName, ErrorInfo.Item2 });
                                         continue;
-                                    }
-                                    if (TestCriteria.Attribute("offset_register") != null)
-                                    {
-                                        XRegCode Result;
-                                        if(!RegisterDecodeTable.TryGetValue(TestCriteria.Attribute("offset_register").Value, out Result))
-                                        {
-                                            Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid value of offset register." });
-                                        }
-                                        Mem.OffsetRegister = (XRegCode?)Result;
-                                    }                                        
-                                    if (TestCriteria.Attribute("offset") != null)
-                                    {
-                                        byte[] OffsetBytes;
-                                        if(!TryParseHex(TestCriteria.Attribute("offset").Value, out OffsetBytes))
-                                        {
-                                            Logger.Log(LogCode.TESTCASE_PARSEFAIL, new string[] { TestcaseName, "Invalid hex bytes in memory offset attribute" });
-                                        }
-                                        Mem.Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(OffsetBytes), 8), 0);                                   
-                                        if (Mem.Offset < 0 && Mem.OffsetRegister == null)
-                                        {
-                                            Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Cannot have a negative memory offset without a register to offset it" });
-                                            continue;
-                                        }
-                                    }
-                                    else if (Mem.OffsetRegister == null)
-                                    {
-                                        Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Must have an offset attribute, offset_register attribute, or both" });
-                                        continue;
-                                    }
-                                    
+                                    }                                    
                                     ParsedCheckpoint.ExpectedMemory.Add(Mem);
                                 }
                                 else if (TestCriteria.Name == "Flag")
