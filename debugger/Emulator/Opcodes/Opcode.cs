@@ -115,8 +115,8 @@ namespace debugger.Emulator.Opcodes
             }
             return Output;
         }
-        protected void Set(byte[] data) => InputMethod.Set(data);
-        protected void SetSource(byte[] data) => InputMethod.SetSource(data); 
+        protected void Set(byte[] data) { data = Bitwise.ZeroExtend(data, (byte)Capacity); InputMethod.Set(data); }
+        protected void SetSource(byte[] data) { data = Bitwise.ZeroExtend(data, (byte)Capacity); InputMethod.SetSource(data); }
         public abstract void Execute();
         ///<summary>
         /// Priority

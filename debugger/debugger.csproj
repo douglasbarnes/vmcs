@@ -86,6 +86,7 @@
     <Compile Include="Emulator\Opcodes\C\Clx.cs" />
     <Compile Include="Emulator\Opcodes\L\Lods.cs" />
     <Compile Include="Emulator\Opcodes\S\Scas.cs" />
+    <Compile Include="Emulator\Opcodes\S\Set.cs" />
     <Compile Include="Emulator\Opcodes\S\Sxr.cs" />
     <Compile Include="Emulator\Opcodes\S\Stx.cs" />
     <Compile Include="Emulator\Opcodes\M\Movs.cs" />
