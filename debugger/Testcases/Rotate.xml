@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Testcase name="rotate">
-    <Hex>48B8112233334444444489C36689042488E6B14448D3C090C1C3109066D1042490C0C60490F948B8112233334444444489C36689042488E6B14448D3D090C1D3109066D1142490C0D60490</Hex>
+    <Hex>48B8112233334444444489C36689042488E6B14448D3C090C1C3109066D1042490C0C60490F948B8112233334444444489C36689042488E6B14448D3D090C1D3109066D1142490C0D6049048B8112233334444444489C36689042488E6B14448D3C890C1CB109066D10C2490C0CE0490F948B8112233334444444489C36689042488E6B14448D3D890C1DB109066D11C2490C0DE0490</Hex>
     <Checkpoint tag="rol rm, cl" position_hex="17">
         <Register id="A" size="8">4444444333322114</Register>
         <Flag name="Carry">0</Flag>
     </Checkpoint>
-    <Checkpoint tag="rol dw rm, imm(OF SET BY PREV)" position_hex="1b">
+    <Checkpoint tag="rol dw rm, imm" position_hex="1b">
         <Register id="B" size="8">22113333</Register>
         <Flag name="Carry">1</Flag>
     </Checkpoint>
@@ -14,7 +14,7 @@
         <Flag name="Overflow">0</Flag>
         <Flag name="Carry">0</Flag>
     </Checkpoint>
-    <Checkpoint tag="rol upper b rm, cl" position_hex="24">
+    <Checkpoint tag="rol full circle upper b rm, cl" position_hex="24">
         <Register id="D" size="2">2200</Register>
         <Flag name="Carry">0</Flag>
     </Checkpoint>  
@@ -30,8 +30,39 @@
         <Flag name="Overflow">0</Flag>
         <Flag name="Carry">0</Flag>
     </Checkpoint>
-    <Checkpoint tag="rcl upper b rm, cl" position_hex="4a">
+    <Checkpoint tag="rcl full circle upper b rm, cl" position_hex="4a">
         <Register id="D" size="2">2100</Register>
+        <Flag name="Carry">0</Flag>
+    </Checkpoint>
+    <Checkpoint tag="ror rm, cl" position_hex="62">
+        <Register id="A" size="8">1444444443333221</Register>
+        <Flag name="Carry">0</Flag>
+    </Checkpoint>
+    <Checkpoint tag="ror dw rm, imm" position_hex="66">
+        <Register id="B" size="8">22113333</Register>
+    </Checkpoint>
+    <Checkpoint tag="ror rm, 1" position_hex="6b">
+        <Memory offset_register="SP">0891</Memory>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="ror full circle upper b rm, cl" position_hex="6f">
+        <Register id="D" size="2">2200</Register>
+        <Flag name="Carry">0</Flag>
+    </Checkpoint>
+    <Checkpoint tag="rcr rm, cl" position_hex="88">
+        <Register id="A" size="8">3444444443333221</Register>
+    </Checkpoint>
+    <Checkpoint tag="rcr dw rm, imm" position_hex="8c">
+        <Register id="B" size="8">44223333</Register>
+    </Checkpoint>
+    <Checkpoint tag="rcr rm, 1" position_hex="91">
+        <Memory offset_register="SP">0811</Memory>
+        <Flag name="Overflow">0</Flag>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+    <Checkpoint tag="rcr upper b rm, cl(CF SET BY PREV)" position_hex="95">
+        <Register id="D" size="2">5200</Register>
         <Flag name="Carry">0</Flag>
     </Checkpoint>
 </Testcase>   

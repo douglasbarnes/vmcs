@@ -74,6 +74,7 @@
   <ItemGroup>
     <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
     <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
+    <Compile Include="Emulator\Opcodes\R\Rxr.cs" />
     <Compile Include="Emulator\Opcodes\R\Rxl.cs" />
     <Compile Include="Emulator\Opcodes\StringOperation.cs" />
     <Compile Include="Emulator\DecodedTypes\ImplicitRegister.cs" />

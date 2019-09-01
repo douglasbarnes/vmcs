@@ -397,8 +397,65 @@ namespace debugger.Util
             }                        
             return ResultFlags;
         }
+        public static FlagSet RotateRight(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
+        {
+            byte StartCount;
+            if (useCarry)
+            {
+                StartCount = size switch
+                {
+                    RegisterCapacity.GP_BYTE => (byte)((bitRotates & 0x1F) % 9),
+                    RegisterCapacity.GP_WORD => (byte)((bitRotates & 0x1F) % 17),
+                    RegisterCapacity.GP_DWORD => (byte)(bitRotates & 0x1F),
+                    RegisterCapacity.GP_QWORD => (byte)(bitRotates & 0x3F),
+                    _ => throw new Exception(),
+                };
+            }
+            else
+            {
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.GP_QWORD) ? 0x3F : 0x1F));
+            }
+            Result = new byte[(int)size];
+            if (StartCount == 0) { return new FlagSet(); }
+            Array.Copy(input, Result, input.Length);
+            bool Carry = carryPresent;
+            byte tempLSB = (byte)((carryPresent && useCarry) ? 0b10000000 : 0);
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
+            {
+                for (int i = (int)size-1; i >= 0; i--) // a222222219999108 -> d11111110cccc884
+                {
+                    byte Mask = tempLSB;
+                    tempLSB = (byte)(LSB(Result[i]) << 7);
+                    Result[i] = (byte)((Result[i] >> 1) | Mask);
+                }
+                if (useCarry)
+                {
+                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0);
+                    Carry = tempLSB > 0;
+                }
+                else
+                {
+                    Result[Result.Length-1] |= tempLSB;
+                }
+                tempLSB = 0;
+            }
+            FlagSet ResultFlags = new FlagSet();
+            if (useCarry)
+            {
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
+            }
+            else
+            {
+                ResultFlags.Carry = MSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
+            }
+            if (StartCount == 1)
+            {
+                ResultFlags.Overflow = (MSB(Result) ^ GetBit(Result, Result.Length*8-1)) == 0 ? FlagState.OFF : FlagState.ON;
+            }
+            return ResultFlags;
+        }
         public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(0x80 >> bit % 8));
-        public static byte GetBit(byte[] input, byte bit) => (byte)(input[bit / 8] & (0x80 >> bit % 8));
+        public static byte GetBit(byte[] input, int bit) => (byte)(input[bit / 8] & (0x80 >> bit % 8));
         public static byte MSB(byte input) => (byte)(input >> 7);
         public static byte MSB(byte[] input) => (byte)(input[input.Length - 1] >> 7);//readable i guess? some reason its a good idea
         public static byte LSB(byte input) => (byte)(input & 1);
