@@ -399,10 +399,10 @@ namespace debugger.Util
         }
         public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(0x80 >> bit % 8));
         public static byte GetBit(byte[] input, byte bit) => (byte)(input[bit / 8] & (0x80 >> bit % 8));
-        public static byte MSB(byte input) => (byte)((input >> 7) & 1);
-        public static byte MSB(byte[] input) => (byte)((input[input.Length - 1] >> 7) & 1);//readable i guess? some reason its a good idea
-        public static byte LSB(byte input) => (byte)((input >> 7) & 1);
-        public static byte LSB(byte[] input) => (byte)((input[0] >> 7) & 1); 
+        public static byte MSB(byte input) => (byte)(input >> 7);
+        public static byte MSB(byte[] input) => (byte)(input[input.Length - 1] >> 7);//readable i guess? some reason its a good idea
+        public static byte LSB(byte input) => (byte)(input & 1);
+        public static byte LSB(byte[] input) => (byte)(input[0] & 1); 
         public static string GetBits(byte[] input)
         {
             string sOutput = "";
