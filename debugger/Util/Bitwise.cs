@@ -154,7 +154,7 @@ namespace debugger.Util
             input1 = SignExtend(input1, (byte)size);
             input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
-            bool BorrowBit4 = (input1[0] & 0b111) < (input2[0] & 0b111); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
+            //bool BorrowBit4 = (input1[0] & 0b111) < (input2[0] & 0b111); //if input2 had bit 3 on and input1 had it off, there was a borrow from the BCD bit
             for (int i = 0; i < size; i++)
             {
                 int sum = input1[i] - input2[i] - (borrow ? 1 : 0);
@@ -175,7 +175,7 @@ namespace debugger.Util
             {
                 Carry = borrow ? FlagState.ON : FlagState.OFF,
                 Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,//adding two number of same sign and not getting the same sign as a result
-                Auxiliary = (input1[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
+                Auxiliary = ((input1[0] & 0b1000) | (input2[0] & 0b1000)) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
