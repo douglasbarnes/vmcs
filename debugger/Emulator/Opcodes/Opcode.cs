@@ -198,6 +198,21 @@ namespace debugger.Emulator.Opcodes
                     return true; //Condition.None
             }
         }
+        protected void StackPush(byte[] data)
+        {
+            byte[] NewSP;
+            Bitwise.Subtract(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            SetRegister(XRegCode.SP, NewSP);
+            SetMemory(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), data);
+        }
+        protected byte[] StackPop()
+        {
+            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), (int)Capacity);
+            byte[] NewSP;
+            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)Capacity, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            SetRegister(XRegCode.SP, NewSP);
+            return Output;
+        }
     }
 
 }

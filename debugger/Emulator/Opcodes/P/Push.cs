@@ -17,10 +17,7 @@ namespace debugger.Emulator.Opcodes
         }
         public override void Execute()
         {
-            byte[] NewSP;
-            Bitwise.Subtract(ControlUnit.FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)Result.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
-            ControlUnit.SetRegister(XRegCode.SP, NewSP);
-            ControlUnit.SetMemory(BitConverter.ToUInt64(ControlUnit.FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD),0), Result); 
+            StackPush(Result);
         }
 
         private static RegisterCapacity FindRegCap(OpcodeSettings settings)
