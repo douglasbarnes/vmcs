@@ -1,6 +1,4 @@
 ﻿using System;
-using debugger.Util;
-
 namespace debugger.Emulator.Opcodes
 {
     public class Call : Opcode
@@ -13,7 +11,7 @@ namespace debugger.Emulator.Opcodes
         } 
         public override void Execute()
         {
-            //ControlUnit.SetMemory(ControlUnit.FetchRegister(XRegCode.S))
+            StackPush(BitConverter.GetBytes(ControlUnit.InstructionPointer));
             ControlUnit.Jump(BitConverter.ToUInt64(Fetch()[0], 0));
         }
     }

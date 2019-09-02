@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="retcall">
+    <Hex>4889E34881C3FFFF000048C7C08000000050E8040000004839E3905D584883C02055C2FFFF</Hex>
+    <Checkpoint tag="Win" position_hex="1A">
+        <Register id="A" size="8">A0</Register>
+        <Flag name="Zero">1</Flag>
+        <Flag name="Parity">1</Flag>
+    </Checkpoint>
+</Testcase>   

@@ -205,14 +205,15 @@ namespace debugger.Emulator.Opcodes
             SetRegister(XRegCode.SP, NewSP);
             SetMemory(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), data);
         }
-        protected byte[] StackPop()
+        protected byte[] StackPop(RegisterCapacity size)
         {
-            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), (int)Capacity);
+            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), (int)size);
             byte[] NewSP;
-            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)Capacity, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
             SetRegister(XRegCode.SP, NewSP);
             return Output;
         }
+        protected byte[] StackPop() => StackPop(Capacity);
     }
 
 }

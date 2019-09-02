@@ -1,6 +1,4 @@
-﻿using System;
-using debugger.Util;
-namespace debugger.Emulator.Opcodes
+﻿namespace debugger.Emulator.Opcodes
 {
     public class Pop : Opcode
     {

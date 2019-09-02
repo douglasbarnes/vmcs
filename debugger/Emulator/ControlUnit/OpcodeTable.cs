@@ -164,9 +164,13 @@ namespace debugger.Emulator
 
                   { 0xC0, () => DecodeExtension(0xC0, 1) },
                   { 0xC1, () => DecodeExtension(0xC1, 1) },
-
+                  { 0xC2, () => new Ret(new NoOperands(), IMMEDIATE) },
+                  { 0xC3, () => new Ret(new NoOperands()) },
+                  
                   { 0xC6, () => new Mov(new ModRM(FetchNext(), ModRMSettings.EXTENDED), IMMEDIATE | BYTEMODE)},
                   { 0xC7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.EXTENDED), "MOV", signExtend:true, RegisterCapacity.GP_QWORD, IMMEDIATE)},
+
+                  
 
                   { 0xD0, () => DecodeExtension(0xD0, 1) },
                   { 0xD1, () => DecodeExtension(0xD1, 1) },
@@ -174,9 +178,11 @@ namespace debugger.Emulator
                   { 0xD3, () => DecodeExtension(0xD3, 1) },
 
                   { 0xE3, () => new Jmp(new NoOperands(), Condition.RCXZ, IMMEDIATE | RELATIVE | SXTBYTE) },
+                  
+                  { 0xE8, () => new Call(new NoOperands(), IMMEDIATE | RELATIVE) },
+                  { 0xE9, () => new Jmp(new NoOperands(), Condition.NONE, IMMEDIATE | RELATIVE, dwordOnly:true) },
 
                   { 0xEB, () => new Jmp(new NoOperands(), Condition.NONE, BYTEMODE | IMMEDIATE | RELATIVE) },
-                  { 0xE9, () => new Jmp(new NoOperands(), Condition.NONE, IMMEDIATE | RELATIVE, dwordOnly:true) },
 
                   { 0xF6, () => DecodeExtension(0xF6, 1) },
                   { 0xF7, () => DecodeExtension(0xF7, 1) },
@@ -376,6 +382,7 @@ namespace debugger.Emulator
                 {
                     { 0, (InputModRM) => new Inc(InputModRM) },
                     { 1, (InputModRM) => new Dec(InputModRM) },
+                    { 2, (InputModRM) => new Call(InputModRM) },
                     { 4, (InputModRM) => new Jmp(InputModRM) },
                     { 6, (InputModRM) => new Push(InputModRM) }
                 }
