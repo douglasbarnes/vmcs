@@ -37,6 +37,7 @@ namespace debugger.Emulator.Opcodes
         IMMEDIATE = 32,
         EXTRA_1 = 64,
         EXTRA_CL = 128,
+        RELATIVE = 256,
     }
     public abstract class Opcode : IMyOpcode
     {
@@ -88,6 +89,11 @@ namespace debugger.Emulator.Opcodes
                 else
                 {
                     ImmediateBuffer = FetchNext((byte)Capacity);
+                }
+                if((Settings | OpcodeSettings.RELATIVE) == Settings)
+                {
+                    ImmediateBuffer = Bitwise.SignExtend(ImmediateBuffer, 8);
+                    Bitwise.Add(ImmediateBuffer, BitConverter.GetBytes(InstructionPointer), (int)8, out ImmediateBuffer);
                 }
             }            
         }

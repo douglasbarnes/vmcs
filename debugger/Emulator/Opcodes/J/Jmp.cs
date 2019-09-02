@@ -6,10 +6,11 @@ namespace debugger.Emulator.Opcodes
     public class Jmp : Opcode
     {
         private readonly Condition JmpCondition;
-        public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.NONE) 
+        public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.NONE, OpcodeSettings settings = OpcodeSettings.NONE, bool dwordOnly = false) 
             : base(condition == Condition.NONE ? "JMP" : "J" + Disassembly.DisassembleCondition(condition)
                   , input
-                  , (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_DWORD))
+                  , (settings | OpcodeSettings.BYTEMODE) == settings ? RegisterCapacity.GP_BYTE : JmpRegCap(dwordOnly)
+                  , settings)
         {
             JmpCondition = condition;
         }
@@ -19,6 +20,15 @@ namespace debugger.Emulator.Opcodes
 
                 ControlUnit.Jump(BitConverter.ToUInt64(Bitwise.SignExtend(Fetch()[0], 8), 0));
            }            
+        }
+
+        private static RegisterCapacity JmpRegCap(bool dwordOnly)
+        {           
+            if(ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) && !dwordOnly)
+            {
+                return RegisterCapacity.GP_WORD;
+            }           
+            return RegisterCapacity.GP_DWORD;
         }
     }
 }
