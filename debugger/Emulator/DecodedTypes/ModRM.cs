@@ -8,6 +8,7 @@ namespace debugger.Emulator.DecodedTypes
         NONE = 0,
         SWAP = 1,
         EXTENDED = 2,
+        HIDEPTR = 4,
     }
     
     public class ModRM : IMyDecoded
@@ -22,6 +23,7 @@ namespace debugger.Emulator.DecodedTypes
         public XRegCode Source { get; private set; }
         private ulong Destination;
         private long Offset;
+        public ulong EffectiveAddress { get => Destination + (ulong)Offset; }
         private SIB? DecodedSIB;
         private DeconstructedModRM Fields;
         private readonly ModRMSettings Settings;
@@ -108,15 +110,19 @@ namespace debugger.Emulator.DecodedTypes
             string Dest = Disassembly.DisassemblePointer(DestPtr);
             if (Fields.Mod != Mod.Register)
             {
-                Dest = $"{Disassembly.DisassembleSize(size)} PTR [{Dest}]";
+                Dest = $"[{Dest}]";
+                if((Settings | ModRMSettings.HIDEPTR) != Settings)
+                {
+                    Dest = $"{Disassembly.DisassembleSize(size)} PTR {Dest}";
+                }
             }
-            if (Settings == ModRMSettings.EXTENDED)
+            if ((Settings | ModRMSettings.EXTENDED) == Settings)
             {
                 return new List<string> { Dest };
             } else
             {
                 string Source = Disassembly.DisassembleRegister((XRegCode)Fields.Reg, size, ControlUnit.RexByte);
-                if (Settings == ModRMSettings.SWAP)
+                if ((Settings | ModRMSettings.SWAP) == Settings)
                 {
                     return new List<string> { Source, Dest };
                 }

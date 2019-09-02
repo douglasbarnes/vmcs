@@ -319,6 +319,7 @@ namespace debugger.Hypervisor
         }
         private static bool TryParseHex(string hex, out byte[] Output)
         {
+            hex = hex.Trim();
             if (hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
             Output = new byte[hex.Length / 2];
             for (int ByteIndex = 0; ByteIndex < hex.Length / 2; ByteIndex++)

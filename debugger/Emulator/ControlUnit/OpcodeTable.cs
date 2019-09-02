@@ -122,6 +122,9 @@ namespace debugger.Emulator
                   { 0x89, () => new Mov(new ModRM(FetchNext())) },
                   { 0x8A, () => new Mov(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE) },
                   { 0x8B, () => new Mov(new ModRM(FetchNext(), ModRMSettings.SWAP))},
+
+                  { 0x8D, () => new Lea(new ModRM(FetchNext(), ModRMSettings.SWAP | ModRMSettings.HIDEPTR))},
+
                   { 0x8F, () => new Pop(new ModRM(FetchNext())) },
                   { 0x90, () => new Nop() },
                   { 0x91, () => new Xchg(new ImplicitRegister(XRegCode.A, XRegCode.C )) },

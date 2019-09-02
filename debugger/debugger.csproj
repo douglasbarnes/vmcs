@@ -75,6 +75,7 @@
     <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
     <Compile Include="Emulator\Opcodes\C\Call.cs" />
     <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
+    <Compile Include="Emulator\Opcodes\L\Lea.cs" />
     <Compile Include="Emulator\Opcodes\R\Ret.cs" />
     <Compile Include="Emulator\Opcodes\R\Rxr.cs" />
     <Compile Include="Emulator\Opcodes\R\Rxl.cs" />
@@ -291,6 +292,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\Retcall.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Testcases\Lea.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\_Example.xml">
