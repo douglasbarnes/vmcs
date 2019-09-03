@@ -72,7 +72,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
+    <Compile Include="Emulator\DecodedTypes\DecodedCompound.cs" />
     <Compile Include="Emulator\Opcodes\C\Call.cs" />
     <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
     <Compile Include="Emulator\Opcodes\L\Lea.cs" />
@@ -80,7 +80,7 @@
     <Compile Include="Emulator\Opcodes\R\Rxr.cs" />
     <Compile Include="Emulator\Opcodes\R\Rxl.cs" />
     <Compile Include="Emulator\Opcodes\StringOperation.cs" />
-    <Compile Include="Emulator\DecodedTypes\ImplicitRegister.cs" />
+    <Compile Include="Emulator\DecodedTypes\MultiRegisterHandle.cs" />
     <Compile Include="Emulator\DecodedTypes\IMyDecoded.cs" />
     <Compile Include="Emulator\DecodedTypes\NoOperands.cs" />
     <Compile Include="Emulator\Opcodes\Opcode.cs" />
@@ -98,6 +98,9 @@
     <Compile Include="Emulator\Opcodes\X\Xchg.cs" />
     <Compile Include="Emulator\Opcodes\T\Test.cs" />
     <Compile Include="Emulator\Opcodes\X\Xor.cs" />
+    <Compile Include="Emulator\DecodedTypes\Immediate.cs" />
+    <Compile Include="Emulator\DecodedTypes\RegisterHandle.cs" />
+    <Compile Include="Emulator\DecodedTypes\Constant.cs" />
     <Compile Include="Emulator\SIB.cs" />
     <Compile Include="Emulator\ControlUnit\OpcodeTable.cs" />
     <Compile Include="Emulator\Opcodes\M\Mov.cs" />
@@ -253,7 +256,9 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Emulator\RetrievableTypes\" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="Testcases\Cbw.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

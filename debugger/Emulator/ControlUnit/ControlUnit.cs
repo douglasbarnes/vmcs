@@ -1,5 +1,4 @@
 ﻿using System;
-using debugger.Logging;
 using System.Collections.Generic;
 using debugger.Util;
 using debugger.Emulator.Opcodes;
@@ -88,57 +87,7 @@ namespace debugger.Emulator
         private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); }
         public static FlagSet Flags { get => CurrentContext.Flags; }
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; private set { CurrentContext.InstructionPointer = value; } }
-        public static REX RexByte = REX.NONE;
-        public struct RegisterHandle
-        {
-            public XRegCode Code;
-            public RegisterTable Table;
-            public RegisterCapacity Size;
-            public bool OverrideRex;
-            public RegisterHandle(XRegCode registerCode, RegisterTable table, RegisterCapacity size=RegisterCapacity.NONE)
-            {
-                Code = registerCode;
-                Table = table;
-                Size = size;
-                OverrideRex = false;
-            }
-            public byte[] Value
-            {
-                get => true ? Fetch() : throw new LoggedException(LogCode.REGISTER_NOSIZE);
-                set => true ? Set(value) : throw new LoggedException(LogCode.REGISTER_NOSIZE);
-            }
-            private byte[] Fetch()
-            {
-                if(Size == RegisterCapacity.BYTE
-                && Code > XRegCode.B
-                && (RexByte == REX.NONE || OverrideRex))
-                {
-                    return Bitwise.Subarray(CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4], 1);
-                }
-                else
-                {
-                    return CurrentContext.Registers[Table, Size, Code];
-                }
-            }
-            private void Set(byte[] data)
-            {
-                if((int)Size != data.Length)
-                {
-                    throw new LoggedException(LogCode.REGISTER_BADLEN, "");
-                }
-                if (Table == RegisterTable.GP
-                    && data.Length == (int)RegisterCapacity.BYTE
-                    && (int)Code > 3 && (RexByte == REX.NONE || OverrideRex)) // setting higher bit of gp word reg
-                { // e.g AH has the same integer value as SP(SP has no higher bit register) so when 0b101 is accessed with byte width we need to sub 4 to get the normal reg code for that reg then set higher bit ourselves 
-                    CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4] = new byte[] { CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4][0], data[0] };
-                }
-                else
-                {
-                    if (data.Length == 4) { data = Bitwise.ZeroExtend(data, 8); }
-                    CurrentContext.Registers[Table, (RegisterCapacity)data.Length, Code] = data;
-                }
-            }
-        }
+        public static REX RexByte = REX.NONE;        
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1;
@@ -198,65 +147,20 @@ namespace debugger.Emulator
             }
             return output;
         }
-        private static byte[] FetchRegister(XRegCode register, RegisterCapacity size, bool IgnoreRex=false, RegisterTable table = RegisterTable.GP)
-        {
-            if (size == RegisterCapacity.BYTE && register > XRegCode.B && (RexByte == REX.NONE || IgnoreRex))
-            {
-                return Bitwise.Subarray(CurrentContext.Registers[table, RegisterCapacity.WORD, register - 4], 1);
-            }
-            else
-            {
-                return CurrentContext.Registers[table, size, register];
-            }
-        }
-        private static void SetRegister(XRegCode register, byte[] data, bool IgnoreRex=false, RegisterTable table = RegisterTable.GP)
-        {
-            // pretty way has a cost http://prntscr.com/os6et3
-            if (data.Length == 1 || data.Length == 2 || data.Length == 4 || data.Length == 8)
-            {
-                if (table == RegisterTable.GP 
-                    && data.Length == (int)RegisterCapacity.BYTE 
-                    && (int)register > 3 && (RexByte == REX.NONE || IgnoreRex)) // setting higher bit of gp word reg
-                { // e.g AH has the same integer value as SP(SP has no higher bit register) so when 0b101 is accessed with byte width we need to sub 4 to get the normal reg code for that reg then set higher bit ourselves 
-                    CurrentContext.Registers[table, RegisterCapacity.WORD, register - 4] = new byte[] { CurrentContext.Registers[table, RegisterCapacity.WORD, register - 4][0], data[0] };
-                }
-                else
-                {
-                    if (data.Length == 4) { data = Bitwise.ZeroExtend(data, 8); }
-                    CurrentContext.Registers[table, (RegisterCapacity)data.Length, register] = data;
-                }
-            }
-            else
-            {
-                throw new Exception("Control Unit: Cannot infer size of target register");
-            }            
-        }
-        public static void SetMemory(ulong address, byte[] data)
-        {
-            for (uint iOffset = 0; iOffset < data.Length; iOffset++)
-            {
-                CurrentContext.Memory[address + iOffset] = data[iOffset];
-            }
-
-        }
-        public static void SetFlags(FlagSet input)
-        {
-            CurrentContext.Flags.Overlap(input);
-        }
         public static byte FetchNext()
         {
             byte Fetched = Fetch(CurrentContext.InstructionPointer, 1)[0];
             CurrentContext.InstructionPointer++;
             return Fetched;
         }
-        public static byte[] FetchNext(byte count)
+        public static byte[] FetchNext(int count)
         {
-            byte[] baOutput = new byte[count];
+            byte[] Output = new byte[count];
             for (int i = 0; i < count; i++)
             {
-                baOutput[i] = FetchNext();
+                Output[i] = FetchNext();
             }
-            return baOutput;
+            return Output;
         }
         public static void Jump(ulong address)
         {

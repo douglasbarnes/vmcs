@@ -4,15 +4,17 @@ namespace debugger.Emulator.Opcodes
 {
     public class Xchg : Opcode
     {
-        readonly List<byte[]> DestSource;
-        public Xchg(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("XCHG", input, settings)
+        private readonly List<byte[]> DestSource;
+        private readonly DecodedTypes.IMyMultiDecoded Input;
+        public Xchg(DecodedTypes.IMyMultiDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("XCHG", input, settings)
         {
             DestSource = Fetch();
+            Input = input;
         } 
         public override void Execute()
         {
             Set(DestSource[1]);
-            SetSource(DestSource[0]);
+            Input.SetSource(DestSource[0]);
         }
     }
 }

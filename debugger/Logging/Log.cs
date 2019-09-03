@@ -8,7 +8,7 @@ namespace debugger.Logging
     {  
         NONE,
         REGISTER_BADLEN,
-        REGISTER_NOSIZE,
+        REGISTER_NOTREADY,
         DISASSEMBLY_RIPNOTFOUND,
         FLAGSET_INVALIDINPUT,
         TESTCASE_RUNTIME,
@@ -41,7 +41,7 @@ namespace debugger.Logging
     {
         private static readonly Dictionary<LogCode, (Severity, string)> LogMessages = new Dictionary<LogCode, (Severity, string)>()
         {
-            { REGISTER_NOSIZE, (Severity.ERROR, "Attempt to access register before it had a size assigned.") },
+            { REGISTER_NOTREADY, (Severity.ERROR, "Attempt to access register before it had a size assigned.") },
             { REGISTER_BADLEN, (Severity.ERROR, "Register was set to a length that did not match it's capacity.") },
             { DISASSEMBLY_RIPNOTFOUND, (Severity.CRITICAL, "RIP('{0}') pointed to an address not in the internal disassembly list view dictionary.") },
             { FLAGSET_INVALIDINPUT, (Severity.CRITICAL, "Attempt to access invalid flag, '{0}'.") },

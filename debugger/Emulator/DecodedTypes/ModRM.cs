@@ -1,6 +1,6 @@
-﻿using System;
+﻿using debugger.Util;
+using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator.DecodedTypes
 {
     public enum ModRMSettings
@@ -10,8 +10,7 @@ namespace debugger.Emulator.DecodedTypes
         EXTENDED = 2,
         HIDEPTR = 4,
     }
-    
-    public class ModRM : IMyDecoded
+    public class ModRM : IMyMultiDecoded
     {//everything here is MR encoded by default. doesn't affect anything
         public enum Mod
         {
@@ -20,9 +19,11 @@ namespace debugger.Emulator.DecodedTypes
             PointerImm32,
             Register
         }
-        public XRegCode Source { get; private set; }
+        public ControlUnit.RegisterHandle Source;
         private ulong Destination;
         private long Offset;
+        private RegisterCapacity _size;
+        public RegisterCapacity Size { get => _size; private set; }
         public ulong EffectiveAddress { get => Destination + (ulong)Offset; }
         private SIB? DecodedSIB;
         private DeconstructedModRM Fields;
@@ -36,23 +37,27 @@ namespace debugger.Emulator.DecodedTypes
             {
                 (Mod, Reg, Mem) = ((Mod)mod, reg, mem);
             }
-        }        
+        }
+        public void Initialise(RegisterCapacity size)
+        {
+            _size = size;
+            Source = new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP, Size);
+        }
+        public ModRM(ModRMSettings settings = ModRMSettings.NONE)
+        {
+            Settings = settings;
+            Construct(ControlUnit.FetchNext());
+        }
         public ModRM(byte input, ModRMSettings settings = ModRMSettings.NONE)
         {
             Settings = settings;
+            Construct(input);
+        }
+        private void Construct(byte input)
+        {            
             string Bits = Bitwise.GetBits(input);
             Fields = new DeconstructedModRM(Convert.ToByte(Bits.Substring(0, 2), 2), Convert.ToByte(Bits.Substring(2, 3), 2), Convert.ToByte(Bits.Substring(5, 3), 2));
-            Initialise();
-        }
-        public ModRM(byte mod, byte reg, byte mem, ModRMSettings settings = ModRMSettings.NONE)
-        {
-            Settings = settings;
-            Fields = new DeconstructedModRM(mod, reg, mem);
-            Initialise();
-        }
-        private void Initialise()
-        {
-            if((ControlUnit.RexByte | REX.B) == ControlUnit.RexByte)
+            if ((ControlUnit.RexByte | REX.B) == ControlUnit.RexByte)
             {
                 Fields.Mem |= 8;
             }
@@ -62,7 +67,6 @@ namespace debugger.Emulator.DecodedTypes
             }
             Offset = 0;
             DecodedSIB = null;
-            Source = (XRegCode)Fields.Reg;
             if (Fields.Mod == Mod.Register)
             {
                 Destination = Fields.Mem;
@@ -82,9 +86,8 @@ namespace debugger.Emulator.DecodedTypes
                 }
                 else
                 {
-                    Destination = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)Fields.Mem, RegisterCapacity.QWORD), 0);
+                    Destination = BitConverter.ToUInt64(new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, RegisterCapacity.QWORD).Value, 0);
                 }
-
                 if (Fields.Mod == Mod.PointerImm8)
                 {
                     Offset += (sbyte)ControlUnit.FetchNext();
@@ -95,9 +98,9 @@ namespace debugger.Emulator.DecodedTypes
                 }
             }
         }
-        public List<string> Disassemble(RegisterCapacity size)
+        public List<string> Disassemble()
         {
-            Disassembly.Pointer DestPtr = new Disassembly.Pointer() { BaseReg = Disassembly.DisassembleRegister((XRegCode)Fields.Mem, size, ControlUnit.RexByte) };
+            Disassembly.Pointer DestPtr = new Disassembly.Pointer() { BaseReg = Disassembly.DisassembleRegister(new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size)) };
             if (Fields.Mem == 5 && Fields.Mod == 0)
             {
                 DestPtr.BaseReg = "RIP";
@@ -111,17 +114,18 @@ namespace debugger.Emulator.DecodedTypes
             if (Fields.Mod != Mod.Register)
             {
                 Dest = $"[{Dest}]";
-                if((Settings | ModRMSettings.HIDEPTR) != Settings)
+                if ((Settings | ModRMSettings.HIDEPTR) != Settings)
                 {
-                    Dest = $"{Disassembly.DisassembleSize(size)} PTR {Dest}";
+                    Dest = $"{Disassembly.DisassembleSize(Size)} PTR {Dest}";
                 }
             }
             if ((Settings | ModRMSettings.EXTENDED) == Settings)
             {
                 return new List<string> { Dest };
-            } else
+            }
+            else
             {
-                string Source = Disassembly.DisassembleRegister((XRegCode)Fields.Reg, size, ControlUnit.RexByte);
+                string Source = Disassembly.DisassembleRegister(new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP, Size));
                 if ((Settings | ModRMSettings.SWAP) == Settings)
                 {
                     return new List<string> { Source, Dest };
@@ -132,59 +136,59 @@ namespace debugger.Emulator.DecodedTypes
                 }
             }
         }
-        public List<byte[]> Fetch(RegisterCapacity length)
+        public List<byte[]> Fetch()
         {
-            List<byte[]> Output = new List<byte[]>();            
+            List<byte[]> Output = new List<byte[]>();
             byte[] DestBytes;
             if (Fields.Mod == Mod.Register)
             {
-                DestBytes = ControlUnit.FetchRegister((XRegCode)Destination, length);
+                DestBytes = new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size).Fetch()[0];
             }
             else
             {
-                DestBytes = ControlUnit.Fetch(Destination + (ulong)Offset, (int)length);
+                DestBytes = ControlUnit.Fetch(Destination + (ulong)Offset, (int)Size);
             }
             Output.Add(DestBytes);
-            if(Settings != ModRMSettings.EXTENDED)
+            if (Settings != ModRMSettings.EXTENDED)
             {
-                Output.Add(ControlUnit.FetchRegister(Source, length));
-            }         
-            if(Settings == ModRMSettings.SWAP)
+                Output.Add(Source.Fetch()[0]);
+            }
+            if (Settings == ModRMSettings.SWAP)
             {
                 Output.Reverse();
             }
             return Output;
         }
-        public void Set(byte[] data) => SetInternal(data, false);
-        public void SetSource(byte[] data) => SetInternal(data, true);
-        private void SetInternal(byte[] data, bool forceSwap)
+        public void Set(byte[] data) => _set(data, false);
+        public void SetSource(byte[] data) => _set(data, true);
+        private void _set(byte[] data, bool forceSwap)
         {
             forceSwap ^= Settings == ModRMSettings.SWAP;
             if (Fields.Mod == Mod.Register)
             {
                 if (forceSwap)
                 {
-                    ControlUnit.SetRegister(Source, data);
+                    Source.Value = data;
                 }
                 else
                 {
-                    ControlUnit.SetRegister((XRegCode)Destination, data);
+                    ControlUnit.RegisterHandle DestHandle = new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size)
+                    {
+                        Value = data
+                    };
                 }
-
             }
             else
             {
                 if (forceSwap)
                 {
-                    ControlUnit.SetRegister(Source, data);
+                    Source.Value = data;
                 }
                 else
                 {
                     ControlUnit.SetMemory(Destination + (ulong)Offset, data);
                 }
-
             }
         }
     }
-    
 }

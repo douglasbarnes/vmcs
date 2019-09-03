@@ -26,7 +26,7 @@ namespace debugger.Emulator
                   { 0x01, () => new Add(new ModRM(FetchNext()), UseCarry:false) },
                   { 0x02, () => new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE, UseCarry:false)},
                   { 0x03, () => new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), UseCarry:false)},
-                  { 0x04, () => new Add(new ImplicitRegister(XRegCode.A), BYTEMODE | IMMEDIATE, UseCarry:false) },
+                  { 0x04, () => new Add(new [] {new RegisterHandle(XRegCode.A, RegisterTable.GP) }, BYTEMODE | IMMEDIATE, UseCarry:false) },
                   { 0x05, () => new Add(new ImplicitRegister(XRegCode.A), IMMEDIATE, UseCarry:false)},
 
                   { 0x08, () => new  Or(new ModRM(FetchNext()), BYTEMODE)},
@@ -406,7 +406,7 @@ namespace debugger.Emulator
         private static Opcode DecodeExtension(byte opcode)
         {
             ModRM InputModRM = new ModRM(FetchNext(), ModRMSettings.EXTENDED);
-            return ExtendedOpcodeTable[opcode][(int)InputModRM.Source](InputModRM);
+            return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
         }
     }
 }

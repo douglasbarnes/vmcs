@@ -4,9 +4,8 @@ namespace debugger.Emulator.Opcodes
     public class Call : Opcode
     {
         public Call(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
-            : base("CALL", input, 
-                  (settings | OpcodeSettings.RELATIVE) == settings ? RegisterCapacity.DWORD : RegisterCapacity.QWORD
-                  ,settings)
+            : base("CALL", input, settings,
+                  (settings | OpcodeSettings.RELATIVE) == settings ? RegisterCapacity.DWORD : RegisterCapacity.QWORD )
         {
         } 
         public override void Execute()

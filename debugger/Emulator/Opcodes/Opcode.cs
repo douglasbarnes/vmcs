@@ -32,185 +32,102 @@ namespace debugger.Emulator.Opcodes
         NONE = 0,
         BYTEMODE = 1,
         SIGNED = 2,
-        SXTBYTE = 4,
-        ALLOWIMM64 = 8,
-        IMMEDIATE = 32,
-        EXTRA_1 = 64,
-        EXTRA_CL = 128,
-        RELATIVE = 256,
     }
     public abstract class Opcode : IMyOpcode
     {
-        protected RegisterCapacity Capacity;
+        protected RegisterCapacity Capacity { get; set; }
         public readonly OpcodeSettings Settings;
-        private readonly string Mnemonic;              
-        private byte[] ImmediateBuffer = null; //registers and memory can change so only do this for immediate.
-        private byte[] CLBuffer = null;
-        private readonly IMyDecoded InputMethod;
-        public Opcode(string opcodeMnemonic, IMyDecoded input, OpcodeSettings settings)
+        private readonly string Mnemonic;
+        private readonly IMyDecoded Input;
+        public Opcode(string opcodeMnemonic, IMyDecoded input,  OpcodeSettings settings=OpcodeSettings.NONE, RegisterCapacity opcodeCapacity = RegisterCapacity.NONE)
         {
             Mnemonic = opcodeMnemonic;
-            InputMethod = input;
+            Input = input;
             Settings = settings;
-            SetRegCap();
-            Initialise();
-        }
-        public Opcode(string opcodeMnemonic, IMyDecoded input, RegisterCapacity opcodeCapacity,  OpcodeSettings settings=OpcodeSettings.NONE)
-        {
-            Mnemonic = opcodeMnemonic;
-            InputMethod = input;
-            Settings = settings;
-            Capacity = opcodeCapacity;
+            Capacity = (opcodeCapacity == RegisterCapacity.NONE) ? SetRegCap() : opcodeCapacity;
             Initialise();
         }
         private void Initialise()
         {
-            if((Settings | OpcodeSettings.EXTRA_CL) == Settings)
+            for (int i = 0; i < Input.Length; i++)
             {
-                CLBuffer = FetchRegister(XRegCode.C, RegisterCapacity.BYTE, true);
-            }
-            if((Settings | OpcodeSettings.IMMEDIATE) == Settings)
-            {
-                if ((Settings | OpcodeSettings.SXTBYTE) == Settings)
-                {
-                    ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
-                }
-                else if (Capacity == RegisterCapacity.QWORD)
-                {
-                    if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
-                    {
-                        ImmediateBuffer = FetchNext(8);
-                    }
-                    else
-                    {
-                        ImmediateBuffer = Bitwise.SignExtend(FetchNext(4), 8);
-                    }
-                }
-                else
-                {
-                    ImmediateBuffer = FetchNext((byte)Capacity);
-                }
-                if((Settings | OpcodeSettings.RELATIVE) == Settings)
-                {
-                    ImmediateBuffer = Bitwise.SignExtend(ImmediateBuffer, 8);
-                    Bitwise.Add(ImmediateBuffer, BitConverter.GetBytes(InstructionPointer), (int)8, out ImmediateBuffer);
-                }
-            }            
+                Input[i].Initialise(Capacity);
+            }         
         }
-        ///<summary>
-        /// Priority
-        /// (Input method output)
-        /// Extra 1
-        /// Extra CL
-        /// Immediate
-        /// </summary>    
         protected List<byte[]> Fetch()
         {
-            List<byte[]> Output = InputMethod.Fetch(Capacity);
-            if((Settings | OpcodeSettings.EXTRA_1) == Settings)
+            List<byte[]> Output = new List<byte[]>();
+            for (int i = 0; i < Input.Length; i++)
             {
-                Output.Add(Bitwise.ZeroExtend(new byte[] { 1 }, (byte)Capacity));
-            }
-            if((Settings | OpcodeSettings.EXTRA_CL) == Settings)
-            {
-                Output.Add(CLBuffer);
-            }
-            if ((Settings | OpcodeSettings.IMMEDIATE) == Settings)
-            {
-                Output.Add(ImmediateBuffer);
+                Output.AddRange(Input[i].Fetch());
             }
             return Output;
         }
-        protected void Set(byte[] data) { data = Bitwise.ZeroExtend(data, (byte)Capacity); InputMethod.Set(data); }
-        protected void SetSource(byte[] data) { data = Bitwise.ZeroExtend(data, (byte)Capacity); InputMethod.SetSource(data); }
+        protected void Set(byte[] data) => Input.Set(Bitwise.ZeroExtend(data, (byte)Capacity));
         public abstract void Execute();
-        ///<summary>
-        /// Priority
-        /// (Input method output)
-        /// Extra 1
-        /// Extra CL
-        /// Immediate
-        /// </summary>  
         public virtual List<string> Disassemble()
         {
-            List<string> Output = new List<string> { Mnemonic };
-            Output.AddRange(InputMethod.Disassemble(Capacity));
-            if((Settings | OpcodeSettings.EXTRA_1) == Settings)
-            {
-                Output.Add("0x1");
-            }
-            if ((Settings | OpcodeSettings.EXTRA_CL) == Settings)
-            {
-                Output.Add("CL");
-            }
-            if (ImmediateBuffer != null)
-            {
-                Output.Add($"0x{Core.Atoi(ImmediateBuffer)}"); //atoi also converts little to big endian
-            }
+            List<string> Output = new List<string>() { Mnemonic };
+            Output.AddRange(Input.Disassemble());
             return Output;
         }
-        protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.DWORD)
+        protected RegisterCapacity SetRegCap()
         {
-            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.BYTE;
-            else if ((RexByte | REX.W) == RexByte) Capacity = RegisterCapacity.QWORD;
-            else if (LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.WORD;
-            else Capacity = defaultCapacity;
-        }
-        protected bool TestCondition(Condition condition)
-        {
-            switch(condition)
+            if ((Settings | OpcodeSettings.BYTEMODE) == Settings)
             {
-                case Condition.A: // used for signed
-                    return Flags.Carry == FlagState.OFF && Flags.Zero == FlagState.OFF;
-                case Condition.NA: // used for signed
-                    return Flags.Carry == FlagState.ON || Flags.Zero == FlagState.ON;
-                case Condition.C: // used for signed
-                    return Flags.Carry == FlagState.ON;
-                case Condition.NC: // used for signed
-                    return Flags.Carry == FlagState.OFF;
-                case Condition.RCXZ: //exists because of loops using C reg as the iterator, have to hard code it like this, risky using Capacity here
-                    return (LPrefixBuffer.Contains(PrefixByte.ADDROVR) && FetchRegister(XRegCode.A, RegisterCapacity.DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.QWORD).IsZero();
-                case Condition.Z:
-                    return Flags.Zero == FlagState.ON;
-                case Condition.NZ:
-                    return Flags.Zero == FlagState.OFF;
-                case Condition.G: // used for unsigned
-                    return Flags.Zero == FlagState.OFF && Flags.Sign == Flags.Overflow;
-                case Condition.GE: // used for unsigned
-                    return Flags.Sign == Flags.Overflow;
-                case Condition.L: // used for unsigned
-                    return Flags.Sign != Flags.Overflow;
-                case Condition.LE: // used for unsigned
-                    return Flags.Zero == FlagState.ON || Flags.Sign != Flags.Overflow;
-                case Condition.O:
-                    return Flags.Overflow == FlagState.ON;
-                case Condition.NO:
-                    return Flags.Overflow == FlagState.OFF;
-                case Condition.S:
-                    return Flags.Sign == FlagState.ON;
-                case Condition.NS:
-                    return Flags.Sign == FlagState.OFF;
-                case Condition.P:
-                    return Flags.Parity == FlagState.ON;
-                case Condition.NP:
-                    return Flags.Parity == FlagState.OFF;
-                default:
-                    return true; //Condition.None
+                return RegisterCapacity.BYTE;
+            }
+            else if ((RexByte | REX.W) == RexByte)
+            {
+                return RegisterCapacity.QWORD;
+            }
+            else if (LPrefixBuffer.Contains(PrefixByte.SIZEOVR))
+            {
+                return RegisterCapacity.WORD;
+            }
+            else
+            {
+                return RegisterCapacity.DWORD;
             }
         }
+        private static readonly RegisterHandle EAX = new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.DWORD);
+        private static readonly RegisterHandle RAX = new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.QWORD);
+        protected bool TestCondition(Condition condition) 
+            => condition switch
+            {
+                Condition.A => Flags.Carry == FlagState.OFF && Flags.Zero == FlagState.OFF,
+                Condition.NA => Flags.Carry == FlagState.ON || Flags.Zero == FlagState.ON,
+                Condition.C => Flags.Carry == FlagState.ON,
+                Condition.NC => Flags.Carry == FlagState.OFF,
+                Condition.RCXZ => (LPrefixBuffer.Contains(PrefixByte.ADDROVR) && EAX.Fetch()[0].IsZero()) || RAX.Fetch()[0].IsZero(),
+                Condition.Z => Flags.Zero == FlagState.ON,
+                Condition.NZ => Flags.Zero == FlagState.OFF,
+                Condition.G => Flags.Zero == FlagState.OFF && Flags.Sign == Flags.Overflow,
+                Condition.GE => Flags.Sign == Flags.Overflow,
+                Condition.L => Flags.Sign != Flags.Overflow,
+                Condition.LE => Flags.Zero == FlagState.ON || Flags.Sign != Flags.Overflow,
+                Condition.O => Flags.Overflow == FlagState.ON,
+                Condition.NO => Flags.Overflow == FlagState.OFF,
+                Condition.S => Flags.Sign == FlagState.ON,
+                Condition.NS => Flags.Sign == FlagState.OFF,
+                Condition.P => Flags.Parity == FlagState.ON,
+                Condition.NP => Flags.Parity == FlagState.OFF,
+                _ => true, //Condition.None
+            };        
+        private static readonly RegisterHandle StackPointer = new RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);
         protected void StackPush(byte[] data)
         {
             byte[] NewSP;
-            Bitwise.Subtract(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
-            SetRegister(XRegCode.SP, NewSP);
-            SetMemory(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), 0), data);
+            Bitwise.Subtract(StackPointer.Value, new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            StackPointer.Value = NewSP;
+            SetMemory(BitConverter.ToUInt64(StackPointer.Value, 0), data);
         }
         protected byte[] StackPop(RegisterCapacity size)
         {
-            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), 0), (int)size);
+            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(StackPointer.Value, 0), (int)size);
             byte[] NewSP;
-            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
-            SetRegister(XRegCode.SP, NewSP);
+            Bitwise.Add(StackPointer.Value, new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            StackPointer.Value = NewSP;
             return Output;
         }
         protected byte[] StackPop() => StackPop(Capacity);
