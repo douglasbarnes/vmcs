@@ -7,8 +7,17 @@ namespace debugger.Emulator
 {
     public static partial class ControlUnit
     {        
+        private enum AlternateTable
+        {
+            EXTENDED=1,
+
+        }
         private delegate IMyOpcode OpcodeCaller();
-        // format <byte size of opcode, <determining byte of opcode, method to return opcode>>
+        private delegate IMyOpcode AlternateTableCaller(byte input);
+        private static readonly Dictionary<AlternateTable, AlternateTableCaller> AlternateTableMap = new Dictionary<AlternateTable, AlternateTableCaller>()
+        {
+            { AlternateTable.EXTENDED,  (input) => DecodeExtension(input)}
+        };
         private static readonly Dictionary<byte, Dictionary<byte, OpcodeCaller>> OpcodeTable = new Dictionary<byte, Dictionary<byte, OpcodeCaller>>()
         {
             {1, new Dictionary<byte, OpcodeCaller>()
@@ -86,7 +95,7 @@ namespace debugger.Emulator
                   { 0x5F, () => new Pop (new ImplicitRegister(XRegCode.DI)) },
                   //0x60 PUSHA 32 ONLY
                   //0x61 POPA 32 ONLY
-                  { 0x63, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP), "MOVSXD", signExtend:true, RegisterCapacity.GP_DWORD) },
+                  { 0x63, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP), "MOVSXD", signExtend:true, RegisterCapacity.DWORD) },
                   //67 prefix
                   { 0x68, () => new Push(new NoOperands(), IMMEDIATE) }, // its always 32, weird
                   { 0x69, () => new  Mul(new ModRM(FetchNext(), ModRMSettings.SWAP), SIGNED | IMMEDIATE) },
@@ -110,9 +119,9 @@ namespace debugger.Emulator
                   { 0x7E, () => new Jmp(new NoOperands(), Condition.LE, IMMEDIATE | RELATIVE | SXTBYTE) },
                   { 0x7F, () => new Jmp(new NoOperands(), Condition.G , IMMEDIATE | RELATIVE | SXTBYTE) },
 
-                  { 0x80, () => DecodeExtension(0x80, 1) },
-                  { 0x81, () => DecodeExtension(0x81, 1) },
-                  { 0x83, () => DecodeExtension(0x83, 1) },
+                  { 0x80, () => AlternateTableMap[AlternateTable.EXTENDED](0x80) },
+                  { 0x81, () => AlternateTableMap[AlternateTable.EXTENDED](0x81) },
+                  { 0x83, () => AlternateTableMap[AlternateTable.EXTENDED](0x83) },
                   { 0x84, () => new Test(new ModRM(FetchNext()), BYTEMODE) },
                   { 0x85, () => new Test(new ModRM(FetchNext())) },
                   { 0x86, () => new Xchg(new ModRM(FetchNext()), BYTEMODE) },
@@ -165,20 +174,20 @@ namespace debugger.Emulator
                   { 0xBE, () => new Mov(new ImplicitRegister(XRegCode.SI), IMMEDIATE | ALLOWIMM64) },
                   { 0xBF, () => new Mov(new ImplicitRegister(XRegCode.DI), IMMEDIATE | ALLOWIMM64) },
 
-                  { 0xC0, () => DecodeExtension(0xC0, 1) },
-                  { 0xC1, () => DecodeExtension(0xC1, 1) },
+                  { 0xC0, () => AlternateTableMap[AlternateTable.EXTENDED](0xC0) },
+                  { 0xC1, () => AlternateTableMap[AlternateTable.EXTENDED](0xC1) },
                   { 0xC2, () => new Ret(new NoOperands(), IMMEDIATE) },
                   { 0xC3, () => new Ret(new NoOperands()) },
                   
                   { 0xC6, () => new Mov(new ModRM(FetchNext(), ModRMSettings.EXTENDED), IMMEDIATE | BYTEMODE)},
-                  { 0xC7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.EXTENDED), "MOV", signExtend:true, RegisterCapacity.GP_QWORD, IMMEDIATE)},
+                  { 0xC7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.EXTENDED), "MOV", signExtend:true, RegisterCapacity.QWORD, IMMEDIATE)},
 
                   
 
-                  { 0xD0, () => DecodeExtension(0xD0, 1) },
-                  { 0xD1, () => DecodeExtension(0xD1, 1) },
-                  { 0xD2, () => DecodeExtension(0xD2, 1) },
-                  { 0xD3, () => DecodeExtension(0xD3, 1) },
+                  { 0xD0, () => AlternateTableMap[AlternateTable.EXTENDED](0xD0) },
+                  { 0xD1, () => AlternateTableMap[AlternateTable.EXTENDED](0xD1) },
+                  { 0xD2, () => AlternateTableMap[AlternateTable.EXTENDED](0xD2) },
+                  { 0xD3, () => AlternateTableMap[AlternateTable.EXTENDED](0xD3) },
 
                   { 0xE3, () => new Jmp(new NoOperands(), Condition.RCXZ, IMMEDIATE | RELATIVE | SXTBYTE) },
                   
@@ -187,15 +196,15 @@ namespace debugger.Emulator
 
                   { 0xEB, () => new Jmp(new NoOperands(), Condition.NONE, BYTEMODE | IMMEDIATE | RELATIVE) },
 
-                  { 0xF6, () => DecodeExtension(0xF6, 1) },
-                  { 0xF7, () => DecodeExtension(0xF7, 1) },
+                  { 0xF6, () => AlternateTableMap[AlternateTable.EXTENDED](0xF6) },
+                  { 0xF7, () => AlternateTableMap[AlternateTable.EXTENDED](0xF7) },
                   { 0xF8, () => new Clc(new NoOperands())},
                   { 0xF9, () => new Stc(new NoOperands())},
 
                   { 0xFC, () => new Cld(new NoOperands())},
                   { 0xFD, () => new Std(new NoOperands())},
 
-                  { 0xFF, () => DecodeExtension(0xFF, 1) }
+                  { 0xFF, () => AlternateTableMap[AlternateTable.EXTENDED](0xFF) }
                 }
             },
             {2, new Dictionary<byte, OpcodeCaller>()
@@ -235,172 +244,169 @@ namespace debugger.Emulator
 
                     { 0xAF, () => new Mul(new ModRM(FetchNext(), ModRMSettings.SWAP), SIGNED)},
 
-                    { 0xB6, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVZX", signExtend:false, sourceSize:RegisterCapacity.GP_BYTE)},
-                    { 0xB7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVZX", signExtend:false, sourceSize:RegisterCapacity.GP_WORD)},
+                    { 0xB6, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVZX", signExtend:false, sourceSize:RegisterCapacity.BYTE)},
+                    { 0xB7, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVZX", signExtend:false, sourceSize:RegisterCapacity.WORD)},
 
-                    { 0xBE, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVSX", signExtend:true, sourceSize:RegisterCapacity.GP_BYTE)},
-                    { 0xBF, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVSX", signExtend:true, sourceSize:RegisterCapacity.GP_WORD)},
+                    { 0xBE, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVSX", signExtend:true, sourceSize:RegisterCapacity.BYTE)},
+                    { 0xBF, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP),"MOVSX", signExtend:true, sourceSize:RegisterCapacity.WORD)},
                 }
             }
         };
         // format <byte size of opcode, <determining byte of opcode, <offset of extension, method to return opcode>>>
         private delegate Opcode ExtendedOpcodeCaller(ModRM input); // the opcodeinput of an extended opcode can be determined from a modrm(aka pretty much the same every time)
-        private static readonly Dictionary<byte, Dictionary<byte, Dictionary<int, ExtendedOpcodeCaller>>> ExtendedOpcodeTable = new Dictionary<byte, Dictionary<byte, Dictionary<int, ExtendedOpcodeCaller>>>()
+        private static readonly Dictionary<byte, Dictionary<int, ExtendedOpcodeCaller>> ExtendedOpcodeTable = new Dictionary<byte, Dictionary<int, ExtendedOpcodeCaller>>()
         {
-            { 1, new Dictionary<byte, Dictionary<int, ExtendedOpcodeCaller>>()
+            { 0x80, new Dictionary<int, ExtendedOpcodeCaller>
             {
-                { 0x80, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Add(InputModRM, IMMEDIATE | BYTEMODE, UseCarry:false) },
-                    { 1, (InputModRM) => new Or (InputModRM, IMMEDIATE | BYTEMODE) },
-                    { 2, (InputModRM) => new Add(InputModRM, IMMEDIATE | BYTEMODE, UseCarry:true) },
-                    { 3, (InputModRM) => new Sub(InputModRM, IMMEDIATE | BYTEMODE, UseBorrow: true) },
-                    { 4, (InputModRM) => new And(InputModRM, IMMEDIATE | BYTEMODE)},
-                    { 5, (InputModRM) => new Sub(InputModRM, IMMEDIATE | BYTEMODE, UseBorrow: false) } ,
-                    { 6, (InputModRM) => new Xor(InputModRM, IMMEDIATE | BYTEMODE) }, 
-                    { 7, (InputModRM) => new Cmp(InputModRM, IMMEDIATE | BYTEMODE) },
-                }
-                },
-                { 0x81, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Add(InputModRM,IMMEDIATE, UseCarry:false) },
-                    { 1, (InputModRM) => new Or (InputModRM,IMMEDIATE) },
-                    { 2, (InputModRM) => new Add(InputModRM,IMMEDIATE, UseCarry:true) },
-                    { 3, (InputModRM) => new Sub(InputModRM,IMMEDIATE, UseBorrow: true) },
-                    { 4, (InputModRM) => new And(InputModRM,IMMEDIATE)},
-                    { 5, (InputModRM) => new Sub(InputModRM,IMMEDIATE, UseBorrow: false) } ,
-                    { 6, (InputModRM) => new Xor(InputModRM,IMMEDIATE) },
-                    { 7, (InputModRM) => new Cmp(InputModRM,IMMEDIATE) },
-                }
-                },
-                { 0x83, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Add(InputModRM,IMMEDIATE | SXTBYTE, UseCarry:false) },
-                    { 1, (InputModRM) => new Or (InputModRM,IMMEDIATE | SXTBYTE) },
-                    { 2, (InputModRM) => new Add(InputModRM,IMMEDIATE | SXTBYTE, UseCarry:true) },
-                    { 3, (InputModRM) => new Sub(InputModRM,IMMEDIATE | SXTBYTE, UseBorrow: true) },
-                    { 4, (InputModRM) => new And(InputModRM,IMMEDIATE | SXTBYTE)},
-                    { 5, (InputModRM) => new Sub(InputModRM,IMMEDIATE | SXTBYTE, UseBorrow: false) } ,
-                    { 6, (InputModRM) => new Xor(InputModRM,IMMEDIATE | SXTBYTE) },
-                    { 7, (InputModRM) => new Cmp(InputModRM,IMMEDIATE | SXTBYTE) },
-                }
-                },
-                { 0xC0, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
-
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
-                }
-                },
-                { 0xC1, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, IMMEDIATE | SXTBYTE) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, IMMEDIATE | SXTBYTE) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, IMMEDIATE | SXTBYTE) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, IMMEDIATE | SXTBYTE) },
-                    { 4, (InputModRM) => new Shl(InputModRM, IMMEDIATE | SXTBYTE) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, IMMEDIATE | SXTBYTE) },
-
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, IMMEDIATE | SXTBYTE) },
-                }
-                },
-                { 0xD0, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | EXTRA_1) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | EXTRA_1) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | EXTRA_1) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | EXTRA_1) },
-                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | EXTRA_1) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | EXTRA_1) },
-
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_1) },
-                }
-                },
-                { 0xD1, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_1) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, EXTRA_1) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_1) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, EXTRA_1) },
-                    { 4, (InputModRM) => new Shl(InputModRM, EXTRA_1) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_1) },
-
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_1) },
-                }
-                },
-                { 0xD2, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE |  EXTRA_CL) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | EXTRA_CL) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE |  EXTRA_CL) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | EXTRA_CL) },
-                    { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE |  EXTRA_CL) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE |EXTRA_CL ) },
-                                                                                        
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_CL  ) },
-                }
-                },
-                { 0xD3, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_CL) },
-                    { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, EXTRA_CL) },
-                    { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_CL) },
-                    { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, EXTRA_CL) },
-                    { 4, (InputModRM) => new Shl(InputModRM, EXTRA_CL) },
-                    { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_CL) },
-
-                    { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_CL) },
-                }
-                },
-                { 0xF6, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Test(InputModRM, BYTEMODE | IMMEDIATE) },
-                    { 4, (InputModRM) => new Mul(InputModRM, BYTEMODE) },
-                    { 5, (InputModRM) => new Mul(InputModRM, BYTEMODE | SIGNED) },
-                    { 6, (InputModRM) => new Div(InputModRM, BYTEMODE) },
-                    { 7, (InputModRM) => new Div(InputModRM, BYTEMODE | SIGNED) }
-                }
-                },
-                { 0xF7, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Test(InputModRM, IMMEDIATE) },
-                    { 4, (InputModRM) => new Mul(InputModRM) },
-                    { 5, (InputModRM) => new Mul(InputModRM, SIGNED) },
-                    { 6, (InputModRM) => new Div(InputModRM) },
-                    { 7, (InputModRM) => new Div(InputModRM, SIGNED) }
-                }
-                },
-                { 0xFE, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                     { 0, (InputModRM) => new Inc(InputModRM, BYTEMODE) },
-                     { 1, (InputModRM) => new Dec(InputModRM, BYTEMODE) },
-                }
-                },
-                { 0xFF, new Dictionary<int, ExtendedOpcodeCaller>
-                {
-                    { 0, (InputModRM) => new Inc(InputModRM) },
-                    { 1, (InputModRM) => new Dec(InputModRM) },
-                    { 2, (InputModRM) => new Call(InputModRM) },
-                    { 4, (InputModRM) => new Jmp(InputModRM) },
-                    { 6, (InputModRM) => new Push(InputModRM) }
-                }
-                }
+                { 0, (InputModRM) => new Add(InputModRM, IMMEDIATE | BYTEMODE, UseCarry:false) },
+                { 1, (InputModRM) => new Or (InputModRM, IMMEDIATE | BYTEMODE) },
+                { 2, (InputModRM) => new Add(InputModRM, IMMEDIATE | BYTEMODE, UseCarry:true) },
+                { 3, (InputModRM) => new Sub(InputModRM, IMMEDIATE | BYTEMODE, UseBorrow: true) },
+                { 4, (InputModRM) => new And(InputModRM, IMMEDIATE | BYTEMODE)},
+                { 5, (InputModRM) => new Sub(InputModRM, IMMEDIATE | BYTEMODE, UseBorrow: false) } ,
+                { 6, (InputModRM) => new Xor(InputModRM, IMMEDIATE | BYTEMODE) }, 
+                { 7, (InputModRM) => new Cmp(InputModRM, IMMEDIATE | BYTEMODE) },
             }
+            },
+            { 0x81, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Add(InputModRM,IMMEDIATE, UseCarry:false) },
+                { 1, (InputModRM) => new Or (InputModRM,IMMEDIATE) },
+                { 2, (InputModRM) => new Add(InputModRM,IMMEDIATE, UseCarry:true) },
+                { 3, (InputModRM) => new Sub(InputModRM,IMMEDIATE, UseBorrow: true) },
+                { 4, (InputModRM) => new And(InputModRM,IMMEDIATE)},
+                { 5, (InputModRM) => new Sub(InputModRM,IMMEDIATE, UseBorrow: false) } ,
+                { 6, (InputModRM) => new Xor(InputModRM,IMMEDIATE) },
+                { 7, (InputModRM) => new Cmp(InputModRM,IMMEDIATE) },
             }
+            },
+            { 0x83, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Add(InputModRM,IMMEDIATE | SXTBYTE, UseCarry:false) },
+                { 1, (InputModRM) => new Or (InputModRM,IMMEDIATE | SXTBYTE) },
+                { 2, (InputModRM) => new Add(InputModRM,IMMEDIATE | SXTBYTE, UseCarry:true) },
+                { 3, (InputModRM) => new Sub(InputModRM,IMMEDIATE | SXTBYTE, UseBorrow: true) },
+                { 4, (InputModRM) => new And(InputModRM,IMMEDIATE | SXTBYTE)},
+                { 5, (InputModRM) => new Sub(InputModRM,IMMEDIATE | SXTBYTE, UseBorrow: false) } ,
+                { 6, (InputModRM) => new Xor(InputModRM,IMMEDIATE | SXTBYTE) },
+                { 7, (InputModRM) => new Cmp(InputModRM,IMMEDIATE | SXTBYTE) },
+            }
+            },
+            { 0xC0, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | IMMEDIATE | SXTBYTE) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | IMMEDIATE | SXTBYTE) },
+
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | IMMEDIATE | SXTBYTE) },
+            }
+            },
+            { 0xC1, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, IMMEDIATE | SXTBYTE) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, IMMEDIATE | SXTBYTE) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, IMMEDIATE | SXTBYTE) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, IMMEDIATE | SXTBYTE) },
+                { 4, (InputModRM) => new Shl(InputModRM, IMMEDIATE | SXTBYTE) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, IMMEDIATE | SXTBYTE) },
+
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, IMMEDIATE | SXTBYTE) },
+            }
+            },
+            { 0xD0, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE | EXTRA_1) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | EXTRA_1) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE | EXTRA_1) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | EXTRA_1) },
+                { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE | EXTRA_1) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE | EXTRA_1) },
+
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_1) },
+            }
+            },
+            { 0xD1, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_1) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, EXTRA_1) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_1) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, EXTRA_1) },
+                { 4, (InputModRM) => new Shl(InputModRM, EXTRA_1) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_1) },
+
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_1) },
+            }
+            },
+            { 0xD2, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, BYTEMODE |  EXTRA_CL) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, BYTEMODE | EXTRA_CL) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, BYTEMODE |  EXTRA_CL) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, BYTEMODE | EXTRA_CL) },
+                { 4, (InputModRM) => new Shl(InputModRM, BYTEMODE |  EXTRA_CL) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, BYTEMODE |EXTRA_CL ) },
+                                                                                    
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, BYTEMODE | EXTRA_CL  ) },
+            }
+            },
+            { 0xD3, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Rxl(InputModRM, useCarry:false, EXTRA_CL) },
+                { 1, (InputModRM) => new Rxr(InputModRM, useCarry:false, EXTRA_CL) },
+                { 2, (InputModRM) => new Rxl(InputModRM, useCarry:true, EXTRA_CL) },
+                { 3, (InputModRM) => new Rxr(InputModRM, useCarry:true, EXTRA_CL) },
+                { 4, (InputModRM) => new Shl(InputModRM, EXTRA_CL) },
+                { 5, (InputModRM) => new Sxr(InputModRM, arithmetic:false, EXTRA_CL) },
+
+                { 7, (InputModRM) => new Sxr(InputModRM, arithmetic:true, EXTRA_CL) },
+            }
+            },
+            { 0xF6, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Test(InputModRM, BYTEMODE | IMMEDIATE) },
+                { 4, (InputModRM) => new Mul(InputModRM, BYTEMODE) },
+                { 5, (InputModRM) => new Mul(InputModRM, BYTEMODE | SIGNED) },
+                { 6, (InputModRM) => new Div(InputModRM, BYTEMODE) },
+                { 7, (InputModRM) => new Div(InputModRM, BYTEMODE | SIGNED) }
+            }
+            },
+            { 0xF7, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Test(InputModRM, IMMEDIATE) },
+                { 4, (InputModRM) => new Mul(InputModRM) },
+                { 5, (InputModRM) => new Mul(InputModRM, SIGNED) },
+                { 6, (InputModRM) => new Div(InputModRM) },
+                { 7, (InputModRM) => new Div(InputModRM, SIGNED) }
+            }
+            },
+            { 0xFE, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                 { 0, (InputModRM) => new Inc(InputModRM, BYTEMODE) },
+                 { 1, (InputModRM) => new Dec(InputModRM, BYTEMODE) },
+            }
+            },
+            { 0xFF, new Dictionary<int, ExtendedOpcodeCaller>
+            {
+                { 0, (InputModRM) => new Inc(InputModRM) },
+                { 1, (InputModRM) => new Dec(InputModRM) },
+                { 2, (InputModRM) => new Call(InputModRM) },
+                { 4, (InputModRM) => new Jmp(InputModRM) },
+                { 6, (InputModRM) => new Push(InputModRM) }
+            }
+            }            
+            
         };
         //byte = opcode, Dict<byte = displacement(increment doesnt matter), action = thing to do>
         // opcodes with one operand e.g inc eax (increment eax) don't use the REG bits in modRM, so the regbits can be used to make extra instructions instead
         // so we can have one "opcode byte" that has meanings depending on the REG bits
         // reg bit starts at the 8 dec val position in a string of bits e.g "01[100]111" [REG] so each offset is -8 each time
-        private static Opcode DecodeExtension(byte opcode, byte bytesInOpcode)
+        private static Opcode DecodeExtension(byte opcode)
         {
             ModRM InputModRM = new ModRM(FetchNext(), ModRMSettings.EXTENDED);
-            return ExtendedOpcodeTable[bytesInOpcode][opcode][(int)InputModRM.Source](InputModRM);
+            return ExtendedOpcodeTable[opcode][(int)InputModRM.Source](InputModRM);
         }
     }
 }

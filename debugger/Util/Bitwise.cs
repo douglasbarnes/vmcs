@@ -346,16 +346,16 @@ namespace debugger.Util
             {
                 StartCount = size switch
                 {
-                    RegisterCapacity.GP_BYTE => (byte)((bitRotates & 0x1F) % 9),
-                    RegisterCapacity.GP_WORD => (byte)((bitRotates & 0x1F) % 17),
-                    RegisterCapacity.GP_DWORD => (byte)(bitRotates & 0x1F),
-                    RegisterCapacity.GP_QWORD => (byte)(bitRotates & 0x3F),
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
+                    RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
+                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
+                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
                     _ => throw new Exception(),
                 };
             }
             else
             {
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.GP_QWORD) ? 0x3F : 0x1F));
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
             }            
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }
@@ -404,16 +404,16 @@ namespace debugger.Util
             {
                 StartCount = size switch
                 {
-                    RegisterCapacity.GP_BYTE => (byte)((bitRotates & 0x1F) % 9),
-                    RegisterCapacity.GP_WORD => (byte)((bitRotates & 0x1F) % 17),
-                    RegisterCapacity.GP_DWORD => (byte)(bitRotates & 0x1F),
-                    RegisterCapacity.GP_QWORD => (byte)(bitRotates & 0x3F),
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
+                    RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
+                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
+                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
                     _ => throw new Exception(),
                 };
             }
             else
             {
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.GP_QWORD) ? 0x3F : 0x1F));
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
             }
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }

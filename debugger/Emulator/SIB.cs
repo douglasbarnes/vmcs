@@ -47,7 +47,7 @@ namespace debugger.Emulator
             }
             Bits = new DeconstructedSIB(scale, index ,_base);
             Mod = mod;
-            PointerSize = (ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD);
+            PointerSize = (ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD);
             if (index != 4)//4 == none
             {
                 IndexValue = (byte)Math.Pow(2,scale) * BitConverter.ToUInt64(Bitwise.SignExtend(ControlUnit.FetchRegister((XRegCode)index, PointerSize), 8), 0);
@@ -55,7 +55,7 @@ namespace debugger.Emulator
 
             if (_base != 5) // 5 = ptr or rbp+ptr
             {
-                BaseValue = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)_base, RegisterCapacity.GP_QWORD), 0);
+                BaseValue = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)_base, RegisterCapacity.QWORD), 0);
             }
             else
             {

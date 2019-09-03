@@ -7,6 +7,8 @@ namespace debugger.Logging
     public enum LogCode
     {  
         NONE,
+        REGISTER_BADLEN,
+        REGISTER_NOSIZE,
         DISASSEMBLY_RIPNOTFOUND,
         FLAGSET_INVALIDINPUT,
         TESTCASE_RUNTIME,
@@ -21,7 +23,7 @@ namespace debugger.Logging
     }
     public class LoggedException : Exception
     {
-        public LoggedException(LogCode logCode, string Interpolation) : base(Logger.FetchMessage(logCode, new string[] { Interpolation }))
+        public LoggedException(LogCode logCode, string Interpolation="") : base(Logger.FetchMessage(logCode, new string[] { Interpolation }))
         {
             Initialise(logCode, new string[] { Interpolation });
         }
@@ -38,7 +40,9 @@ namespace debugger.Logging
     public static class Logger
     {
         private static readonly Dictionary<LogCode, (Severity, string)> LogMessages = new Dictionary<LogCode, (Severity, string)>()
-        {            
+        {
+            { REGISTER_NOSIZE, (Severity.ERROR, "Attempt to access register before it had a size assigned.") },
+            { REGISTER_BADLEN, (Severity.ERROR, "Register was set to a length that did not match it's capacity.") },
             { DISASSEMBLY_RIPNOTFOUND, (Severity.CRITICAL, "RIP('{0}') pointed to an address not in the internal disassembly list view dictionary.") },
             { FLAGSET_INVALIDINPUT, (Severity.CRITICAL, "Attempt to access invalid flag, '{0}'.") },
             { TESTCASE_RUNTIME, (Severity.ERROR, "Runtime error in testcase. Execution stopped before expected end.") },

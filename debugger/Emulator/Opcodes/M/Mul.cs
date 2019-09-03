@@ -27,7 +27,7 @@ namespace debugger.Emulator.Opcodes
         {
             if(NumOfOperands == 1)
             {
-                if(Capacity == RegisterCapacity.GP_BYTE)
+                if(Capacity == RegisterCapacity.BYTE)
                 {
                     ControlUnit.SetRegister(XRegCode.A, Result);//everything goes into ax
                 }

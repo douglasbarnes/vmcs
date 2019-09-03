@@ -5,7 +5,7 @@ namespace debugger.Emulator.Opcodes
     {
         public Call(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base("CALL", input, 
-                  (settings | OpcodeSettings.RELATIVE) == settings ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD
+                  (settings | OpcodeSettings.RELATIVE) == settings ? RegisterCapacity.DWORD : RegisterCapacity.QWORD
                   ,settings)
         {
         } 

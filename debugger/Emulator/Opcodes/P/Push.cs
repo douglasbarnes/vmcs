@@ -24,11 +24,11 @@ namespace debugger.Emulator.Opcodes
         {
             if((settings | OpcodeSettings.IMMEDIATE) == settings) //opcode defaults to 32 when immediate but 64 elsewhere 
             {
-                return ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_DWORD;
+                return ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.WORD : RegisterCapacity.DWORD;
             }
             else
             {
-                return ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_QWORD;
+                return ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR) ? RegisterCapacity.WORD : RegisterCapacity.QWORD;
             }
         }
     }

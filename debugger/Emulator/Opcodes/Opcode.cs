@@ -67,7 +67,7 @@ namespace debugger.Emulator.Opcodes
         {
             if((Settings | OpcodeSettings.EXTRA_CL) == Settings)
             {
-                CLBuffer = FetchRegister(XRegCode.C, RegisterCapacity.GP_BYTE, true);
+                CLBuffer = FetchRegister(XRegCode.C, RegisterCapacity.BYTE, true);
             }
             if((Settings | OpcodeSettings.IMMEDIATE) == Settings)
             {
@@ -75,7 +75,7 @@ namespace debugger.Emulator.Opcodes
                 {
                     ImmediateBuffer = Bitwise.SignExtend(FetchNext(1), (byte)Capacity);
                 }
-                else if (Capacity == RegisterCapacity.GP_QWORD)
+                else if (Capacity == RegisterCapacity.QWORD)
                 {
                     if ((Settings | OpcodeSettings.ALLOWIMM64) == Settings)
                     {
@@ -149,11 +149,11 @@ namespace debugger.Emulator.Opcodes
             }
             return Output;
         }
-        protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.GP_DWORD)
+        protected void SetRegCap(RegisterCapacity defaultCapacity = RegisterCapacity.DWORD)
         {
-            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.GP_BYTE;
-            else if ((RexByte | REX.W) == RexByte) Capacity = RegisterCapacity.GP_QWORD;
-            else if (LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.GP_WORD;
+            if ((Settings | OpcodeSettings.BYTEMODE) == Settings) Capacity = RegisterCapacity.BYTE;
+            else if ((RexByte | REX.W) == RexByte) Capacity = RegisterCapacity.QWORD;
+            else if (LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) Capacity = RegisterCapacity.WORD;
             else Capacity = defaultCapacity;
         }
         protected bool TestCondition(Condition condition)
@@ -169,7 +169,7 @@ namespace debugger.Emulator.Opcodes
                 case Condition.NC: // used for signed
                     return Flags.Carry == FlagState.OFF;
                 case Condition.RCXZ: //exists because of loops using C reg as the iterator, have to hard code it like this, risky using Capacity here
-                    return (LPrefixBuffer.Contains(PrefixByte.ADDROVR) && FetchRegister(XRegCode.A, RegisterCapacity.GP_DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.GP_QWORD).IsZero();
+                    return (LPrefixBuffer.Contains(PrefixByte.ADDROVR) && FetchRegister(XRegCode.A, RegisterCapacity.DWORD).IsZero()) || FetchRegister(XRegCode.A, RegisterCapacity.QWORD).IsZero();
                 case Condition.Z:
                     return Flags.Zero == FlagState.ON;
                 case Condition.NZ:
@@ -201,15 +201,15 @@ namespace debugger.Emulator.Opcodes
         protected void StackPush(byte[] data)
         {
             byte[] NewSP;
-            Bitwise.Subtract(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            Bitwise.Subtract(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
             SetRegister(XRegCode.SP, NewSP);
-            SetMemory(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), data);
+            SetMemory(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), 0), data);
         }
         protected byte[] StackPop(RegisterCapacity size)
         {
-            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), 0), (int)size);
+            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), 0), (int)size);
             byte[] NewSP;
-            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.GP_QWORD), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            Bitwise.Add(FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
             SetRegister(XRegCode.SP, NewSP);
             return Output;
         }

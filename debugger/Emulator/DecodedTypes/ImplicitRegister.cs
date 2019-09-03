@@ -5,19 +5,19 @@ namespace debugger.Emulator.DecodedTypes
 {
     public class ImplicitRegister : IMyDecoded
     {
-        private readonly XRegCode Destination;
-        private readonly XRegCode Source;
+        private readonly ControlUnit.RegisterHandle Destination;
+        private readonly ControlUnit.RegisterHandle Source;
         private readonly bool HasSource;
         public ImplicitRegister(XRegCode destination)
         {
             HasSource = false;
-            Destination = destination;
+            Destination = new ControlUnit.RegisterHandle(destination, RegisterTable.GP);
         }
         public ImplicitRegister(XRegCode destination, XRegCode source)
         {
             HasSource = true;
-            Destination = destination;
-            Source = source;
+            Destination = new ControlUnit.RegisterHandle(destination, RegisterTable.GP);
+            Source = new ControlUnit.RegisterHandle(source, RegisterTable.GP);
         }
         public List<string> Disassemble(RegisterCapacity size) 
             => HasSource ?

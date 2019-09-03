@@ -11,11 +11,15 @@ namespace debugger.Hypervisor
 {
     static class TestHandler
     {
-        private readonly static Dictionary<string, XRegCode> RegisterDecodeTable = new Dictionary<string, XRegCode>() {
-            {"A",XRegCode.A }, {"B",XRegCode.B },{"C",XRegCode.C },{"D",XRegCode.D },
-            {"SP",XRegCode.SP }, {"BP",XRegCode.BP },{"SI",XRegCode.SI },{"DI",XRegCode.DI },
-            {"R8",XRegCode.R8 }, {"R9",XRegCode.R9 },{"R10",XRegCode.R10 },{"R11",XRegCode.R11 },
-            {"R12",XRegCode.R12 }, {"R13",XRegCode.R13 },{"R14",XRegCode.R14 },{"R15",XRegCode.R15 }
+        private readonly static Dictionary<string, (RegisterTable, XRegCode)> RegisterDecodeTable = new Dictionary<string, (RegisterTable, XRegCode)>() {
+            {"A"  ,(RegisterTable.GP, XRegCode.A) },     {"B" ,(RegisterTable.GP, XRegCode.B) },    {"C"  ,(RegisterTable.GP, XRegCode.C) },   {"D",  (RegisterTable.GP, XRegCode.D) },
+            {"SP" ,(RegisterTable.GP, XRegCode.SP) },    {"BP",(RegisterTable.GP, XRegCode.BP) },   {"SI" ,(RegisterTable.GP, XRegCode.SI) },  {"DI", (RegisterTable.GP, XRegCode.DI) },
+            {"R8" ,(RegisterTable.GP, XRegCode.R8) },    {"R9",(RegisterTable.GP, XRegCode.R9) },   {"R10",(RegisterTable.GP, XRegCode.R10) }, {"R11",(RegisterTable.GP, XRegCode.R11) },
+            {"R12",(RegisterTable.GP, XRegCode.R12) },   {"R13",(RegisterTable.GP, XRegCode.R13) }, {"R14",(RegisterTable.GP, XRegCode.R14) }, {"R15",(RegisterTable.GP, XRegCode.R15) },
+            {"MM0",(RegisterTable.MMX, XRegCode.A) },    {"MM1",(RegisterTable.MMX, XRegCode.C) },  {"MM2",(RegisterTable.MMX, XRegCode.D) },  {"MM3",(RegisterTable.MMX, XRegCode.B) },
+            {"MM4",(RegisterTable.MMX, XRegCode.SP) },   {"MM5",(RegisterTable.MMX, XRegCode.BP) }, {"MM6",(RegisterTable.MMX, XRegCode.SI) }, {"MM7",(RegisterTable.MMX, XRegCode.DI) },
+            {"YMM0",(RegisterTable.SSE, XRegCode.A) },   {"YMM1",(RegisterTable.SSE, XRegCode.C) }, {"YMM2",(RegisterTable.SSE, XRegCode.D) }, {"YMM3",(RegisterTable.SSE, XRegCode.B) },
+            {"YMM4",(RegisterTable.SSE, XRegCode.SP) },  {"YMM5",(RegisterTable.SSE, XRegCode.BP) },{"YMM6",(RegisterTable.SSE, XRegCode.SI) },{"YMM7",(RegisterTable.SSE, XRegCode.DI) },
         };
         protected struct CheckpointSubresult
         {
@@ -61,14 +65,14 @@ namespace debugger.Hypervisor
         }
         protected struct TestRegister
         {
-            public XRegCode RegisterCode;
+            public (RegisterTable, XRegCode) Register;
             public RegisterCapacity Size;
             public ulong ExpectedValue;
             public bool TryParse(XElement testCriteria)
             {                
                 try
                 {                    
-                    RegisterCode = RegisterDecodeTable[testCriteria.Attribute("id").Value];
+                    Register = RegisterDecodeTable[testCriteria.Attribute("id").Value];
                     Size = (RegisterCapacity)(int)testCriteria.Attribute("size");
                     if (testCriteria.Value.Length > (int)Size * 2)
                     {
@@ -85,7 +89,7 @@ namespace debugger.Hypervisor
         }
         protected struct TestMemoryAddress
         {
-            public XRegCode? OffsetRegister;
+            public (RegisterTable, XRegCode)? OffsetRegister;
             public long Offset;
             public byte[] ExpectedBytes;
             public bool TryParse(XElement input, out (LogCode, string) ErrorInfo)
@@ -97,13 +101,13 @@ namespace debugger.Hypervisor
                 }
                 if (input.Attribute("offset_register") != null)
                 {
-                    XRegCode Result;
+                    (RegisterTable, XRegCode) Result;
                     if (!RegisterDecodeTable.TryGetValue(input.Attribute("offset_register").Value, out Result))
                     {
                         ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid value of offset register.");
                         return false;
                     }
-                    OffsetRegister = (XRegCode?)Result;
+                    OffsetRegister = ((RegisterTable, XRegCode)?)Result;
                 }
                 if (input.Attribute("offset") != null)
                 {
@@ -129,7 +133,7 @@ namespace debugger.Hypervisor
                 return true;
             }
         }
-        private static Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
+        private static readonly Dictionary<string, TestcaseObject> Testcases = new Dictionary<string, TestcaseObject>();
         private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
@@ -155,15 +159,16 @@ namespace debugger.Hypervisor
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
-                        string Mnemonic = Disassembly.DisassembleRegister(testReg.RegisterCode, testReg.Size, REX.NONE);
-                        bool RegistersEqual = Snapshot.Registers[testReg.Size, testReg.RegisterCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0;
+                        string Mnemonic = Disassembly.DisassembleRegister(testReg.Register, testReg.Size, REX.NONE);
+                        (RegisterTable Table, XRegCode RegCode) = testReg.Register;
+                        bool RegistersEqual = Snapshot.Registers[Table, testReg.Size, RegCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0;
                         Result.Passed &= RegistersEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
                                 Passed = RegistersEqual,
                                 Expected = $"${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
-                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.RegisterCode],8),0).ToString("X")}"
+                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.Register],8),0).ToString("X")}"
                             });
                     }
                     foreach (TestMemoryAddress testMem in CurrentCheckpoint.ExpectedMemory)
@@ -172,12 +177,12 @@ namespace debugger.Hypervisor
                         string Mnemonic = "";
                         if (testMem.OffsetRegister.HasValue)
                         {
-                            Mnemonic = Disassembly.DisassembleRegister(testMem.OffsetRegister.Value, RegisterCapacity.GP_QWORD, REX.NONE);
+                            Mnemonic = Disassembly.DisassembleRegister(testMem.OffsetRegister.Value, RegisterCapacity.QWORD, REX.NONE);
                             if(testMem.Offset != 0)
                             {
                                 Mnemonic += (testMem.Offset > 0) ? "+" : "-";
                             } 
-                            ExactAddress += BitConverter.ToUInt64(Snapshot.Registers[RegisterCapacity.GP_QWORD, testMem.OffsetRegister.Value], 0);
+                            ExactAddress += BitConverter.ToUInt64(Snapshot.Registers[RegisterCapacity.QWORD, testMem.OffsetRegister.Value], 0);
                         }
                         if(testMem.Offset != 0)
                         {
@@ -335,16 +340,6 @@ namespace debugger.Hypervisor
                 }
             }
             return true;
-        }
-        private static byte[] ParseHex(string hex)
-        {            
-            if(hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
-            byte[] Output = new byte[hex.Length / 2];
-            for (int ByteIndex = 0; ByteIndex < hex.Length/2; ByteIndex++)
-            {
-                Output[ByteIndex] = Convert.ToByte(hex.Substring(ByteIndex * 2, 2), 16);
-            }
-            return Output;
         }
         private static string ParseBytes(byte[] bytes)
         {

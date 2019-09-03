@@ -4,7 +4,7 @@
     {
         byte[] StackBytes;                                // no 32 bit mode for reg pop, default it to 64
         public Pop(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
-            : base("POP", input, (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) ? RegisterCapacity.GP_WORD : RegisterCapacity.GP_QWORD, settings)
+            : base("POP", input, (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR)) ? RegisterCapacity.WORD : RegisterCapacity.QWORD, settings)
         {
             StackBytes = StackPop();
         }

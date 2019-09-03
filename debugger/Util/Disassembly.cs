@@ -6,12 +6,12 @@ namespace debugger.Util
     public static class Disassembly
     {
         private readonly static Dictionary<RegisterCapacity, string> SizeMnemonics = new Dictionary<RegisterCapacity, string>() // maybe turn regcap into struct?
-            {
-                {RegisterCapacity.GP_BYTE, "BYTE"},
-                {RegisterCapacity.GP_WORD, "WORD"},
-                {RegisterCapacity.GP_DWORD, "DWORD"},
-                {RegisterCapacity.GP_QWORD, "QWORD"}
-            };
+        {
+            {RegisterCapacity.BYTE, "BYTE"},
+            {RegisterCapacity.WORD, "WORD"},
+            {RegisterCapacity.DWORD, "DWORD"},
+            {RegisterCapacity.QWORD, "QWORD"}
+        };
         private readonly static Dictionary<Condition, string> ConditionMnemonics = new Dictionary<Condition, string>()
         {
             { Condition.A, "A" },
@@ -32,35 +32,36 @@ namespace debugger.Util
             { Condition.P, "P" },
             { Condition.NP, "NP" }
         };
-        public readonly static List<string> RegisterMnemonics = new List<string>
-        {
-            "A","C","D","B","SP","BP","SI","DI","R8","R9","R10","R11","R12","R13","R14","R15"
-        };
+        private readonly static List<string> GPMnemonics = new List<string> { "A","C","D","B","SP","BP","SI","DI","R8","R9","R10","R11","R12","R13","R14","R15" };
+        private readonly static List<string> SSEMnemonics = new List<string>() { "MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7", "MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7", };
         public static string DisassembleCondition(Condition condition) => ConditionMnemonics[condition];
-        public static string DisassembleRegister(XRegCode Register, RegisterCapacity RegCap, REX RexByte)
-        {            
-            if(RegCap == RegisterCapacity.GP_BYTE && RexByte == REX.NONE && Register > XRegCode.B && Register < XRegCode.R8)
-            {
-                return RegisterMnemonics[(int)Register-4] + "H";
-            }
-            string Output = RegisterMnemonics[(int)Register];
-            if (Register <= XRegCode.B && RegCap > RegisterCapacity.GP_BYTE) 
-            {
-                Output = $"{Output}X";
-            }
-            switch (RegCap)
-            {
-                case RegisterCapacity.GP_BYTE:                
+        public static string DisassembleRegister(ControlUnit.RegisterHandle register)
+        {
+            REX RexByte = ControlUnit.RexByte;
+            string Output;
+            if(register.Table == RegisterTable.GP)
+            {                
+                if (register.Size == RegisterCapacity.BYTE && RexByte == REX.NONE && register.Code > XRegCode.B && register.Code < XRegCode.R8)
+                {
+                    return GPMnemonics[(int)register.Code - 4] + "H";
+                }
+                Output = GPMnemonics[(int)register.Code];
+                if (register.Code <= XRegCode.B && register.Size > RegisterCapacity.BYTE)
+                {
+                    Output += "X";
+                }
+                if(register.Size == RegisterCapacity.BYTE)
+                {
                     Output += "L";
-                    break;
-                case RegisterCapacity.GP_WORD:
-                    if(Register > XRegCode.DI && Register <= XRegCode.R15)
-                    {
-                        Output += "W";
-                    }
-                    break;
-                case RegisterCapacity.GP_DWORD:
-                    if (Register <= XRegCode.DI)
+                }
+                else if(register.Size == RegisterCapacity.WORD
+                     && register.Code > XRegCode.DI)
+                {
+                    Output += "W";
+                }
+                else if(register.Size == RegisterCapacity.DWORD)
+                {
+                    if (register.Code <= XRegCode.DI)
                     {
                         Output = $"E{Output}";
                     }
@@ -68,15 +69,24 @@ namespace debugger.Util
                     {
                         Output += "D";
                     }
-                    break;
-                case RegisterCapacity.GP_QWORD:
-                    
-                    if(Register <= XRegCode.DI)
-                    {
-                        Output = $"R{Output}";
-                    }
-                    break;
-
+                }
+                else if(register.Size == RegisterCapacity.QWORD
+                     && register.Code <= XRegCode.DI)
+                {
+                    Output = $"R{Output}";
+                }
+            }
+            else
+            {
+                Output = SSEMnemonics[(int)register.Code];
+                if(register.Size == RegisterCapacity.M128)
+                {
+                    Output = $"X{Output}";
+                }
+                else if (register.Size == RegisterCapacity.M256)
+                {
+                    Output = $"Y{Output}";
+                }
             }
             return Output;
         }

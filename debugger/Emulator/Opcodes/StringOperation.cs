@@ -25,26 +25,26 @@ namespace debugger.Emulator.Opcodes
             Settings = settings;
             if ((Settings | StringOpSettings.BYTEMODE) == Settings)
             {
-                Capacity = RegisterCapacity.GP_BYTE;
+                Capacity = RegisterCapacity.BYTE;
                 mnemonic += 'B';
             }
             else if ((ControlUnit.RexByte | REX.W) == ControlUnit.RexByte)
             {
-                Capacity = RegisterCapacity.GP_QWORD;
+                Capacity = RegisterCapacity.QWORD;
                 mnemonic += 'Q';
             }
             else if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.SIZEOVR))
             {
-                Capacity = RegisterCapacity.GP_WORD;
+                Capacity = RegisterCapacity.WORD;
                 mnemonic += 'W';
             }
             else
             {
-                Capacity = RegisterCapacity.GP_DWORD;
+                Capacity = RegisterCapacity.DWORD;
                 mnemonic += 'D';
             }
             Mnemonic = mnemonic;
-            PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.GP_DWORD : RegisterCapacity.GP_QWORD;
+            PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD;
             SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), 8), 0);
             DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), 8), 0);
             OnInitialise();
@@ -113,7 +113,7 @@ namespace debugger.Emulator.Opcodes
             if(ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) || ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && (ControlUnit.CurrentHandle.HandleSettings | HandleParameters.NOJMP) != ControlUnit.CurrentHandle.HandleSettings)
             {
                 
-                for (uint Count = BitConverter.ToUInt32(ControlUnit.FetchRegister(XRegCode.C, RegisterCapacity.GP_DWORD), 0); Count > 0; Count--)
+                for (uint Count = BitConverter.ToUInt32(ControlUnit.FetchRegister(XRegCode.C, RegisterCapacity.DWORD), 0); Count > 0; Count--)
                 {
                     if((Settings | StringOpSettings.COMPARE) == Settings
                         && ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero == FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas
@@ -130,8 +130,8 @@ namespace debugger.Emulator.Opcodes
             {                
                 OnExecute();
             }
-            ControlUnit.SetRegister(XRegCode.DI, BitConverter.GetBytes(PtrSize == RegisterCapacity.GP_QWORD ? DestPtr : (uint)DestPtr));
-            ControlUnit.SetRegister(XRegCode.SI, BitConverter.GetBytes(PtrSize == RegisterCapacity.GP_QWORD ? SrcPtr : (uint)SrcPtr));
+            ControlUnit.SetRegister(XRegCode.DI, BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? DestPtr : (uint)DestPtr));
+            ControlUnit.SetRegister(XRegCode.SI, BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? SrcPtr : (uint)SrcPtr));
         }
         protected abstract void OnInitialise();
         protected abstract void OnExecute();

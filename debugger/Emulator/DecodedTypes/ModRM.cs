@@ -82,7 +82,7 @@ namespace debugger.Emulator.DecodedTypes
                 }
                 else
                 {
-                    Destination = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)Fields.Mem, RegisterCapacity.GP_QWORD), 0);
+                    Destination = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)Fields.Mem, RegisterCapacity.QWORD), 0);
                 }
 
                 if (Fields.Mod == Mod.PointerImm8)

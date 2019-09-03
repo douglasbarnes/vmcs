@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using debugger.Util;
 namespace debugger.Emulator
 {
+   
     public enum XRegCode
     {
         A = 0x00,
@@ -23,21 +23,38 @@ namespace debugger.Emulator
         R14 = 0xe,
         R15 = 0xf
     }
+    public enum RegisterTable
+    {
+        GP=0,
+        MMX=0x10,
+        SSE=0x20,
+    }
     public enum RegisterCapacity
     {
-        GP_BYTE = 1,
-        GP_WORD = 2,
-        GP_DWORD = 4,
-        GP_QWORD = 8
+        NONE = 0,
+        BYTE = 1,
+        WORD = 2,
+        DWORD = 4,
+        QWORD = 8,
+        M128 = 16,
+        M256 = 32,
     }
     public class RegisterGroup
     {        
-        private byte[][] Registers = new byte[16][] {
+        private readonly byte[][] Registers = new byte[][] {
             new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], //A,C,D,B,SP,BP,SI,DI
             new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], //8,9,10,11,12,13,14,15
+            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], //mm0,1,2,3,4,5,6,7
+            null,       null,       null,       null,       null,       null,       null,       null,        // will point to ^
+            new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32], // ymm
+            new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],
         }; 
         public RegisterGroup()
         {
+            for (int i = 0; i < 8; i++)
+            {
+                Registers[0x18 + i] = Registers[0x10 + i];
+            }
         }
         public RegisterGroup(Dictionary<XRegCode, byte[]> registers)
         {
@@ -68,25 +85,25 @@ namespace debugger.Emulator
             }            
         }
         public RegisterGroup DeepCopy() => new RegisterGroup(this);
-        public byte[] this[RegisterCapacity group, XRegCode register]
+        public byte[] this[RegisterTable table, RegisterCapacity cap, XRegCode register]
         {
             get {
-                byte[] Output = new byte[(int)group];
+                byte[] Output = new byte[(int)cap];
                 for (int i = 0; i < Output.Length; i++)
                 {
-                   Output[i] = Registers[(int)register][i];
+                   Output[i] = Registers[(int)register+(int)table][i];
                 }
                 return Output;
             }
             set
             {
-                if(value.Length > ((int)group))
+                if(value.Length > ((int)cap))
                 {
                     throw new Exception("RegisterGroup.cs Attempt to overflow register in base class");
                 }
                 for (int i = 0; i < value.Length; i++)
                 {
-                    Registers[(int)register][i] = value[i];
+                    Registers[(int)register+(int)table][i] = value[i];
                 }
             }
         }

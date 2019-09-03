@@ -19,7 +19,7 @@ namespace debugger.Emulator.Opcodes
         }
         public override void Execute()
         {
-            if(Capacity == RegisterCapacity.GP_BYTE)
+            if(Capacity == RegisterCapacity.BYTE)
             {
                 ControlUnit.SetRegister(XRegCode.A, Quotient);
                 ControlUnit.SetRegister(XRegCode.SP, Modulo);//ah
