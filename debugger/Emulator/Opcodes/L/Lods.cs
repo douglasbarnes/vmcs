@@ -3,7 +3,8 @@
     public class Lods : StringOperation
     {
         byte[] SourceBytes;
-        public Lods(StringOpSettings settings = StringOpSettings.NONE) : base("LODS", settings | StringOpSettings.A_DEST)
+        public Lods(StringOpSettings settings = StringOpSettings.NONE) 
+            : base("LODS", new DecodedTypes.MultiRegisterHandle(XRegCode.A, XRegCode.SI),settings)
         {
         }
         protected override void OnInitialise()

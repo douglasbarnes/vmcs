@@ -73,6 +73,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator\DecodedTypes\DecodedCompound.cs" />
+    <Compile Include="Emulator\DecodedTypes\SplitRegisterHandle.cs" />
     <Compile Include="Emulator\Opcodes\C\Call.cs" />
     <Compile Include="Emulator\Opcodes\C\Cmps.cs" />
     <Compile Include="Emulator\Opcodes\L\Lea.cs" />
@@ -256,9 +257,7 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Emulator\RetrievableTypes\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <Content Include="Testcases\Cbw.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -300,6 +299,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\Lea.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Testcases\Div.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Testcases\_Example.xml">

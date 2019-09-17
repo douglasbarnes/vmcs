@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         public Test(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("TEST", input, settings)
         {
             List<byte[]> DestSource = Fetch();          
-            ResultFlags = Bitwise.And(DestSource[0], DestSource[1], out _); ;
+            ResultFlags = Bitwise.And(DestSource[0], DestSource[1], out _);
         }
         public override void Execute()
         {

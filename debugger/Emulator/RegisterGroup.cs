@@ -48,7 +48,7 @@ namespace debugger.Emulator
             null,       null,       null,       null,       null,       null,       null,       null,        // will point to ^
             new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32], // ymm
             new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],
-        }; 
+        };
         public RegisterGroup()
         {
             for (int i = 0; i < 8; i++)
@@ -68,12 +68,19 @@ namespace debugger.Emulator
         }
         public RegisterGroup(Dictionary<XRegCode, ulong> inputRegs)
         {
-            foreach (var Register in inputRegs)
+            for (int i = 0; i < Registers.Length; i++)
             {
-                byte[] RegisterBytes = BitConverter.GetBytes(Register.Value);
-                for (int i = 0; i < 8; i++)
+                ulong RegisterValue;               
+                if(inputRegs.TryGetValue((XRegCode)i, out RegisterValue))
                 {
-                    Registers[(int)Register.Key][i] = RegisterBytes[i];
+                    Registers[i] = BitConverter.GetBytes(RegisterValue);
+                }
+                else
+                {
+                    if(i >= 0x18 && i <= 0x20)
+                    {
+                        Registers[i] = Registers[i - 0x8];
+                    }
                 }
             }
         }
@@ -106,16 +113,6 @@ namespace debugger.Emulator
                     Registers[(int)register+(int)table][i] = value[i];
                 }
             }
-        }
-        public Dictionary<XRegCode, byte[]> FetchAll()
-        {
-            RegisterGroup Cloned = DeepCopy();
-            Dictionary<XRegCode, byte[]> Output = new Dictionary<XRegCode, byte[]>();
-            for (int register = 0; register < Cloned.Registers.Length; register++)
-            {
-                Output.Add((XRegCode)register, Cloned.Registers[register]);
-            }
-            return Output;
         }
     }
 }

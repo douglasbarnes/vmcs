@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
-using debugger.Util;
 using debugger.Hypervisor;
 using debugger.Emulator;
 using debugger.Forms;
@@ -33,22 +32,21 @@ namespace debugger
             BackColor = FormSettings.BaseUI.BackgroundColour;
         }
         VM VMInstance;
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Load(object sender, EventArgs e)
         {
             var ins = new MemorySpace(new byte[]
-{ 0x48, 0xC7, 0xC0, 0x00, 0x01, 0x00, 0x00, 0x48, 0x8D, 0x1C, 0xC5, 0xFF, 0xFF, 0xFF, 0x00, 0x8D, 0x0C, 0x45, 0x00, 0x22, 0x33, 0x33, 0x66, 0x8D, 0x14, 0x85, 0x00, 0xFC, 0x00, 0x00, 0x90 }
-
+{ 0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00, 0x48, 0xC7, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x48, 0xC7, 0xC1, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x48, 0xC7, 0xC6, 0x0D, 0x00, 0x00, 0x00, 0x48, 0x89, 0xE5, 0x48, 0x29, 0xF5, 0x48, 0x89, 0xC2, 0x48, 0x01, 0xD8, 0x48, 0x89, 0xD3, 0x88, 0x44, 0x0D, 0x00, 0x48, 0xFF, 0xC1, 0x48, 0x39, 0xF1, 0x75, 0xEB, 0x90 }
 
 
 
 
 );
             VMInstance = new VM(ins);
-            VMInstance.OnRunComplete += RefreshCallback;
+            VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
             VMInstance.Breakpoints.ListChanged += (s, lc_args) => ListViewDisassembly.Refresh();
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
-            Task.Run(() => RefreshDisassembly());
-            RefreshCallback();
+            await Task.Run(() => RefreshDisassembly());
+            RefreshCallback(ins.EntryPoint);
             ResumeLayout();
             Refresh();
             Update();
@@ -102,9 +100,6 @@ namespace debugger
                         _currentaddr = address.Key;
                     }
                     _currentline.Append(address.Value.ToString("X").PadLeft(2, '0') + " ");
-
-
-
                 }
                 if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
                 memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
@@ -118,26 +113,21 @@ namespace debugger
             }
             ListViewDisassembly.SetRIP(VMInstance.GetMemory().EntryPoint);
         }
-        private async void RefreshCallback(Context context=null)
+        private async void RefreshCallback(ulong instructionPointer)
         {
             List<Task> RefreshTasks = new List<Task>
             {
                 new Task(() => RefreshRegisters()),
-                new Task(() =>RefreshMemory()),
+                new Task(() => RefreshMemory()),
                 new Task(() => RefreshFlags())
             };
             RefreshTasks.ForEach(x => x.Start());
             await Task.WhenAll(RefreshTasks);
-            if(context != null)
-            {
-                ListViewDisassembly.SetRIP(context.InstructionPointer);
-            }            
+            ListViewDisassembly.SetRIP(instructionPointer);                   
             Invoke(new Action(() => Refresh()));
-        }
-        //     
+        }  
         private void SetMemviewPos(object sender, EventArgs e)
         {
-
             string GotoInput = "";//gotoMemSrc.Text; abandoned
             if (GotoInput.Length >= 2 && GotoInput.Substring(0,2).ToLower() == "0x") { GotoInput = GotoInput.Substring(2); }
             GotoInput = GotoInput.PadLeft(16, '0');
@@ -169,11 +159,7 @@ namespace debugger
                 memviewer.EnsureVisible(targetIndex);
                 memviewer.SelectedItems.Clear();
                 memviewer.Items[targetIndex].BackColor = Color.SlateGray;
-            }
-
-            
-
-            
+            }         
         }
         private const string ResultOutputPath = "Results\\";
         private void OnTestcaseSelected(string name)
@@ -211,9 +197,7 @@ namespace debugger
             }
                        
         }
-        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshCallback(); }
+        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshCallback(0); }
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
-
-    }
-   
+    }   
 }

@@ -1,34 +1,35 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
     public class Div : Opcode 
     {
-        readonly byte[] Quotient;
-        readonly byte[] Modulo;
-        public Div(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
+        private readonly byte[] Buffer;
+        private readonly DecodedTypes.IMyMultiDecoded Input;
+        public Div(DecodedTypes.IMyMultiDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base((settings | OpcodeSettings.SIGNED) == settings ? "IDIV" : "DIV", input, settings)
-        {
+        {            
             List<byte[]> DestSource = Fetch();
-            if(DestSource.Count == 1)
+            int HalfLength = (int)Capacity;
+            Buffer = new byte[2 * HalfLength];
+            byte[] Quotient;
+            byte[] Modulo;
+            if((settings | OpcodeSettings.SIGNED) == settings)
             {
-                DestSource.Add(ControlUnit.FetchRegister(XRegCode.A, Capacity));
+                DestSource[1] = Bitwise.SignExtend(DestSource[1], (byte)((byte)Capacity * 2));
             }
-            // always a reg, atleast for this opcode
-            Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity, out Quotient, out Modulo);
+            else
+            {
+                DestSource[1] = Bitwise.ZeroExtend(DestSource[1], (byte)((byte)Capacity * 2));
+            }
+            Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity*2, out Quotient, out Modulo);
+            Array.Copy(Quotient, Buffer, HalfLength);
+            Array.Copy(Modulo, 0, Buffer, HalfLength - 1, HalfLength);
         }
         public override void Execute()
         {
-            if(Capacity == RegisterCapacity.BYTE)
-            {
-                ControlUnit.SetRegister(XRegCode.A, Quotient);
-                ControlUnit.SetRegister(XRegCode.SP, Modulo);//ah
-            } else
-            {
-                ControlUnit.SetRegister(XRegCode.A, Quotient);             
-                ControlUnit.SetRegister(XRegCode.D, Modulo);
-            }
-                        
+            Set(Buffer);
         }
     }
 }

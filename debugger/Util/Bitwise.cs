@@ -180,14 +180,22 @@ namespace debugger.Util
         }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
         {
-            Quotient = new byte[size];
+            Quotient = new byte[size/2];
+            Modulo = new byte[size / 2];
             //divide doesnt set flags
-            while (dividend.CompareTo(divisor, signed) == 1) // dividend > divisor
+            while (dividend.CompareTo(divisor, false) == 1) // dividend > divisor
             {
-                Subtract(dividend, divisor, size, out dividend);
+                if(signed && dividend.IsNegative())
+                {
+                    Add(dividend, divisor, size, out dividend);
+                }
+                else
+                {
+                    Subtract(dividend, divisor, size, out dividend);
+                }                
                 Increment(Quotient, size, out Quotient);
             }
-            Modulo = dividend;
+            Array.Copy(dividend, Modulo, size / 2);       
         }
         public static FlagSet Multiply(byte[] input1, byte[] input2, bool signed, int size, out byte[] Result)
         {

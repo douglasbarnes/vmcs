@@ -22,8 +22,7 @@ namespace debugger.Emulator.DecodedTypes
         public ControlUnit.RegisterHandle Source;
         private ulong Destination;
         private long Offset;
-        private RegisterCapacity _size;
-        public RegisterCapacity Size { get => _size; private set; }
+        public RegisterCapacity Size { get; private set; }
         public ulong EffectiveAddress { get => Destination + (ulong)Offset; }
         private SIB? DecodedSIB;
         private DeconstructedModRM Fields;
@@ -40,8 +39,8 @@ namespace debugger.Emulator.DecodedTypes
         }
         public void Initialise(RegisterCapacity size)
         {
-            _size = size;
-            Source = new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP, Size);
+            Size = size;
+            Source.Initialise(size);
         }
         public ModRM(ModRMSettings settings = ModRMSettings.NONE)
         {
@@ -65,6 +64,7 @@ namespace debugger.Emulator.DecodedTypes
             {
                 Fields.Reg |= 8;
             }
+            Source = new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP);
             Offset = 0;
             DecodedSIB = null;
             if (Fields.Mod == Mod.Register)
@@ -82,11 +82,11 @@ namespace debugger.Emulator.DecodedTypes
                 {
                     DecodedSIB = new SIB(ControlUnit.FetchNext(), Fields.Mod);
                     Offset = DecodedSIB.Value.OffsetValue;
-                    Destination = DecodedSIB.Value.ResultNoOffset;
+                    Destination = DecodedSIB.Value.Destination;
                 }
                 else
                 {
-                    Destination = BitConverter.ToUInt64(new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, RegisterCapacity.QWORD).Value, 0);
+                    Destination = BitConverter.ToUInt64(new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, RegisterCapacity.QWORD).FetchOnce(), 0);
                 }
                 if (Fields.Mod == Mod.PointerImm8)
                 {
@@ -100,14 +100,14 @@ namespace debugger.Emulator.DecodedTypes
         }
         public List<string> Disassemble()
         {
-            Disassembly.Pointer DestPtr = new Disassembly.Pointer() { BaseReg = Disassembly.DisassembleRegister(new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size)) };
+            Disassembly.DisassembledPointer DestPtr = new Disassembly.DisassembledPointer() { IndexReg = new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size).Disassemble()[0] };
             if (Fields.Mem == 5 && Fields.Mod == 0)
             {
-                DestPtr.BaseReg = "RIP";
+                DestPtr.IndexReg = "RIP";
             }
             else if (Fields.Mem == 4 && Fields.Mod != Mod.Register) // sib conditions
             {
-                (DestPtr.Coefficient, DestPtr.BaseReg, DestPtr.AdditionalReg) = DecodedSIB.Value.Disassemble();
+                DestPtr = DecodedSIB.Value.Disassemble;
             }
             DestPtr.Offset = Offset;
             string Dest = Disassembly.DisassemblePointer(DestPtr);
@@ -125,14 +125,14 @@ namespace debugger.Emulator.DecodedTypes
             }
             else
             {
-                string Source = Disassembly.DisassembleRegister(new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP, Size));
+                string SourceMnemonic = Source.DisassembleOnce();
                 if ((Settings | ModRMSettings.SWAP) == Settings)
                 {
-                    return new List<string> { Source, Dest };
+                    return new List<string> { SourceMnemonic, Dest };
                 }
                 else
                 {
-                    return new List<string> { Dest, Source };
+                    return new List<string> { Dest, SourceMnemonic };
                 }
             }
         }
@@ -163,26 +163,23 @@ namespace debugger.Emulator.DecodedTypes
         public void SetSource(byte[] data) => _set(data, true);
         private void _set(byte[] data, bool forceSwap)
         {
-            forceSwap ^= Settings == ModRMSettings.SWAP;
+            forceSwap ^= (Settings | ModRMSettings.SWAP) == Settings;
             if (Fields.Mod == Mod.Register)
             {
                 if (forceSwap)
                 {
-                    Source.Value = data;
+                    Source.Set(data);
                 }
                 else
                 {
-                    ControlUnit.RegisterHandle DestHandle = new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size)
-                    {
-                        Value = data
-                    };
+                    new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size).Set(data);
                 }
             }
             else
             {
                 if (forceSwap)
                 {
-                    Source.Value = data;
+                    Source.Set(data);
                 }
                 else
                 {

@@ -55,7 +55,7 @@ namespace debugger.Forms
                 }
                 else if(RegSize == 1 && RegisterLabels[RegLabelIndex].ShowUpper)
                 {
-                    ulong TargetValue = inputRegs[Disassembly.DisassembleRegister((XRegCode)RegLabelIndex - 5, (RegisterCapacity)RegSize, REX.NONE)];
+                    ulong TargetValue = inputRegs[new ControlUnit.RegisterHandle((XRegCode)RegLabelIndex - 5, RegisterTable.GP, (RegisterCapacity)RegSize).DisassembleOnce()];
                     FormattedValue = Core.FormatNumber(TargetValue, FormatType.Hex);
                     if (((ushort)TargetValue >> 8) > 0) { // get lower short, then rsh to remove lower byte
                         FormattedValue = FormattedValue.Insert(16, "%").Insert(14, "%").Insert(0, "%"); 

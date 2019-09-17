@@ -7,28 +7,12 @@ namespace debugger.Emulator
     public struct SIB
     {
         public RegisterCapacity PointerSize;
-        public ulong ResultNoOffset;
-        public ulong IndexValue;
-        public ulong BaseValue;
+        public readonly DisassembledPointer Disassemble;
+        public ulong Destination;
         public long OffsetValue; // a way to avoid this? when we have a sib where its [reg + ebp + offset], we cant disassemble that visibly without this because ebp could change giving the wrong offset displayed
-        public readonly DeconstructedSIB Bits;
-
         private readonly ModRM.Mod Mod;
-        public struct DeconstructedSIB
-        {
-            public readonly byte Scale;
-            public readonly byte Index;
-            public readonly byte Base;
-            public DeconstructedSIB(byte scale, byte index, byte _base)
-            {
-                (Scale, Index, Base) = (scale, index, _base);
-            }
-            public DeconstructedSIB(byte sibByte)
-            {
-                string SIBbits = Bitwise.GetBits(sibByte);
-                this = new DeconstructedSIB(Convert.ToByte(SIBbits.Substring(0, 2),2), Convert.ToByte(SIBbits.Substring(2, 3), 2), Convert.ToByte(SIBbits.Substring(5, 3), 2));
-            }
-        }
+        private readonly ControlUnit.RegisterHandle BaseHandle;
+        private readonly ControlUnit.RegisterHandle IndexHandle;        
         public SIB(byte sibByte, ModRM.Mod mod)
         {
             string SIBbits = Bitwise.GetBits(sibByte);
@@ -36,58 +20,43 @@ namespace debugger.Emulator
         }
         public SIB(byte scale, byte index, byte _base, ModRM.Mod mod)
         {
-            (BaseValue, OffsetValue, IndexValue) = (0, 0, 0);
-            if((ControlUnit.RexByte | REX.X) == ControlUnit.RexByte)
-            {
-                index |= 8;
-            }
-            if ((ControlUnit.RexByte | REX.B) == ControlUnit.RexByte)
-            {
-                _base |= 8;
-            }
-            Bits = new DeconstructedSIB(scale, index ,_base);
+            Disassemble = new DisassembledPointer();
+            ulong BaseValue = 0;
+            ulong IndexValue = 0;
+            OffsetValue = 0;
+            index |= (byte)(ControlUnit.RexByte & REX.X);
+            _base |= (byte)(ControlUnit.RexByte & REX.B);
             Mod = mod;
             PointerSize = (ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD);
             if (index != 4)//4 == none
             {
-                IndexValue = (byte)Math.Pow(2,scale) * BitConverter.ToUInt64(Bitwise.SignExtend(ControlUnit.FetchRegister((XRegCode)index, PointerSize), 8), 0);
-            }
-
-            if (_base != 5) // 5 = ptr or rbp+ptr
-            {
-                BaseValue = BitConverter.ToUInt64(ControlUnit.FetchRegister((XRegCode)_base, RegisterCapacity.QWORD), 0);
+                IndexHandle = new ControlUnit.RegisterHandle((XRegCode)index, RegisterTable.GP, PointerSize);
+                IndexValue = (byte)Math.Pow(2,scale) * BitConverter.ToUInt64(Bitwise.SignExtend(IndexHandle.FetchOnce(), 8), 0);
+                Disassemble.IndexReg = IndexHandle.DisassembleOnce();
+                Disassemble.IndexScale = scale;
             }
             else
             {
-                if (Mod != ModRM.Mod.Pointer) // mod1 mod2 = ebp+imm
-                {
-                    BaseValue = BitConverter.ToUInt64(Bitwise.SignExtend(ControlUnit.FetchRegister(XRegCode.BP, PointerSize), 8), 0);
-                }
-                else
-                {
-                    OffsetValue = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
-                }
-
+                IndexHandle = null;
             }
-            ResultNoOffset = BaseValue + IndexValue;
-        }
-        public (int, string, string) Disassemble()
-        {
-            string AdditionalReg = null;
-            if (Bits.Base != 5)
+            if (_base != 5) // 5 = ptr or rbp+ptr
             {
-                AdditionalReg = DisassembleRegister((XRegCode)Bits.Base, PointerSize, REX.NONE);
+                BaseHandle = new ControlUnit.RegisterHandle((XRegCode)_base, RegisterTable.GP, RegisterCapacity.QWORD);
+                BaseValue = BitConverter.ToUInt64(BaseHandle.FetchOnce(), 0);
+                Disassemble.AdditionalReg = BaseHandle.DisassembleOnce();
             }
-            else if (Mod > 0)
+            else if (Mod != ModRM.Mod.Pointer) // mod1 mod2 = ebp+imm
             {
-                AdditionalReg = DisassembleRegister(XRegCode.BP, PointerSize, REX.NONE);
+                BaseHandle = new ControlUnit.RegisterHandle(XRegCode.BP, RegisterTable.GP, PointerSize);
+                BaseValue = BitConverter.ToUInt64(Bitwise.SignExtend(BaseHandle.FetchOnce(), 8), 0);
+                Disassemble.AdditionalReg = BaseHandle.DisassembleOnce();
             }
-            string BaseReg = null;
-            if (Bits.Index != 4)
+            else
             {
-                BaseReg = DisassembleRegister((XRegCode)Bits.Index, PointerSize, REX.NONE);
+                BaseHandle = null;
+                OffsetValue = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
             }
-            return (Bits.Scale, BaseReg, AdditionalReg);
+            Destination = BaseValue + IndexValue;
         }
     }
 }

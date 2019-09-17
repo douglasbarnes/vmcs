@@ -15,30 +15,33 @@ namespace debugger.Emulator.DecodedTypes
     {
         public RegisterCapacity Size { get; private set; }
         private readonly ImmediateSettings Settings;
-        private byte[] Buffer;
-        public Immediate(ImmediateSettings settings)
+        private byte[] Buffer = null;
+        public Immediate(ImmediateSettings settings = ImmediateSettings.NONE)
         {
             Settings = settings;
         }
         public void Initialise(RegisterCapacity size)
         {
-            Size = size;
-            byte Mask = 0b0111;
-            if((Settings | ImmediateSettings.SXTBYTE) == Settings)
+            if(Buffer == null)
             {
-                Mask = 0b0001;
-            }
-            else if ((Settings | ImmediateSettings.ALLOWIMM64) == Settings)
-            {
-                Mask = 0b1111;
-            }
-            Buffer = ControlUnit.FetchNext((int)size & Mask);
-            if((Settings | ImmediateSettings.RELATIVE) == Settings)
-            {
-                Bitwise.Add(Buffer, BitConverter.GetBytes(ControlUnit.InstructionPointer), 8, out Buffer);
-            }
+                Size = size;
+                byte MaxVal = 0b0100;
+                if ((Settings | ImmediateSettings.SXTBYTE) == Settings)
+                {
+                    MaxVal = 0b0001;
+                }
+                else if ((Settings | ImmediateSettings.ALLOWIMM64) == Settings)
+                {
+                    MaxVal = 0b1000;
+                }
+                Buffer = ControlUnit.FetchNext((int)size < MaxVal ? (int)size : MaxVal);
+                if ((Settings | ImmediateSettings.RELATIVE) == Settings)
+                {
+                    Bitwise.Add(Buffer, BitConverter.GetBytes(ControlUnit.InstructionPointer), 8, out Buffer);
+                }
+            }            
         }
-        public List<byte[]> Fetch() => new List<byte[]>() { Buffer };
+        public List<byte[]> Fetch() => new List<byte[]>() { Bitwise.SignExtend(Buffer, (byte)Size) };
         public void Set(byte[] data) => throw new Exception("Attempt to set value of immediate");
         public List<string> Disassemble() => new List<string>() { $"0x{Core.Atoi(Buffer)}" };
     }

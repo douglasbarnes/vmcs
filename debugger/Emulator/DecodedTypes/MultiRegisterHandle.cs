@@ -6,8 +6,8 @@ namespace debugger.Emulator.DecodedTypes
         public RegisterCapacity Size { get; private set; }
         private ControlUnit.RegisterHandle Destination;
         private ControlUnit.RegisterHandle Source;
-        private XRegCode DestCode;
-        private XRegCode SrcCode;
+        public XRegCode DestCode { get; private set; }
+        public XRegCode SrcCode { get; private set; }
         public MultiRegisterHandle(XRegCode destination, XRegCode source)
         {
             DestCode = destination;

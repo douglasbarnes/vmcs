@@ -33,23 +33,23 @@ namespace debugger.Util
             { Condition.NP, "NP" }
         };
       public static string DisassembleCondition(Condition condition) => ConditionMnemonics[condition];
-        public struct Pointer
+        public struct DisassembledPointer
         {
             public long Offset;
-            public string BaseReg;
+            public string IndexReg;
             public string AdditionalReg;
-            public int Coefficient;
+            public int IndexScale;
             public RegisterCapacity? Size;
         }
-        public static string DisassemblePointer(Pointer p)
+        public static string DisassemblePointer(DisassembledPointer p)
         {
             string Output = "";
-            if(p.BaseReg != null)
+            if(p.IndexReg != null)
             {
-                Output += p.BaseReg;
-                if (p.Coefficient > 0)
+                Output += p.IndexReg;
+                if (p.IndexScale > 0)
                 {
-                    Output += $"*{(int)System.Math.Pow(2, p.Coefficient)}";
+                    Output += $"*{(int)System.Math.Pow(2, p.IndexScale)}";
                 }
                 if(p.AdditionalReg != null)
                 {
@@ -62,7 +62,7 @@ namespace debugger.Util
             }
             if (p.Offset != 0)
             {
-                if (p.BaseReg != null || p.AdditionalReg != null)
+                if (p.IndexReg != null || p.AdditionalReg != null)
                 {
                     Output += p.Offset > 0 ? "+" : "-";
                 }

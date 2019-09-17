@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using debugger.Util;
 using debugger.Emulator.Opcodes;
 namespace debugger.Emulator
 {
@@ -39,8 +38,23 @@ namespace debugger.Emulator
         R=8,
         W=16
     }
+    public struct Register
+    {
+        public readonly byte[] Value;
+        public readonly string Mnemonic;
+        public Register(ControlUnit.RegisterHandle input)
+        {
+            Value = input.FetchOnce();
+            Mnemonic = input.DisassembleOnce();
+        }
+    }
     public static partial class ControlUnit
     {
+        private static class StaticHandles
+        {
+            public static readonly RegisterHandle _CL = new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT);
+            
+        }
         public static class LPrefixBuffer
         {            
             private static readonly PrefixByte[] Prefixes = new PrefixByte[4];
@@ -85,16 +99,18 @@ namespace debugger.Emulator
         public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE);
         public static Handle CurrentHandle = EmptyHandle;
         private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); }
-        public static FlagSet Flags { get => CurrentContext.Flags; }
+        public static FlagSet Flags { get => CurrentContext.Flags; set { CurrentContext.Flags = value; } }
         public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; private set { CurrentContext.InstructionPointer = value; } }
         public static REX RexByte = REX.NONE;        
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1;
             List<string> TempLastDisas = new List<string>();
-            while (CurrentContext.InstructionPointer <= CurrentContext.Memory.End)
+            while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
             {
+#if DEBUG
                 ulong Debug_InstructionPointer = CurrentContext.InstructionPointer;
+#endif
                 byte Fetched = FetchNext();                
                 if (LPrefixBuffer.IsPrefix(Fetched))
                 {
@@ -138,6 +154,13 @@ namespace debugger.Emulator
             }
             return new Status { LastDisassembled = TempLastDisas, InstructionPointer = InstructionPointer };
         }
+        public static void SetMemory(ulong address, byte[] data)
+        {
+            for (uint Offset = 0; Offset < data.Length; Offset++)
+            {
+                CurrentContext.Memory[address + Offset] = data[Offset];
+            }
+        }
         public static byte[] Fetch(ulong address, int length = 1)
         {
             byte[] output = new byte[length];
@@ -174,6 +197,16 @@ namespace debugger.Emulator
             RexByte = (REX)((~fetched << 1) & 0b00001000); // ~ = negated, ones compliment
 
             fetched = FetchNext();
+        }
+        public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
+        public static List<Register> FetchAll(RegisterCapacity size)
+        {
+            List<Register> Output = new List<Register>(0xf);
+            for (int i = 0; i < 0xf; i++)
+            {
+                Output.Add(new Register(new RegisterHandle((XRegCode)i, RegisterTable.GP, size)));
+            }
+            return Output;
         }
     }
 }

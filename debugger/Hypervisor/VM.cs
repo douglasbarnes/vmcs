@@ -39,18 +39,18 @@ namespace debugger.Hypervisor
         }
         public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
         {
-            Context Cloned = Handle.ShallowCopy();
-            Dictionary<XRegCode, byte[]> Registers = Cloned.Registers.FetchAll();
-            Dictionary<string, ulong> ParsedRegisters = new Dictionary<string, ulong>
+            List<Register> Registers = new List<Register>();
+            Dictionary<string, ulong> ParsedRegisters = new Dictionary<string, ulong>()
             {
-                { "RIP", Cloned.InstructionPointer }
+                { "RIP", GetRIP()}
             };
-            foreach (var Reg in Registers)
+            Handle.Invoke(new Action(() => { Registers = ControlUnit.FetchAll(registerSize); } ));
+            for (int i = 0; i < Registers.Count; i++)
             {
-                ParsedRegisters.Add(Disassembly.DisassembleRegister(Reg.Key, registerSize, REX.B), BitConverter.ToUInt64(Reg.Value,0));
-            }
-           
+                ParsedRegisters.Add(Registers[i].Mnemonic, BitConverter.ToUInt64(Bitwise.ZeroExtend(Registers[i].Value,8),0));
+            }           
             return ParsedRegisters;
         }
+        public ulong GetRIP() => Handle.ShallowCopy().InstructionPointer;
     }   
 }

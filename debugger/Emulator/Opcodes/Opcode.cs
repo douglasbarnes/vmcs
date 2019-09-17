@@ -35,7 +35,8 @@ namespace debugger.Emulator.Opcodes
     }
     public abstract class Opcode : IMyOpcode
     {
-        protected RegisterCapacity Capacity { get; set; }
+        private RegisterCapacity _capacity;
+        protected RegisterCapacity Capacity { get => _capacity; set { Input.Initialise(value); _capacity = value; } }
         public readonly OpcodeSettings Settings;
         private readonly string Mnemonic;
         private readonly IMyDecoded Input;
@@ -45,25 +46,10 @@ namespace debugger.Emulator.Opcodes
             Input = input;
             Settings = settings;
             Capacity = (opcodeCapacity == RegisterCapacity.NONE) ? SetRegCap() : opcodeCapacity;
-            Initialise();
         }
-        private void Initialise()
-        {
-            for (int i = 0; i < Input.Length; i++)
-            {
-                Input[i].Initialise(Capacity);
-            }         
-        }
-        protected List<byte[]> Fetch()
-        {
-            List<byte[]> Output = new List<byte[]>();
-            for (int i = 0; i < Input.Length; i++)
-            {
-                Output.AddRange(Input[i].Fetch());
-            }
-            return Output;
-        }
-        protected void Set(byte[] data) => Input.Set(Bitwise.ZeroExtend(data, (byte)Capacity));
+        protected List<byte[]> Fetch() => Input.Fetch();
+        protected void Set(byte[] data) => Input.Set(data);
+        protected void Set(byte[] data, int operandIndex) => ((DecodedCompound)Input).Set(data, operandIndex);
         public abstract void Execute();
         public virtual List<string> Disassemble()
         {
@@ -92,6 +78,7 @@ namespace debugger.Emulator.Opcodes
         }
         private static readonly RegisterHandle EAX = new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.DWORD);
         private static readonly RegisterHandle RAX = new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.QWORD);
+        private static readonly RegisterHandle StackPointer = new RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);
         protected bool TestCondition(Condition condition) 
             => condition switch
             {
@@ -113,21 +100,20 @@ namespace debugger.Emulator.Opcodes
                 Condition.P => Flags.Parity == FlagState.ON,
                 Condition.NP => Flags.Parity == FlagState.OFF,
                 _ => true, //Condition.None
-            };        
-        private static readonly RegisterHandle StackPointer = new RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);
+            };              
         protected void StackPush(byte[] data)
         {
             byte[] NewSP;
-            Bitwise.Subtract(StackPointer.Value, new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
-            StackPointer.Value = NewSP;
-            SetMemory(BitConverter.ToUInt64(StackPointer.Value, 0), data);
+            Bitwise.Subtract(StackPointer.FetchOnce(), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            StackPointer.Set(NewSP);
+            SetMemory(BitConverter.ToUInt64(StackPointer.FetchOnce(), 0), data);
         }
         protected byte[] StackPop(RegisterCapacity size)
         {
-            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(StackPointer.Value, 0), (int)size);
+            byte[] Output = ControlUnit.Fetch(BitConverter.ToUInt64(StackPointer.FetchOnce(), 0), (int)size);
             byte[] NewSP;
-            Bitwise.Add(StackPointer.Value, new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
-            StackPointer.Value = NewSP;
+            Bitwise.Add(StackPointer.FetchOnce(), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            StackPointer.Set(NewSP);
             return Output;
         }
         protected byte[] StackPop() => StackPop(Capacity);

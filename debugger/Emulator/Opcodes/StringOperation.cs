@@ -8,20 +8,20 @@ namespace debugger.Emulator.Opcodes
         NONE=0,
         BYTEMODE=1,
         COMPARE=2,
-        A_SRC=4,
-        A_DEST=8,
     }
     public abstract class StringOperation : IMyOpcode
-    {
+    {      
         private string Mnemonic;
         protected ulong SrcPtr;
         protected ulong DestPtr;
         private RegisterCapacity PtrSize; // for in the rare rare rare case that esi/edi could carry out
         protected RegisterCapacity Capacity; 
         protected StringOpSettings Settings;
-        
-        public StringOperation(string mnemonic, StringOpSettings settings)
+        private DecodedTypes.MultiRegisterHandle Input;
+        private readonly List<byte[]> Operands;        
+        public StringOperation(string mnemonic, DecodedTypes.MultiRegisterHandle input, StringOpSettings settings)
         {            
+            Input = input;
             Settings = settings;
             if ((Settings | StringOpSettings.BYTEMODE) == Settings)
             {
@@ -43,10 +43,14 @@ namespace debugger.Emulator.Opcodes
                 Capacity = RegisterCapacity.DWORD;
                 mnemonic += 'D';
             }
+            
             Mnemonic = mnemonic;
             PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD;
-            SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.SI, PtrSize), 8), 0);
-            DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(ControlUnit.FetchRegister(XRegCode.DI, PtrSize), 8), 0);
+            Input.Initialise(PtrSize);
+            Operands = input.Fetch();            
+            DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Operands[0], 8), 0);
+            SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Operands[1], 8), 0);
+            Input.Initialise(Capacity);
             OnInitialise();
         }
         public void AdjustDI()
@@ -72,9 +76,8 @@ namespace debugger.Emulator.Opcodes
             }
         }
         public virtual List<string> Disassemble()
-        {
-            
-            List<string> Output = new List<string>(3) { Mnemonic };
+        {            
+            List<string> Output = new List<string>(3) { Mnemonic };            
             if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ))
             {
                 if((Settings | StringOpSettings.COMPARE) == Settings)
@@ -90,21 +93,16 @@ namespace debugger.Emulator.Opcodes
             {
                 Output[0] = Mnemonic.Insert(0, "REPNZ ");
             }
-            if ((Settings | StringOpSettings.A_DEST) == Settings)
+            Input.Initialise(PtrSize);
+            Output.AddRange(Input.Disassemble());
+            Input.Initialise(Capacity);
+            if (Input.SrcCode == XRegCode.SI)
             {
-                Output.Add($"{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}");
+                Output[2] = $"[{Output[2]}]";
             }
-            else
+            if (Input.DestCode == XRegCode.DI)
             {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.DI, PtrSize, REX.NONE)}]");
-            }
-            if ((Settings | StringOpSettings.A_SRC) == Settings)
-            {
-                Output.Add($"{Disassembly.DisassembleRegister(XRegCode.A, Capacity, REX.NONE)}");
-            }
-            else
-            {
-                Output.Add($"[{Disassembly.DisassembleRegister(XRegCode.SI, PtrSize, REX.NONE)}]");
+                Output[1] = $"[{Output[1]}]";
             }
             return Output;
         }
@@ -112,8 +110,8 @@ namespace debugger.Emulator.Opcodes
         {
             if(ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) || ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && (ControlUnit.CurrentHandle.HandleSettings | HandleParameters.NOJMP) != ControlUnit.CurrentHandle.HandleSettings)
             {
-                
-                for (uint Count = BitConverter.ToUInt32(ControlUnit.FetchRegister(XRegCode.C, RegisterCapacity.DWORD), 0); Count > 0; Count--)
+                ControlUnit.RegisterHandle CountHandle = new ControlUnit.RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.DWORD);
+                for (uint Count = BitConverter.ToUInt32(CountHandle.FetchOnce(), 0); Count > 0; Count--)
                 {
                     if((Settings | StringOpSettings.COMPARE) == Settings
                         && ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero == FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas
@@ -124,48 +122,54 @@ namespace debugger.Emulator.Opcodes
                     OnExecute();
                     OnInitialise();
                 }
-                ControlUnit.SetRegister(XRegCode.C, new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 });
+                CountHandle.Set(new byte[4]);
             }
             else
             {                
                 OnExecute();
             }
-            ControlUnit.SetRegister(XRegCode.DI, BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? DestPtr : (uint)DestPtr));
-            ControlUnit.SetRegister(XRegCode.SI, BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? SrcPtr : (uint)SrcPtr));
+            if (Input.DestCode == XRegCode.DI)
+            {
+                new ControlUnit.RegisterHandle(XRegCode.DI, RegisterTable.GP, PtrSize).Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? DestPtr : (uint)DestPtr));
+            }
+            if (Input.SrcCode == XRegCode.SI)
+            {
+                new ControlUnit.RegisterHandle(XRegCode.SI, RegisterTable.GP, PtrSize).Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? SrcPtr : (uint)DestPtr));
+            }                     
         }
         protected abstract void OnInitialise();
         protected abstract void OnExecute();
         public List<byte[]> Fetch()
         {
             List<byte[]> Output = new List<byte[]>(2);
-            if((Settings | StringOpSettings.A_DEST) == Settings)
+            if(Input.DestCode == XRegCode.DI)
             {
-                Output.Add(ControlUnit.FetchRegister(XRegCode.A, Capacity, true));                
+                Output.Add(ControlUnit.Fetch(DestPtr, (int)Capacity));                
             }
             else
             {
-                Output.Add(ControlUnit.Fetch(DestPtr, (int)Capacity));
+                Output.Add(Operands[0]);
             }
-            if ((Settings | StringOpSettings.A_SRC) == Settings)
-            {
-                Output.Add(ControlUnit.FetchRegister(XRegCode.A, Capacity, true));
-            }
-            else
+            if (Input.SrcCode == XRegCode.SI)
             {
                 Output.Add(ControlUnit.Fetch(SrcPtr, (int)Capacity));
             }
+            else
+            {
+                Output.Add(Operands[1]);
+            }
             return Output;
         }
-        public void Set(byte[] data) {
+        public void Set(byte[] data)
+        {
             data = Bitwise.Cut(data, (int)Capacity);
-            if ((Settings | StringOpSettings.A_DEST) == Settings)
+            if (Input.DestCode == XRegCode.DI)
             {
-                ControlUnit.SetRegister(XRegCode.A, data);
-
+                ControlUnit.SetMemory(DestPtr, data);                
             }
             else
             {
-                ControlUnit.SetMemory(DestPtr, data);
+                new ControlUnit.RegisterHandle(XRegCode.A, RegisterTable.GP, Capacity).Set(data);
             }
         } 
     }

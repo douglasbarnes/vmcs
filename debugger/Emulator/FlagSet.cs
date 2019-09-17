@@ -45,17 +45,18 @@ namespace debugger.Emulator
             Sign = input.IsNegative() ? FlagState.ON : FlagState.OFF;
             Parity = Bitwise.GetBits(input[0]).Count(x => x == '1') % 2 == 0 ? FlagState.ON : FlagState.OFF; //parity: even no of 1 bits       
         }
-        public void Overlap(FlagSet input)
+        public FlagSet Overlap(FlagSet input) => new FlagSet()
         {
-            Carry = input.Carry == FlagState.UNDEFINED ? Carry : input.Carry;
-            Auxiliary = input.Auxiliary == FlagState.UNDEFINED ? Auxiliary : input.Auxiliary;
-            Overflow = input.Overflow == FlagState.UNDEFINED ? Overflow : input.Overflow;
-            Zero = input.Zero == FlagState.UNDEFINED ? Zero : input.Zero;
-            Sign = input.Sign == FlagState.UNDEFINED ? Sign : input.Sign;
-            Parity = input.Parity == FlagState.UNDEFINED ? Parity : input.Parity;
-            Direction = input.Direction == FlagState.UNDEFINED ? Direction : input.Direction;
-            Interrupt = input.Interrupt == FlagState.UNDEFINED ? Interrupt : input.Interrupt;
-        }
+            Carry = input.Carry == FlagState.UNDEFINED ? Carry : input.Carry,
+            Auxiliary = input.Auxiliary == FlagState.UNDEFINED ? Auxiliary : input.Auxiliary,
+            Overflow = input.Overflow == FlagState.UNDEFINED ? Overflow : input.Overflow,
+            Zero = input.Zero == FlagState.UNDEFINED ? Zero : input.Zero,
+            Sign = input.Sign == FlagState.UNDEFINED ? Sign : input.Sign,
+            Parity = input.Parity == FlagState.UNDEFINED ? Parity : input.Parity,
+            Direction = input.Direction == FlagState.UNDEFINED ? Direction : input.Direction,
+            Interrupt = input.Interrupt == FlagState.UNDEFINED ? Interrupt : input.Interrupt
+        };
+
         public bool EqualsOrUndefined(FlagSet toCompare)
         => And(toCompare) == ToString();
         public string And(FlagSet toCompare)

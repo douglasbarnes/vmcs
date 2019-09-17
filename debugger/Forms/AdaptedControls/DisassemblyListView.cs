@@ -59,11 +59,15 @@ namespace debugger.Forms
         public void SetRIP(ulong insPtr)
         {
             try
-            {                
+            {
+                if (!AddrToLine.ContainsKey(insPtr))
+                {
+                    insPtr -= 1;
+                }
                 for (int i = 0; i < 4; i++)
                 {
                     IndexToLine[RIPIndex][23 + i] = ' ';
-                    AddrToLine[insPtr][23 + i] = "←RIP"[i];                    
+                    AddrToLine[insPtr][23 + i] = "←RIP"[i];
                 }
                 RIPIndex = AddrToIndex[insPtr];
             }

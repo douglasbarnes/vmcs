@@ -4,8 +4,9 @@ namespace debugger.Emulator.Opcodes
 {
     public class Cmps : StringOperation
     {
-        FlagSet Result;
-        public Cmps(StringOpSettings settings = StringOpSettings.NONE): base("CMPS", settings | StringOpSettings.COMPARE) {  }
+        private FlagSet Result;
+        public Cmps(StringOpSettings settings = StringOpSettings.NONE)
+            : base("CMPS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.SI), settings | StringOpSettings.COMPARE) {  }
         protected override void OnInitialise()
         {
             List<byte[]> DestSource = Fetch();

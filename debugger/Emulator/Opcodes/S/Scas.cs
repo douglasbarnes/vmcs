@@ -5,7 +5,8 @@ namespace debugger.Emulator.Opcodes
     public class Scas : StringOperation 
     {
         FlagSet ResultFlags;
-        public Scas(StringOpSettings settings = StringOpSettings.NONE) : base("SCAS", settings | StringOpSettings.A_SRC | StringOpSettings.COMPARE)
+        public Scas(StringOpSettings settings = StringOpSettings.NONE)
+            : base("SCAS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.A), settings | StringOpSettings.COMPARE)
         {            
         }
         protected override void OnInitialise()

@@ -65,16 +65,15 @@ namespace debugger.Hypervisor
         }
         protected struct TestRegister
         {
-            public (RegisterTable, XRegCode) Register;
-            public RegisterCapacity Size;
+            public ControlUnit.RegisterHandle Register;
             public ulong ExpectedValue;
             public bool TryParse(XElement testCriteria)
             {                
                 try
-                {                    
-                    Register = RegisterDecodeTable[testCriteria.Attribute("id").Value];
-                    Size = (RegisterCapacity)(int)testCriteria.Attribute("size");
-                    if (testCriteria.Value.Length > (int)Size * 2)
+                {
+                    (RegisterTable Table, XRegCode Code) = RegisterDecodeTable[testCriteria.Attribute("id").Value];
+                    Register = new ControlUnit.RegisterHandle(Code, Table, (RegisterCapacity)(int)testCriteria.Attribute("size"));
+                    if (testCriteria.Value.Length > (int)Register.Size * 2)
                     {
                         return false;
                     }
@@ -89,7 +88,7 @@ namespace debugger.Hypervisor
         }
         protected struct TestMemoryAddress
         {
-            public (RegisterTable, XRegCode)? OffsetRegister;
+            public ControlUnit.RegisterHandle OffsetRegister;
             public long Offset;
             public byte[] ExpectedBytes;
             public bool TryParse(XElement input, out (LogCode, string) ErrorInfo)
@@ -107,7 +106,7 @@ namespace debugger.Hypervisor
                         ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid value of offset register.");
                         return false;
                     }
-                    OffsetRegister = ((RegisterTable, XRegCode)?)Result;
+                    OffsetRegister = new ControlUnit.RegisterHandle(Result.Item2, Result.Item1, RegisterCapacity.QWORD);
                 }
                 if (input.Attribute("offset") != null)
                 {
@@ -159,30 +158,30 @@ namespace debugger.Hypervisor
                     List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
-                        string Mnemonic = Disassembly.DisassembleRegister(testReg.Register, testReg.Size, REX.NONE);
-                        (RegisterTable Table, XRegCode RegCode) = testReg.Register;
-                        bool RegistersEqual = Snapshot.Registers[Table, testReg.Size, RegCode].CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Size), false) == 0;
+                        string Mnemonic = testReg.Register.DisassembleOnce();
+                        byte[] ActualValue = testReg.Register.FetchOnce();
+                        bool RegistersEqual = ActualValue.CompareTo(Bitwise.Cut(BitConverter.GetBytes(testReg.ExpectedValue), (int)testReg.Register.Size), false) == 0;
                         Result.Passed &= RegistersEqual;
                         CurrentSubresults.Add(
                             new CheckpointSubresult
                             {
                                 Passed = RegistersEqual,
                                 Expected = $"${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
-                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(Snapshot.Registers[testReg.Size, testReg.Register],8),0).ToString("X")}"
+                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(testReg.Register.FetchOnce(),8),0).ToString("X")}"
                             });
                     }
                     foreach (TestMemoryAddress testMem in CurrentCheckpoint.ExpectedMemory)
                     {
                         ulong ExactAddress = 0;;
                         string Mnemonic = "";
-                        if (testMem.OffsetRegister.HasValue)
+                        if (testMem.OffsetRegister != null)
                         {
-                            Mnemonic = Disassembly.DisassembleRegister(testMem.OffsetRegister.Value, RegisterCapacity.QWORD, REX.NONE);
+                            Mnemonic = testMem.OffsetRegister.DisassembleOnce();
                             if(testMem.Offset != 0)
                             {
                                 Mnemonic += (testMem.Offset > 0) ? "+" : "-";
                             } 
-                            ExactAddress += BitConverter.ToUInt64(Snapshot.Registers[RegisterCapacity.QWORD, testMem.OffsetRegister.Value], 0);
+                            ExactAddress += BitConverter.ToUInt64(testMem.OffsetRegister.FetchOnce(), 0);
                         }
                         if(testMem.Offset != 0)
                         {
@@ -219,7 +218,7 @@ namespace debugger.Hypervisor
                             Expected = CurrentCheckpoint.ExpectedFlags.ToString(),
                             Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags)
                         });
-                    }                    
+                    }         
                     Result.CheckpointOutputs.Add(CurrentCheckpoint, CurrentSubresults);
                 }
                 return Result;

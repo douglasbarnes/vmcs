@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="div">
+    <Hex>66B81010B321F6F39066B8FFFFB310F6FB9048B8112233334444444448BA888888888888888848BB2211FF11FF11FFFF48F7F39048B8112233334444444448C7C28888880848BBFFFFFFFFFFFFFF7F48F7FB90</Hex>
+    <Checkpoint tag="DIV AX" position_hex="8">
+        <Register id="A" size="8">147c</Register>
+        <Register id="D" size="8">0</Register>
+    </Checkpoint>
+    <Checkpoint tag="IDIV AX" position_hex="11">
+        <Register id="A" size="8">FF00</Register>
+        <Register id="D" size="8">0</Register>
+    </Checkpoint>
+    <Checkpoint tag="DIV D:A" position_hex="33">
+        <Register id="A" size="8">888907786c6a61aa</Register>
+        <Register id="D" size="8">eba1a6492a3fdf7d</Register>
+    </Checkpoint>
+    <Checkpoint tag="IDIV D:A" position_hex="52">
+        <Register id="A" size="8">11111110</Register>
+        <Register id="D" size="8">4444444444443321</Register>
+    </Checkpoint>
+</Testcase>   

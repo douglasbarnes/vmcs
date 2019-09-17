@@ -5,7 +5,7 @@ namespace debugger.Emulator.Opcodes
     {
         public Call(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base("CALL", input, settings,
-                  (settings | OpcodeSettings.RELATIVE) == settings ? RegisterCapacity.DWORD : RegisterCapacity.QWORD )
+                  input is DecodedTypes.Immediate ? RegisterCapacity.DWORD : RegisterCapacity.QWORD )
         {
         } 
         public override void Execute()

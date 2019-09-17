@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     public class Ret : Opcode 
     {
         List<byte[]> Operands;
-        public Ret(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("RET", input, RegisterCapacity.WORD, settings)
+        public Ret(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("RET", input, settings, RegisterCapacity.WORD)
         {
             Operands = Fetch();
         }
@@ -16,8 +16,9 @@ namespace debugger.Emulator.Opcodes
             if(Operands.Count > 0)
             {
                 byte[] NewSP;
-                Bitwise.Add(ControlUnit.FetchRegister(XRegCode.SP, RegisterCapacity.QWORD), Bitwise.ZeroExtend(Operands[0], 8), 8, out NewSP);
-                ControlUnit.SetRegister(XRegCode.SP, NewSP);
+                ControlUnit.RegisterHandle StackPointer = new ControlUnit.RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);
+                Bitwise.Add(StackPointer.FetchOnce(), Bitwise.ZeroExtend(Operands[0], 8), 8, out NewSP);
+                StackPointer.Set(NewSP);
             }
         }
     }

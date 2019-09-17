@@ -9,8 +9,8 @@ namespace debugger.Emulator.Opcodes
         public Jmp(DecodedTypes.IMyDecoded input, Condition condition=Condition.NONE, OpcodeSettings settings = OpcodeSettings.NONE, bool dwordOnly = false) 
             : base(condition == Condition.NONE ? "JMP" : "J" + Disassembly.DisassembleCondition(condition)
                   , input
-                  , (settings | OpcodeSettings.BYTEMODE) == settings ? RegisterCapacity.BYTE : JmpRegCap(dwordOnly)
-                  , settings)
+                  , settings
+                  , (settings | OpcodeSettings.BYTEMODE) == settings ? RegisterCapacity.BYTE : JmpRegCap(dwordOnly))
         {
             JmpCondition = condition;
         }
