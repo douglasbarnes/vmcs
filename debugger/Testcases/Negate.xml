@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Testcase name="negate">
+    <Hex>48C7C0FFFFFFFF48F7D8BB1111111148F7DBF7D990</Hex>
+    <Checkpoint tag="Win" position_hex="14">
+        <Register id="A" size="8">0</Register>
+        <Register id="B" size="8">ffffffffeeeeeeee</Register>
+        <Flag name="Carry">1</Flag>
+    </Checkpoint>
+</Testcase>   

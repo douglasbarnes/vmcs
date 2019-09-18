@@ -34,7 +34,7 @@ namespace debugger.Emulator.DecodedTypes
             {
                 byte[] Output = new byte[(int)Size * 2];
                 System.Array.Copy(Lower.FetchOnce(), Output, (int)Size);
-                System.Array.Copy(Upper.FetchOnce(), 0, Output, 0, (int)Size);
+                System.Array.Copy(Upper.FetchOnce(), 0, Output, (int)Size, (int)Size);
                 return new List<byte[]> { Output };
             }
             else

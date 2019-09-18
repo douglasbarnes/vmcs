@@ -50,11 +50,6 @@ namespace debugger.Emulator
     }
     public static partial class ControlUnit
     {
-        private static class StaticHandles
-        {
-            public static readonly RegisterHandle _CL = new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT);
-            
-        }
         public static class LPrefixBuffer
         {            
             private static readonly PrefixByte[] Prefixes = new PrefixByte[4];
@@ -128,10 +123,6 @@ namespace debugger.Emulator
                         OpcodeWidth = 2;
                         Fetched = FetchNext();
                     }
-                    if(Fetched == 0xC5)
-                    {
-                        DecodeVEX(ref Fetched);
-                    }
                     IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
                     if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {
@@ -192,12 +183,6 @@ namespace debugger.Emulator
                 CurrentContext.InstructionPointer = address;
             }
         }        
-        private static void DecodeVEX(ref byte fetched)
-        {
-            RexByte = (REX)((~fetched << 1) & 0b00001000); // ~ = negated, ones compliment
-
-            fetched = FetchNext();
-        }
         public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
         public static List<Register> FetchAll(RegisterCapacity size)
         {
@@ -207,6 +192,14 @@ namespace debugger.Emulator
                 Output.Add(new Register(new RegisterHandle((XRegCode)i, RegisterTable.GP, size)));
             }
             return Output;
+        }
+        public static void RaiseException(Logging.LogCode exception)
+        {
+            if(exception == Logging.LogCode.DIVIDE_BY_ZERO && (CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+            {
+                return;
+            }
+            Logging.Logger.Log(exception, $"State: \nHandle:{CurrentHandle.HandleName}\nInstruction Pointer:{InstructionPointer}");
         }
     }
 }

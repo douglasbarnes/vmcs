@@ -6,7 +6,6 @@ namespace debugger.Emulator.Opcodes
     public class Div : Opcode 
     {
         private readonly byte[] Buffer;
-        private readonly DecodedTypes.IMyMultiDecoded Input;
         public Div(DecodedTypes.IMyMultiDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
             : base((settings | OpcodeSettings.SIGNED) == settings ? "IDIV" : "DIV", input, settings)
         {            
@@ -25,7 +24,7 @@ namespace debugger.Emulator.Opcodes
             }
             Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity*2, out Quotient, out Modulo);
             Array.Copy(Quotient, Buffer, HalfLength);
-            Array.Copy(Modulo, 0, Buffer, HalfLength - 1, HalfLength);
+            Array.Copy(Modulo, 0, Buffer, HalfLength, HalfLength);
         }
         public override void Execute()
         {

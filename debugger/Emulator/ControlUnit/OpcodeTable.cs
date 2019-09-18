@@ -10,7 +10,6 @@ namespace debugger.Emulator
         private enum AlternateTable
         {
             EXTENDED=1,
-
         }
         private delegate IMyOpcode OpcodeCaller();
         private delegate IMyOpcode AlternateTableCaller(byte input);
@@ -341,31 +340,32 @@ namespace debugger.Emulator
             },
             { 0xD2, new Dictionary<int, ExtendedOpcodeCaller>
             {
-                { 0, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:false, BYTEMODE) },
-                { 1, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:false, BYTEMODE) },
-                { 2, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:true, BYTEMODE) },
-                { 3, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:true, BYTEMODE) },
-                { 4, (InputModRM) => new Shl(new DecodedCompound(InputModRM, StaticHandles._CL), BYTEMODE) },
-                { 5, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, StaticHandles._CL), arithmetic:false, BYTEMODE) },
-                                                                             
-                { 7, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, StaticHandles._CL), arithmetic:true, BYTEMODE) },
+                { 0, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:false, BYTEMODE) },
+                { 1, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:false, BYTEMODE) },
+                { 2, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:true, BYTEMODE) },
+                { 3, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:true, BYTEMODE) },
+                { 4, (InputModRM) => new Shl(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), BYTEMODE) },
+                { 5, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:false, BYTEMODE) },
+                                                                            
+                { 7, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:true, BYTEMODE) },
             }
             },
             { 0xD3, new Dictionary<int, ExtendedOpcodeCaller>
             {
-                { 0, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:false) },
-                { 1, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:false) },
-                { 2, (InputModRM) => new Rxl(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:true) },
-                { 3, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, StaticHandles._CL), useCarry:true) },
-                { 4, (InputModRM) => new Shl(new DecodedCompound(InputModRM, StaticHandles._CL)) },
-                { 5, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, StaticHandles._CL), arithmetic:false) },
-                                                                             
-                { 7, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, StaticHandles._CL), arithmetic:true) },
+                { 0, (InputModRM) => new Rxl(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:false) },
+                { 1, (InputModRM) => new Rxr(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:false) },
+                { 2, (InputModRM) => new Rxl(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:true) },
+                { 3, (InputModRM) => new Rxr(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:true) },
+                { 4, (InputModRM) => new Shl(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT))) },
+                { 5, (InputModRM) => new Sxr(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:false) },
+
+                { 7, (InputModRM) => new Sxr(new DecodedCompound(InputModRM,  new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:true) },
             }
             },
             { 0xF6, new Dictionary<int, ExtendedOpcodeCaller>
             {
                 { 0, (InputModRM) => new Test(new DecodedCompound( InputModRM, new Immediate()), BYTEMODE) },
+                { 3, (InputModRM) => new Neg(InputModRM, BYTEMODE) },
                 { 4, (InputModRM) => new Mul(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.WORD,RegisterHandleSettings.NO_INIT), InputModRM), BYTEMODE) },
                 { 5, (InputModRM) => new Mul(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.WORD,RegisterHandleSettings.NO_INIT), InputModRM), BYTEMODE | SIGNED) },
                 { 6, (InputModRM) => new Div(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP, RegisterCapacity.WORD,RegisterHandleSettings.NO_INIT),InputModRM), BYTEMODE) },
@@ -375,6 +375,7 @@ namespace debugger.Emulator
             { 0xF7, new Dictionary<int, ExtendedOpcodeCaller>
             {
                 { 0, (InputModRM) => new Test(new DecodedCompound(InputModRM, new Immediate())) },
+                { 3, (InputModRM) => new Neg(InputModRM) },
                 { 4, (InputModRM) => new Mul(new DecodedCompound(new SplitRegisterHandle(XRegCode.A, XRegCode.D), InputModRM)) },
                 { 5, (InputModRM) => new Mul(new DecodedCompound(new SplitRegisterHandle(XRegCode.A, XRegCode.D), InputModRM), SIGNED) },
                 { 6, (InputModRM) => new Div(new DecodedCompound(new SplitRegisterHandle(XRegCode.A, XRegCode.D, SplitRegisterHandleSettings.FETCH_UPPER), InputModRM))},
