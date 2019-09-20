@@ -88,8 +88,8 @@ namespace debugger.Util
             string Bits = "";
             for (int i = 0; i < input1Bits.Length; i++)
             {
-                if (input1Bits[i] == '1' && input2Bits[i] == '1') // Here use a logical AND, if input1[i] and input2[i] == '1' then result[i] = '1'
-                {
+                if (input1Bits[i] == '1' && input2Bits[i] == '1') // Here use a logical AND to create the bitwise AND, if input1[i] and input2[i] == '1' then result[i] = '1'
+                {                                                 // All a bitwise AND really is, is a series of logical ANDs across a whole value of a byte.
                     Bits += "1";
                 }
                 else
@@ -113,7 +113,7 @@ namespace debugger.Util
             string Bits = "";
             for (int i = 0; i < input1Bits.Length; i++)
             {
-                if (input1Bits[i] == '1' ^ input2Bits[i] == '1') // Here use a logical OR, if input1[i] is not the same as input2[i] then result[i] = input1[i] or input2[i]
+                if (input1Bits[i] == '1' ^ input2Bits[i] == '1') // Here use a logical XOR, if input1[i] != input2[i] then result[i] = (input1[i] or input2[i])
                 { 
                     Bits += "1";
                 }
@@ -127,7 +127,6 @@ namespace debugger.Util
             {
                 Carry = FlagState.OFF,
                 Overflow = FlagState.OFF,
-                Auxiliary = FlagState.UNDEFINED
             };
         }
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
@@ -383,7 +382,7 @@ namespace debugger.Util
                                                      //   mov byte ptr [rsp+3], 0x12
                                                      // The offset being 3 because the array is a byte array, if it was an dword array,
                                                      //   mov dword ptr [rsp+12], 0x78563412
-                                                     // The offset being 12 because the index I want is 3, but each element of the array is 4 bytes, 3*4=12                                                     // 
+                                                     // The offset being 12 because the index I want is 3, but each element of the array is 4 bytes, 3*4=12                                                      
                                                      // Then once I return from the function, and I try to access my input again
                                                      //   mov al, byte ptr [rsp+3](Consider a static stack frame)
                                                      // Now I have 12 in $al, not what I had before. This really is more of a general .NET problem rather
@@ -391,77 +390,183 @@ namespace debugger.Util
                                                      // but it's important to be aware of the framework you are programming in. There are scenarios which are
                                                      // exactly this in other parts of this program that I wont spoil now, but hope you look forward to reading about.
                                                      // Here is a short annotated demonstration written in C#: http://prntscr.com/p8tb5s
-            bool CarryBit3 = ((input[0] & 0b111) + 1) > 0b111; // if we will carry into bit 4 of 1st byte
+            bool CarryBit3 = input[0] == 0b111; // Another approach to the same condition in Add(). Since the second value to add is know, the equation can be
+                                                // simplified. The auxiliary flag by definition is set when there is a carry into the 4th bit(not specifically
+                                                // of the first byte, but due to how it is implimented in my program, it does happen to be the first byte). 
+                                                // So think which values can cause a carry into the 4th bit. It must be seven right? Think about 999 + 1, the
+                                                // answer is 1000 but how did you get there? All the columns before had to be at their highest possible value
+                                                // , 9. This caused the 1 to carry over to a new column and set everything in between to 0 in the process.
+                                                // To really break it down, let's break down the addition.
+                                                //     Starting with the first column, 9 + 1 = 10. However I can't write 99[10], that's just now how numbers work
+                                                //     , specifically, a number in a column cannot be the same value as it's base. Decimal numbers are base 10,
+                                                //     so when I get 10 in an addition, I need to carry over. Binary is also called base 2 and works exactly the same.
+                                                // Now it should be clear that the only value in the lower nibble that cannot take an extra '1' before carrying into the
+                                                // 4th bit is 0b111. If I add 1 to 0b111, where would the 1 go? I can't write 0b112, that's not binary, so by carrying over
+                                                // I get 0b1000, boom, we just ruined our binary coded decimal.
+                                                
             for (int i = 0; i < Result.Length; i++)
             {
-                if (Result[i] < 0xFF)
-                {
-                    Result[i]++;
-                    break;
-                }
-                else
-                {
-                    Result[i] = 0;
+                Result[i]++;                 // A little more streamlined than add, but takes a different perspective.
+                if (Result[i] != 0x00)       // Firstly I just increment the byte offset by $i.
+                {                            // From here, there are two situations that matter:
+                    break;                   //  1. Result[i] is zero
+                                             //  2. Result[i] is not zero
+                                             // If it is zero, well what natural number can be incremented to get zero?
+                                             // None! Therefore, we know the byte overflowed. If the byte overflowed,
+                                             // I need to make up for this by adding 1 to the next iteration. Just
+                                             // like in addition. However, it takes a little intuition to see how this
+                                             // can be done more effectively. If I want to add one to a number, and I
+                                             // know that if I want to do this, I need to make sure I handle byte
+                                             // overflows properly. Why not take advantage of them? If I add 1 to 9,
+                                             // I don't get 19, I get 10. I let the 9 overflow to a 0 because now the
+                                             // 1 in the second column holds the value. This implementation does exactly
+                                             // that, then afterwards, I check, was it equal to 0x00? Because I know if it
+                                             // is, the value before was 0xFF. If it wasn't 0xFF, that means it can safely
+                                             // be incremented by one and I'm done!
+                                             // But what if the input value is an array filled with 0xFF? Read ahead.
                 }
             }
             return new FlagSet(Result)
             {
-                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
-                Auxiliary = CarryBit3 ? FlagState.ON : FlagState.OFF,
+                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF, // This overflow check is the exact same as checking if the input
+                Auxiliary = CarryBit3 ? FlagState.ON : FlagState.OFF,                                   // byte array is equal to -1(All 0xFFs). This is the only case where
+                                                                                                        // incrementing could give an invalid result, in that case, let the
+                                                                                                        // developer know by setting the flag. They can handle it with
+                                                                                                        // a conditional jump, or maybe they are iterating 256 times, and using
+                                                                                                        // test ecx, ecx to detect an overflow. This really is why assembly
+                                                                                                        // is awesome and puts try catch blocks to shame, errors can totally
+                                                                                                        // be used to an advantage in the right hands.
             };
         }
         public static FlagSet Decrement(byte[] input, int size, out byte[] Result)
         {
             Result = new byte[size];
-            Array.Copy(input, Result, input.Length);
+            Array.Copy(input, Result, input.Length); // See Increment()
 
             for (int i = 0; i < Result.Length; i++)
             {
-                if (Result[i] > 0x00)
-                {
-                    Result[i]--;
+                Result[i]--;                // An almost identical to approach to Increment(). Instead, 0xFF is the buzz value. Think about
+                if (Result[i] != 0xFF)      // which number satisfies x - 1 = infinity. Nothing right? So instantly I know something went
+                {                           // 'wrong'. 0x00 must have been the input value decremented. Mathematically speaking, that value 
+                                            // needs to be borrowed from the next column so it can be decremented.
                     break;
-                }
-                else
-                {
-                    Result[i] = 0xFF;
                 }
             }
             return new FlagSet(Result)
             {
-                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,//if we increased it and got a negative
-                Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
-            };
+                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF, // A flip scenario of in Increment(). Here, I'm looking for the input to be zero.
+                Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON  // I could just write that, I have a method for that called IsZero(), but I really
+            };  // Absolute identical method to Subtract() here, unfortunately I cant think of          // want to make it clear what's happening. If I decremented an unsigned number
+                // any nice shortcut.                                                                   // (In Increment() and Decrement() functions, the overflow is used for unsigned
+                                                                                                        // numbers, but in Add() and Subtract() for signed numbers. Crazy. I know.)
+                                                                                                        // and got not only a positive number, but the highest positive number possible,
+                                                                                                        // there would be real cause for concern. Fortunately, the overflow flag can
+                                                                                                        // bring a developer to their senses. However just like in Increment() there are
+                                                                                                        // absolutely scenarios where I can take advantage(Very similar ones too). Say
+                                                                                                        // I wanted a loop, instead of using two registers to represent the current
+                                                                                                        // iterator value and the maximum iterator value, I could run code like..
+                                                                                                        //  0x00 mov al, 0x31
+                                                                                                        //  0x02 [Do stuff]
+                                                                                                        //  ~
+                                                                                                        //  0x20 dec al
+                                                                                                        //  0x22 jo 0x00
+                                                                                                        // (jo = jump if overflow) Look, I can loop round 0x32 times(because the flag is
+                                                                                                        // set when the result is 0xFF not 0x00) without having to use a comparison operator
+                                                                                                        // and since it's already calculated I would be wasting time and spaceif I didn't 
+                                                                                                        // make use of it!
         }
         public static FlagSet ShiftLeft(byte[] input, byte count, int size, out byte[] Result)
         {
-            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed, in reality is cut down for performance
-            int StartCount = count; // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed                   
+            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // Why? Think about how many bits are in an 8 byte value, on x86-64, 64. If I shift 64 times, what am I doing? 
+                                                                    // Wasting cycles. This is really clever and it will make absolute sense in 10 seconds. If I bitshift a QWORD
+                                                                    // by any number greater than 64, I get (Hold the thought of where the carry flag is used), 0. There is no room
+                                                                    // for those bits to go after 63. To shift by 63 is to make the LSB the MSB. If you are trying to zero a register,
+                                                                    // I believe the best way is mov eax, 0(this will clear the upper 32 aswell). 
+                                                                    // Now for when the size isn't a QWORD, it is only "optimised" for DWORDs. If I could guess as to why, I would
+                                                                    // say it's because you would hardly ever shift a WORD or BYTE, there isn't much space to move. Shifts are
+                                                                    // often used to multiply by a big power of two quickly. So, WORDs and BYTEs may waste cycles, but DWORDs
+                                                                    // follow the exact same logic as described for QWORDs.
+            int StartCount = count; // This gets a little fiddley, flags later are checked based on this, so I ought to save a copy.                   
             Result = input;
-            Array.Resize(ref Result, size);
-            if (count == 0) {
+            Array.Resize(ref Result, size); // This is another way of the Array.Copy() method to get a new copy of an existing instance(a deep copy) shown in other methods.
+            if (count == 0) { // Don't bother shifting by 0, just return now without changing the flags(Intel says so)
                 return new FlagSet();
             }
-            //Arith
-            bool Pull = false;
+            bool Pull = false; // Pull is a term coined by myself for a carry in shift instructions. I think it describes the idea a little more, because it wouldn't really
+                               // be a carry. It has to be initialised here or compiler moans because ""it may not be initialised"". I already returned from the method if
+                               // count was zero!!! 
             for (; count > 0; count--)
             {
-                Pull = false;
-                for (int i = 0; i < Result.Length; i++)
-                {
-                    int PullMask = Pull ? 0b1 : 0;
-                    Pull = (MSB(Result[i]) == 1);
-                    Result[i] = (byte)(((Result[i]) << 1) | PullMask); 
-                }
-                
-            }
+                Pull = false;                                              // So, what's my thinking with this algorithm. 
+                                                                           // Briefly, I will explain what a bitwise shift is.
+                                                                           // Know how multiplying an integer by ten is really easy? All I do is add a zero 
+                                                                           // to the end. This is a cool phenomenon that happens when you multiply a number
+                                                                           // by the base its represented in. So a single shift could be described as this notion
+                                                                           // of multiplying by two, but most of the time we're going to want to shift a bunch
+                                                                           // to get some big numbers. So, this could be written as 
+                                                                           //   (the number I want to multiply) * 2^(the number of shifts)
+                                                                           // This is exactly the same as 
+                                                                           //   (the number I want to shift) << (the number of shifts)
+                                                                           // But how does this to translate to being easy? 10 shift 2 is 40!
+                                                                           // It's only easy when the result is represented in the base as well.
+                                                                           // Lets show this example graphically,
+                                                                           //   10 << 0 = 10 = [0001010]
+                                                                           //   10 << 1 = 20 = [0010100]
+                                                                           //   10 << 2 = 40 = [0101000]
+                                                                           //                     ^ Look, these just jumped along each time
+                                                                           // Or another way of thinking of it would be
+                                                                           //   10 << 0 = 10 = 1010
+                                                                           //   10 << 1 = 20 = 10100
+                                                                           //   10 << 2 = 40 = 101000
+                                                                           // They are both correct but the former really is a better way to get it into your
+                                                                           // head because when we're dealing with numbers mathematically, there are no numbers
+                                                                           // but we need to apply the hardware limitations(or advantages depending on how you see it)
+                                                                           
+                                                                           // Now the algorithm.
+                                                                           // What does pull really describe?
+                for (int i = 0; i < Result.Length; i++)                    // A "pull" describes the situation where a bit has to jump from one byte in the
+                {                                                          // array to the next in the direction of the MSB. Nobody else has every dreamed
+                    int PullMask = Pull ? 0b1 : 0;                         // of this because it's just not a problem that exists in lower level languages.
+                    Pull = (MSB(Result[i]) == 1);                          // Lets show see this graphically
+                    Result[i] = (byte)(((Result[i]) << 1) | PullMask);     // I want to shift 128 by 1, but I have a problem
+                }                                                          //   128 = [10000000]
+                                                                           //   128 << 1 = 0??? = [0000000]
+            }                                                              // Yes, it definitely would if I'm shifting a byte, but fortunately for purposes of
+                                                                           // explanation we will be dealing with a word capacity, so more accurately 128 could be written as
+                                                                           //   128 = [00000000] [10000000]
+                                                                           // So pull denotes the idea of this jump, where 128 becomes 256
+                                                                           //   128 << 1 = 256 = [00000001] [00000000]
+                                                                           // Fortunately if we are clever there is a good way to predict this.
+                                                                           // Each outer iteration, where count is decremented, denotes a shift. I handle one
+                                                                           // shift at a time, I don't think it would be impossible to do it more efficiently, but I challenge you
+                                                                           // to do so. So immediately it becomes obvious how I can predict if there will be a Pull, simply by the
+                                                                           // fact the MSB is 1. If I shift the byte as-is, I'm going to lose that MSB, so I'm going to save it 
+                                                                           // in the Pull boolean and come back to it next nested iteration. Now I will explain how the PullMask
+                                                                           // works. If I shift a number, what is one thing I can be absolutely sure of? That the number will
+                                                                           // be even. Moreover, the LSB will be 0. Remember that I am multiplying by 2 each time, just very effectively.
+                                                                           // So, if I need to pull a byte up a power(remember that each index in the array represents a power of 256),
+                                                                           // I can bitwise OR the next index by one to preserve the bit pushed out of the previous byte by the shift.
+                                                                           // This is exactly how the PullMask works, if there is no Pull, the mask is 0, it does nothing.
+                                                                           // Take careful note of how the shift is in brackets. I don't know or care of the operator priority here,
+                                                                           // but I'm trying to make it realy clear that I shift BEFORE ORing. There is no guarentee that the LSB will
+                                                                           // be zero if I mask before shifting, and I will also get the wrong value because the bit that was already
+                                                                           // shifted by the pull mechanism will be shifted once more. (Also the most likely outcome in my code is 
+                                                                           // that without brackets, 1 will be ORed by PullMask, which would always be 1)
+
+
             //Flags
-            FlagSet OutputFlags = new FlagSet(Result);
+            FlagSet OutputFlags = new FlagSet(Result); // Create some flags, use the constructor for a generic arithmetic flag set, e.g set SF, ZF, and PF as per usual.
             if(StartCount == 1)
             {
-                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF;
-            }
-            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
+                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF; // The overflow is actually defined as the MSB ^ CF but since the carry flag is
+            }                                                                                    // equal to Pull, I just substituted for ease. Think of it as the CF.
+                                                                                                 // Here I will explain what exactly these flags represent. 
+                                                                                                 // The overflow flag is absolutely useless. I can think of no reason or purpose for
+                                                                                                 // it here, I can only assume it meant something tens of years ago and was just kept
+                                                                                                 // for compatability, like you will find with a lot of things in x86_64.
+                                                                                                 // Then the CF just shows the value of the last bit to be pushed out of the result.
+            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;                             // This could still have some use on shifts greater than 1, but I imagine the most
+                                                                                                 // common use is to check for a sign bit that got pushed out.
             return OutputFlags;
         }
         public static FlagSet ShiftRight(byte[] input, byte count, int size,  out byte[] Result, bool arithmetic)
