@@ -214,17 +214,21 @@ namespace debugger.Util
                 ControlUnit.RaiseException(Logging.LogCode.DIVIDE_BY_ZERO);
                 return;
             }
-            bool LastSign = dividend.IsNegative(); // Get the sign of the dividend. This will be useful shortly.(Negative == true)
-            bool NegativeInput = signed && LastSign; // Are we doing signed division? If so are we dividing a negative, or just a really big unsigned number?
-            if(NegativeInput) // If this is signed division, I don't want to deal with negatives! More importantly, at least with this algorithm, it can't.
+            bool LastSign = dividend.IsNegative(); // Get the sign of the dividend. This will be useful shortly.(Negative == true)            
+            bool NegativeDividend = signed && LastSign; // Are we doing signed division? If so are we dividing a negative, or just a really big unsigned number?
+            if(NegativeDividend) // If this is signed division, I don't want to deal with negatives! More importantly, at least with this algorithm, it can't.
             {                 // Why? I use a repeated subtraction method to divide akin to long divison on paper. It's obvious when to stop subtracting on paper
-                              // but a computer cannot see obvious! I have to tell it the rules for such. However for now I will just make it positive, not
-                              // neccesarily negate it, because I am only turning the last bit off, not flipping every bit. Now I can forget about the sign until
-                              // after division and determine it afterwards. This way I can stick to the rule of "If the dividend becomes negative, I subtracted
-                              // too much and need to go back, and leave the rest as a remainder".
-                dividend[dividend.Length - 1] &= 0b01111111;
+                              // but a computer cannot see obvious! I have to tell it the rules for such. However for now I will just negate any negatives to get
+                              // positives. This way I can stick to the rule of "If the dividend becomes negative, I subtracted too much and need to go back
+                              // , and leave the rest as a remainder". Then later, we can determine the sign of the result based on the signs of the inputs.
+                Negate(dividend, out dividend);
                 LastSign = false;
-            }        
+            }
+            bool NegativeDivisor = divisor.IsNegative();
+            if (NegativeDivisor)
+            {
+                Negate(divisor, out divisor);
+            }
             //Going forward, think of every number as unsigned. The need for signed division specific operation has been abstracted from the imminent
             //while loop.
             while (true) // When I reach the end of the loop iteration, I dont know whether I can subtract again, I need to do the subtraction first then
@@ -253,53 +257,140 @@ namespace debugger.Util
                     //Any unsigned number that cannot be interpreted as a signed negative will only go through phases 2 and 3. 
                     //This three phase process ensures I always always always know when to stop subtracting. 
                     //(Technically since I never check for equality of the dividend and 0, the loop will always be ran once more than necessary, this is negligible and doesn't affect the result)
+                    
+                    // Could this method be applied to other arithmetic operators? Absolutely. Consider 10 + -1000, I could write this as -(1000-10). Fortunately because of twos compliment,
+                    // this isn't necessary, I can rely on overflows to do the job for me. However if the numbers were encoded in one compliment or sign magnitude, this method would be needed
+                    // on all signed arith operations.
                 }
-                else
+                else // If we get here, it means the number turned negative, therefore we subtracted below zero, which means we need to stop subtracting now because we found the quotient. 
                 {
                     break;                
                 }
             }
-            if (NegativeInput ^ Quotient.IsNegative())
-            {
+            if (signed && (NegativeDividend ^ NegativeDivisor)) // Now I need to get the sign back if the number was initially to be interpreted as a negative signed number. Negative signed   
+            {                                                   // numbers work in the same way as signed numbers for most arithmetic, but not so with division(multiplication just requires different flags)
+                                                                // So to solve this problem, I just create the ideal scenario of a dividing a positive instead, but the result still needs to be converted back
+                                                                // to the form it was before. Firstly, I will cover the condition, as not every time will require a change back. If it was unsigned to begin with
+                                                                // , leave it be, It was never changed before the division. Secondly, XOR signs of both the dividend and divisor. This is where you need to
+                                                                // take a mathematical approach to the problem. Think about how signs affect a fraction.
+                                                                // Here I will make 3 statements. If you don't understand any, see the link following.
+                                                                // (Assume an ideal scenario: no zeros, natural numbers)
+                                                                // 1. -x/y == -(x/y) http://prntscr.com/p8cymm
+                                                                // 2. -x/y == x/-y http://prntscr.com/p8ctdk
+                                                                // 3. -x/-y = x/y http://prntscr.com/p8cwrr
+                                                                // Therefore, we can use this to predict the sign of the outcome using the signs of the initial dividend and divisor
+                                                                // As statement one shows, if exclusively one of x or y are negative, the result is negative.
+                                                                // Statement two, the result is not dependent on which side of the fraction is negative.
+                                                                // Statement three, two negatives divided make a positive.
+                                                                // An XOR of the signs could be concluded from statement one, but statement 2 and 3 really make that clear.
+                                                                // So, to match statement 1(which statement two proves would be the same for x/-y) if there is exactly one negative input,
+                                                                // the result has to be negated, or if there are two negates, as statement three shows, do nothing.
                 Negate(Quotient, out dividend);
             }
-            Array.Copy(dividend, Modulo, size / 2);       
+            Array.Copy(dividend, Modulo, size / 2); //Size variable is the size of twice the result.      
         }
         public static FlagSet Multiply(byte[] input1, byte[] input2, bool signed, int size, out byte[] Result)
         {
             input1 = signed ? SignExtend(input1, (byte)(size * 2)) : ZeroExtend(input1, (byte)(size * 2));
-            input2 = signed ? SignExtend(input2, (byte)(size * 2)) : ZeroExtend(input2, (byte)(size * 2));
-            Result = new byte[size * 4];     //the result is going to be size*2, so we need to extend the inputs to that before and then cut down after.           
-            for (int i = 0; i < size * 2; i++)
+            input2 = signed ? SignExtend(input2, (byte)(size * 2)) : ZeroExtend(input2, (byte)(size * 2)); // I need the inputs to be twice the intended size during the multiplication because
+                                                                                                           // the output is twice the length of the input, therefore I need to make sure that the
+                                                                                                           // input arrays are long enough to be iterated over to complete the multiplication.
+            Result = new byte[size * 4]; //the result is going to be size*2, so to match the length of the inputs doubling, double the result length as well then resize it later. 
+            //Firstly I will explain the ideas behind this multiplication algorithm.
+            //It acts in a very similar way to as if you wrote out long multiplication
+            //For example if I wanted to multiply 123 by 45,
+            //Consider it written out, http://prntscr.com/p8douj
+            //Then consider these annotations http://prntscr.com/p8emib
+            //Bear this system in mind when reading the code ahead, how this process takes place on paper.
+            for (int ColumnPos = 0; ColumnPos < size * 2; ColumnPos++) // Iterate over every number on the bottom row. Think of the digits 4 and 5 in the example
             {
-                for (int j = 0; j < size * 2; j++)
-                {    //times input[i] by every value in input[2] throughout the iteration  
-                    int mul = (input1[i] * input2[j]) + Result[j + i];  // times the two and if there is a carry/something stored in the result already, add that(we have to do this here because otherwise we wouldn't be checking if we overflowed a byte later                         
-                    Result[j + i] = (byte)(mul % 0x100); //multiplying bytes can give a 2byte result, so we add the LSB here 
-                    if (mul > 0xFF) //if we need to carry
+                for (int BytePos = 0; BytePos < size * 2; BytePos++) // Take said digits then iterate over every digit in the top row.
+                { // times the two and if there is a carry/something stored in the result already, add that(we have to do this here because otherwise we wouldn't be checking if we overflowed a byte later
+                    // V Times the bottom row digit at "ColumnPos" by the top row digit at "BytePos". 
+                    int mul = (input1[ColumnPos] * input2[BytePos]) + Result[BytePos + ColumnPos]; // What is the meaning of Result[BytePos+ColumnPos], well, this serves a few purposes.
+                                                                                                   // Firstly, remember how when we multiplied 123 and 45, when we moved on to the digit 4, 
+                                                                                                   // I added an extra zero in the CursorPos=1 column (http://prntscr.com/p8epnj)
+                                                                                                   // This is doing exactly that, then add BytePos to give the horizontal movement in that row
+                    Result[BytePos + ColumnPos] = (byte)(mul % 0x100); // -----------------------> // Mathematically this is accounting for the fact that the values in the current column have their
+                                                                                                   // full value "cut off", when multiplying 4 by the numbers in the BytePos row, really I multiply
+                                                                                                   // by 40, but adding the ColumnPos, we are shifting that number of indexes to get the number in the right column
+                                                                                                   // If this was on a ulong for example rather than an array, you could think of it as a bitwise shift.
+                                                                                                   // But why is the value of Result[BytePos+ColumnPos] added on? Remember how at the end of long multiplication,
+                                                                                                   // I added all the ColumnPos row results together to get 5535, well this just saves us doing that.
+                                                                                                   // The first ColumnPos iteration is stored in the result initially, then the next can just add on top of that
+                                                                                                   // to save extra computation time for adding at the end.
+                                                                                                   // Also, whats with the modulo? Well similar to adding, two bytes added can make a result greater than a single byte,
+                                                                                                   // However, when I added, I showed that the carry would also be one(9+9=18), but that is obviously not the case for
+                                                                                                   // multiplication, so for now, take the LSB and leave that in the result, deal with everything else shortly.
+                    if (mul > 0xFF) //If the result was in fact greater than a single byte 
                     {
-                        byte[] carry = new byte[size * 4];
-                        carry[i + j + 1] = (byte)(mul / 0x100);
-                        Add(Result, carry, size * 4, out Result);// then the MSB here,(a carry).    e.g the two byte A12B % 0x100 = 2B, A12B / 0x100 = A1 ( / operator is integer division)
+                        byte[] carry = new byte[size * 4]; // This carry needs to be added to the result like a large number. Let Add() handle all the subcarries(carries within Result+Carry).
+                        carry[ColumnPos + BytePos + 1] = (byte)(mul / 0x100); // Set the current byte position + 1 to the value of the multiplication / by the smallest value a byte cannot be
+                                                                              // simply, how many times over the max value did we go, or the little superscript numbers shown in the annotated example.
+                        Add(Result, carry, size * 4, out Result);// Finally add the MSB here,(a carry).    e.g the two byte A12B % 0x100 = 2B, A12B / 0x100 = A1(where / is integer division)
+                                                                 //                                            2B goes in the current byte position, A1 goes into the next.
                     }
                 }
             }
-            Array.Resize(ref Result, size * 2);
+            //Throughout this explanation I sort of missed out a crucial part that I hope you didn't notice. My "columns" or indexes in the byte array really represent
+            //base 256 numbers not base 10. It doesn't actually change anything, but I would imagine it to be very confusing if I use long multiplication to explain my method
+            //then put multiple "digits" in one column. It really is no different aside from the few corners I cut as mentioned before.
+            Array.Resize(ref Result, size * 2); // Resize back the array that I dont want(it was only used as extra space for carries as the inputs were resized initially)
             byte[] UpperComparison = new byte[size * 2];
-            Array.Copy(Result, UpperComparison, size);
-            UpperComparison = (signed) ? SignExtend(UpperComparison, (byte)(size * 2)) : ZeroExtend(UpperComparison, (byte)(size * 2));
-            bool UpperUsed = UpperComparison.CompareTo(Result, signed) != 0;
-            return new FlagSet() //only these 3 are set in 
-            {
-                Overflow = UpperUsed ? FlagState.ON : FlagState.OFF,
-                Carry = UpperUsed ? FlagState.ON : FlagState.OFF,
-                Sign = signed ? (Result[size - 1] > 0x7F ? FlagState.ON : FlagState.OFF) : FlagState.UNDEFINED
-            };
+            Array.Copy(Result, UpperComparison, size); // Copy the bottom bytes of result to upper comparison to guarentee both have the bottom half equal
+            UpperComparison = (signed) ? SignExtend(UpperComparison, (byte)(size * 2)) : ZeroExtend(UpperComparison, (byte)(size * 2)); // Create an array with what unused upper bytes would look like, e.g FF,FF,FF,.. from a sign extension of a signed negative result
+            bool UpperUsed = UpperComparison.CompareTo(Result, signed) != 0;                                                            // or just 0,0,0,0,0,.. in any other case
+            //Then compare the the two, if the result isn't zero, that means those upper bytes were used
+            //Intel's explanation of this reads 
+            //"The CF and OF flags are set when the signed integer value of the intermediate product differs from the sign
+            //extended operand-size-truncated product, otherwise the CF and OF flags are cleared."
+            //If this explanation is harder to understand, consider the "intermediate product" to be the result
+            //and the "sign extended operand-size-truncated product" to be the UpperComparison array.
+            //Another much better explanation that was replaced after the December 2015 edition of the manual read,
+            //"the CF and OF flags are set when significant bits are carried into the upper half
+            // of the result and cleared when the result fits exactly in the lower half of the result. For the two- and three-operand
+            // forms of the instruction, the CF and OF flags are set when the result must be truncated to fit in the destination
+            // operand size and cleared when the result fits exactly in the destination operand size. "
+            //A purpose of this would be to say whether the MSB in the lower bytes reflect the true MSB.
+            //Remember how multiplication opcodes are implemented.
+            //There are basically two different scenarios that this affects,
+            //1. I want to multiply the A register by a R/M(Register or memory) of equal size, and store the lower bytes of that big number in the A register and the upper in D register,
+            //   so this would tell me when the result in the A register is truncated and that I needed to check the D register to get the rest of my result.
+            //2. I multiplied a register by a R/M, but the result was too big so the value in the result register is truncated and incorrect. Obviously there is no solution to this because
+            //   you would be asking for larger registers that didn't exist at that time. Filling up an arbitary register with your upper bytes after you specifically chose another register
+            //   to put your answer in(other than the A register) would be a really crazy idea.
+            return new FlagSet() // Never set PF or ZF. I dont know the reason intel decided this, but I would assume it is to do with the result being stored in two registers
+            {                    // (or atleast was the case when the implicit A register opcode was the only one to exist)
+                                 // P.S strictly speaking the PF,AF, and ZF are "undefined". This means that a particular processor MAY set these based on something,
+                                 // but it would be unreliabl to base your code on it as processor specific documentation is seldom.
+                Overflow = UpperUsed ? FlagState.ON : FlagState.OFF,  // If the upper was used, tell the developer
+                Carry = UpperUsed ? FlagState.ON : FlagState.OFF, // Carry is set to the same as the overflow flag
+
+                //As of the May 2019 release of the documentation, setting the sign flag is now "undefined". 
+                //Sign = signed ? (Result[size - 1] > 0x7F ? FlagState.ON : FlagState.OFF) : FlagState.UNDEFINED // if signed multiplication, get the sign of the truncated lower bytes in the lower
+            };                                                                                                   // half of the result
         }
         public static FlagSet Increment(byte[] input, int size, out byte[] Result)
         {
             Result = new byte[size];
-            Array.Copy(input, Result, input.Length);
+            Array.Copy(input, Result, input.Length); // Create a buffer and copy the result into. Why? This is a problem .NET implementation. Instead of
+                                                     // creating lists as object orientated counterparts to arrays, arrays are also instance based, and a
+                                                     // reference to the instance was passed when the method was called, not the whole array. Since we are
+                                                     // already thinking about low level code, it could be said(although the compiler is likely to do many
+                                                     // weird and wonderful things that may not be word for word what I say, but in theory), that a pointer 
+                                                     // to the "input" array is pushed on to the stack, then when I want to, say, change the byte at index
+                                                     // 3 in the array, I could do,
+                                                     //   mov byte ptr [rsp+3], 0x12
+                                                     // The offset being 3 because the array is a byte array, if it was an dword array,
+                                                     //   mov dword ptr [rsp+12], 0x78563412
+                                                     // The offset being 12 because the index I want is 3, but each element of the array is 4 bytes, 3*4=12                                                     // 
+                                                     // Then once I return from the function, and I try to access my input again
+                                                     //   mov al, byte ptr [rsp+3](Consider a static stack frame)
+                                                     // Now I have 12 in $al, not what I had before. This really is more of a general .NET problem rather
+                                                     // than specific to my program, there is no scenario in assembly where this would affect anything,
+                                                     // but it's important to be aware of the framework you are programming in. There are scenarios which are
+                                                     // exactly this in other parts of this program that I wont spoil now, but hope you look forward to reading about.
+                                                     // Here is a short annotated demonstration written in C#: http://prntscr.com/p8tb5s
             bool CarryBit3 = ((input[0] & 0b111) + 1) > 0b111; // if we will carry into bit 4 of 1st byte
             for (int i = 0; i < Result.Length; i++)
             {
