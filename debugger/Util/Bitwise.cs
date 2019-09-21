@@ -47,7 +47,7 @@ namespace debugger.Util
         public static FlagSet Negate(byte[] input1, out byte[] Result)
         {
             // To negate is an equivalent operation as to XOR by -1,
-            // In layman terms, each bit will be flipped, providing a twos compliement equivalent(be it positive or negative)
+            // Simply, each bit will be flipped, providing a twos compliment equivalent(be it positive or negative)
             FlagSet ResultFlags = Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
             if (input1.IsZero())
             {
@@ -709,48 +709,87 @@ namespace debugger.Util
             else
             {
                 StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F)); // As before, we only optimise by masking not using modulo.
-                                                                                                    // There is a possibility that on a hardware level, moduloing
+                                                                                                    // There is a possibility that on a hardware level, to modulo
                                                                                                     // by 8 is simply not worth the performance tradeoff.
             }            
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
-            bool Carry = carryPresent;
-            byte tempMSB = (byte)((carryPresent && useCarry) ? 1 : 0);
-            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
-            {                
-                for (int i = 0; i < (int)size; i++)
+            bool Carry = carryPresent; // Set this if there is a carry flag already. If the instruction is ROL, this is set but never used.
+            bool Pull = carryPresent && useCarry; // Pre-set if there is already a carry flag. This is the value that would be pushed into LSB
+                                                                       // This is done a little differently if I'm not using the carry flag. Or could be said that
+                                                                       // I only have to worry about this if I am using the carry flag.
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)  // Each iteration of $RotateCount rotates the result by one, so do that as many times                                            
+            {                                                                    // as I want to rotate in total.
+                for (int i = 0; i < (int)size; i++) // Iterate over each byte--bits can be handle at a bigger scale.
                 {
-                    byte Mask = tempMSB;
-                    tempMSB = MSB(Result[i]);
-                    Result[i] = (byte)((Result[i] << 1) | Mask);
+                    byte Mask = Pull ? 0b1 : 0;                     //
+                    Pull = MSB(Result[i]) == 1;                     // These few lines are the exact same idea as in shift. See ShiftLeft()!
+                    Result[i] = (byte)((Result[i] << 1) | Mask);    // 
                     
                 }
-                if (useCarry)
-                {
-                    Result[0] |= (byte)(Carry ? 1 : 0);
-                    Carry = tempMSB > 0;                    
-                }
-                else
-                {
-                    Result[0] |= tempMSB;
-                }
-                tempMSB = 0;
-            }
+                if (useCarry)                                // Since when rotating, I care about every bit, I need to handle the pull before the damage is done.
+                {                                            // If there is a carry,
+                    Result[0] |= (byte)(Carry ? 1 : 0);      //  1. Set the LSB of the result if there is a carry
+                    Carry = Pull;                            //  2. Set the carry to be the previous MSB(before rotation). This will be stored in the pull boolean
+                }                                            //     and if I was shifting, I would just discard that right here because it wouldn't be needed, but
+                else                                         //     since I want to rotate, it loops right back round.
+                {                                            // If there is no carry,
+                    Result[0] |= Pull ? 0b1 : 0;             //  1. Don't have to worry about step 1 of before, I just set the LSB to the MSB before rotation.
+                }                                            // Lastly, turn the pull off because now I'm going to do a completely different rotation.
+                Pull = false;                                // The algorithm isn't interdependent on iterations--you could take the result out of any $RotateCount
+            }                                                // iteration and get a result equal to the input array rotated $RotateCount times.
             FlagSet ResultFlags = new FlagSet();
             if(useCarry)
             {
-                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
-            }
-            else
-            {
-                ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
-            }
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF; // This is where we set the carry flag on the output. I don't have to worry about setting it each
+            }                                                             // time in the loop, there will be no need to check it in the middle of the algorithm. This is because
+            else                                                          // rotating is what's called an inatomic operation. It really gets far fetched here, but a processor can
+            {                                                             // skip ahead of time and do operations that are not interdependent on each other. Let's say I have this code,
+                                                                          //  mov eax, 0x10
+                                                                          //  rol eax, 0x1F
+                                                                          //  mov ebx, 0x20
+                                                                          //  rol ebx, 0x1F
+                                                                          // Lets also pretend that our processor isn't very fast. It definitely still applies to even the fastest processors
+                                                                          // , little tricks like this make our flagship models really fast. But despite being really slow, our pretend processor
+                                                                          // has 2 cores. We have all been told that "multiple cores don't make single processes faster" but it's really wrong.
+                                                                          // Lets look a little deeper at the code given, I'm moving 10 into $eax, and rotating it left by 31, then setting $ebx
+                                                                          // to 32 and doing the same. But these two operations are completely independent of each other. The first two instructions
+                                                                          // affect the second two in no way at all. So, why not delegate these to core 2, so effectively we can execute this piece
+                                                                          // of code theoretically in half the time. However what about with RCL?
+                                                                          //  0x0 mov al, 0x80
+                                                                          //  0x2 rcl al, 1
+                                                                          //  0x4 mov bl, 0x80
+                                                                          //  0x6 rcl bl, 1
+                                                                          //  0x8 nop
+                                                                          // Remember that 0x80 in binary is [10000000]
+                                                                          // If we ran this atomically(in series as you see it), 0x2 would set the carry flag on. Then at 0x6 the carry flag would already
+                                                                          // be set, so it would loop round to the LSB, but also the MSB would be pushed into the carry flag. So at 0x8, our results would be
+                                                                          //  $AL = 0
+                                                                          //  $BL = 1
+                                                                          //  $CF = 1
+                                                                          // And this is absolutely correct, but what if I tried this inatomically and say that I delegate instructions 0x0 and 0x2 to core 1, 0x4 and 0x6 to
+                                                                          // core 2. This would give a different result! Assuming that the CF was not already set, the core 2 wouldn't know that after core 1
+                                                                          // finishes, the CF would be set, so as a result there would have been no CF set to rotate into $BL, therefore the result would be
+                                                                          //  $AL = 0
+                                                                          //  $BL = 0
+                                                                          //  $CF = 1(because the both cores would set the CF on, that doesn't mean it would be equal to 2. The CF is actually just a bit in a
+                                                                          //          register. Think of it as setting a boolean to true twice, you did the same thing twice but nothing changes)
+                                                                          // So this demonstrates why both RCL instructions cannot be executed inatomically in this scenario. However, some things could. 
+                                                                          // Whilst 0x2 is being executed by core 1, core 2 could execute 0x4, then once core 1 is finished it can move on to 0x6.
+                                                                          // Despite being a super cool low level concept, I don't incorporate it into my program. Why? It defeats the purpose entirely.
+                                                                          // Imagine trying to debug some code, then randomly another part of your program starts executing, that would be a massive pain.
+                                                                          // Most importantly, when I'm debugging assembly code, I don't care about speed. Its never going to take any amount of considerable
+                                                                          // time to execute a single instruction. Performance is only really important to the end-user. Also, you have to think about why you
+                                                                          // are learning assembly. If I didn't care about how I can take full advantage of the processor, I wouldn't be writing my code in assembly.  
+                ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF; // If the carry flag wasn't used in rotation because ROL was used, set it to the LSB of the result. As to why, I don't know. I can't
+            }                                                                       // think of a scenario where I would use this, but Intel writes it as "For ROL and ROR instrucrtions, the original value of the CF
+                                                                                    // is not part of the result, but the CF flag recieves a copy of the bit that was shifted from one end to the other".
             if(StartCount == 1)
             {
-                ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON;
-            }                        
-            return ResultFlags;
+                ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON; // As with in ShiftLeft(), I don't know when this would be used. I assume
+            }                                                                                                                           // compatibility.  The Intel manuals are very cookie-cutter, they don't 
+            return ResultFlags;                                                                                                         // explain much, they just state what happens.
         }
         public static FlagSet RotateRight(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
         {
@@ -759,11 +798,11 @@ namespace debugger.Util
             {
                 StartCount = size switch
                 {
-                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
-                    RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
-                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
-                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
-                    _ => throw new Exception(),
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),  //
+                    RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17), //
+                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),       // See RotateLeft()
+                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),       //
+                    _ => throw new Exception(),                                //
                 };
             }
             else
@@ -774,108 +813,149 @@ namespace debugger.Util
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
             bool Carry = carryPresent;
-            byte tempLSB = (byte)((carryPresent && useCarry) ? 0b10000000 : 0);
-            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
+            bool Push = (byte)carryPresent && useCarry; // If theres a carry, its going to become the MSB of the result.
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++) // Like ShiftRight(), work backwards
             {
-                for (int i = (int)size-1; i >= 0; i--) // a222222219999108 -> d11111110cccc884
+                for (int i = (int)size-1; i >= 0; i--) 
                 {
-                    byte Mask = tempLSB;
-                    tempLSB = (byte)(LSB(Result[i]) << 7);
+                    byte Mask = Push ? 0b10000000 : 0; // Instead of setting the LSB, I want to set the MSB of the byte in the array,
+                    Push = LSB(Result[i]) == 1);       // due to the direction of bit movement. To think of it simply, every bit in
+                                                       // the input is being shifted one place right, then the LSB from before(preserved
+                                                       // in $Push used to OR the MSB.
                     Result[i] = (byte)((Result[i] >> 1) | Mask);
                 }
-                if (useCarry)
-                {
-                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0);
-                    Carry = tempLSB > 0;
-                }
-                else
-                {
-                    Result[Result.Length-1] |= tempLSB;
-                }
-                tempLSB = 0;
+                if (useCarry)                                                   // Very similar to RotateLeft, except instead of having shifting left, I shifted
+                {                                                               // right, so the CF represents the initial LSB. If the CF was set already,
+                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0);  // that means the MSB will be set. Read RotateLeft() and ShiftRight(), the 
+                    Carry = Push;                                               // algorithms are almost identical.
+                }                                                               //
+                else                                                            //
+                {                                                               //
+                    Result[Result.Length-1] |= Push;                            //
+                }                                                               //
+                Push = false;
             }
             FlagSet ResultFlags = new FlagSet();
             if (useCarry)
             {
-                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;   // Set the real CF afterwards as part of the result(not just the boolean).
             }
             else
             {
-                ResultFlags.Carry = MSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
+                ResultFlags.Carry = MSB(Result) > 0 ? FlagState.ON : FlagState.OFF; // If the instruction was ROR, set the CF to the MSB.
             }
             if (StartCount == 1)
             {
-                ResultFlags.Overflow = (MSB(Result) ^ GetBit(Result, Result.Length*8-1)) == 0 ? FlagState.OFF : FlagState.ON;
-            }
+                ResultFlags.Overflow = (MSB(Result) ^ GetBit(Result, Result.Length*8-1)) == 0 ? FlagState.OFF : FlagState.ON; // XOR of the sign bit and the second-to-last bit of the result. 
+            }                                                                                                                 // I don't know when this would be used either, but it's there.
             return ResultFlags;
         }
-        public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(0x80 >> bit % 8));
-        public static byte GetBit(byte[] input, int bit) => (byte)(input[bit / 8] & (0x80 >> bit % 8));
-        public static byte MSB(byte input) => (byte)(input >> 7);
-        public static byte MSB(byte[] input) => (byte)(input[input.Length - 1] >> 7);//readable i guess? some reason its a good idea
-        public static byte LSB(byte input) => (byte)(input & 1);
-        public static byte LSB(byte[] input) => (byte)(input[0] & 1); 
-        public static string GetBits(byte[] input)
+        public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(1 << ((bit-1) % 8))); // Calculate the position of a bit in a byte array, return it in the format (index, mask)
+                                                                                                         // To find the index is easy, just divide the input by 8. There are 8 bits in a x86-64 byte 
+                                                                                                         // so that is how many indexes I need to skip over. 
+                                                                                                         // Now to create a mask to get the bit I want out of this element. Well, first I take the 
+                                                                                                         // modulo of the bit I want. This represent how many bits short I was of being bang on, e.g
+                                                                                                         // if I want the 9th bit, that's just over the 1st index by one, so 9 % 8 = 1, i.e the first
+                                                                                                         // bit of the next byte is what I want. If I wanted the 10th, 10 % 8 = 2, 2nd bit of the next
+                                                                                                         // byte. So how do I make a mask out of this? Well since I only want 1 bit, I can shift 1
+                                                                                                         // by the offset to get a mask for the bit I want. So to get the mask I have to modulo
+                                                                                                         // by 8, because if I did want bit 8, I wouldn't shift 1 at all, it would be the first bit
+                                                                                                         // of the 2nd byte. This is also necessary to mask the MSB. There is still a problem though,
+                                                                                                         // I already have 1 in the first column, so I need to subtract 1 from $bit to make up for this,
+                                                                                                         // as $bit % 8 dictates which bit I want, if I were to shift 1 by that I would be going one too far.
+                                                                                                         // Now to use this mask, I could bitwise AND my variable and the mask to get the VALUE of the bit. Remember that once this method 
+                                                                                                         // returns the job isn't completely done. I then need to left shift the result of the bitwise AND $bit % 8 times. 
+                                                                                                         // Just because I am selecting a single bit doesn't mean I take away its value. A bit in the 2nd column will always represent
+                                                                                                         // two, 4 in the 3rd column and so forth.
+                                                                                                         // (Note that throughout this explanation, I don't consider bits to be 0 index based. Naturally
+                                                                                                         // the array is, but in a qword I would refer to the MSB as the 64th bit and the LSB as the 1st)
+        public static byte GetBit(byte[] input, int bit) // An example implementation of GetBitMask, read GetbitMask()
         {
-            string sOutput = "";
+            (byte Index, byte Mask) = GetBitMask(bit);
+            byte WeightedBit = input[Index] & Mask; // This bit could represent 128,64,32,16,8,4,2 or 1. Regardless, I want it to be one. You could work around this in every usage of the method
+                                                    // but it would be a lot more consistent to output either a 1 or 0.
+            return WeightedBit / Mask; // Another way of turning the WeightedBit into a 1 or 0 is to use integer division. A number divided by itself is always 1(save zero, but I know that the value
+                                       // of $Mask will be nonzero because I'm left shifting 1 by a value less than 8, which means it could not be shifted out of the byte.) So if the WeightedBit is
+                                       // set, dividing it by itself will give one. If it isn't, I would be dividing 0 by the mask, which would give 0.
+        }
+        public static byte MSB(byte input) => (byte)(input >> 7); // The same method de-weighting a bit as detailed in GetBitMask(). Since I know the MSB is always the 8th bit in x86-64, shifting it
+                                                                  // 7 places to the right means that it will either be 1 or 0.
+        public static byte MSB(byte[] input) => MSB(input[input.Length - 1]); // Needs no explanation, get the MSB of an array-represented value.
+        public static byte LSB(byte input) => (byte)(input & 1); // LSB is a little easier than MSB because the LSB is either 1 or 0 anyway. If I bitwise AND $input by 1, I can only get 1 or 0.
+        public static byte LSB(byte[] input) => LSB(input[0]); // Get the LSB of a value represented as an array.
+        public static string GetBits(byte[] input) // Turn an array-represented value into a string of 1 and 0s for simpler processing.
+        {
+            string Output = "";
             for (int i = 0; i < input.Length; i++)
             {
-                sOutput += Convert.ToString(input[i], 2).PadLeft(8, '0');
+                Output += GetBits(input[i]); // Turn each byte in the array into a string of bits and append it to our output.
             }
-            return sOutput;
+            return Output;
         }
-        public static string GetBits(byte input)
-        {
-            return Convert.ToString(input, 2).PadLeft(8, '0');
-        }
-        public static string GetBits(ushort input)
-        {
-            return Convert.ToString(input, 2).PadLeft(16, '0');
-        }
-        public static string GetBits(uint input)
-        {
-            return Convert.ToString(input, 2).PadLeft(32, '0');
-        }
-        public static string GetBits(ulong input)
-        {
-            return Convert.ToString((long)input, 2).PadLeft(64, '0');
-        }
-        public static byte[] GetBytes(string bitString)
-        {
-            byte[] baOutput = new byte[bitString.Length / 8];
-            for (int i = 0; i < baOutput.Length; i++)
+        public static string GetBits(byte input) => Convert.ToString(input, 2).PadLeft(8, '0'); // Convert.ToString(,2) converts a single byte into a string of bits and returns the lowest amount of bits as possible. 
+                                                                                                // I need to preserve the size of bytes being 8 bits in x86-64, so each byte will keep its length by padding it to 8 columns.
+        public static byte[] GetBytes(string bitString) // Convert a string representation of a byte array back into bytes. This is only going to work properly 
+        {                                               // on byte arrays that I parsed. I cannot attest to any other methods.
+            byte[] Output = new byte[bitString.Length / 8]; // Divide a multiple of 8 by 8 to get the number of bytes. This is where using different sources of code together can go sour. Ensure that yours pads bytes properly.
+            for (int i = 0; i < Output.Length; i++)
             {
-                baOutput[i] = Convert.ToByte(bitString.Substring(8 * i, 8), 2);
+                Output[i] = Convert.ToByte(bitString.Substring(8 * i, 8), 2); // Select the bytes I want by multiplying the iterator by the number of bits in a x86-64 byte. This selects the next group of 8 each time.
             }
-            return baOutput;
+            return Output;
         }
-        public static byte[] SignExtend(byte[] input, byte newLength)
+        public static byte[] SignExtend(byte[] input, byte newLength) // Resize an array using sign extension.
         {
-            if(input.Length < newLength)
-            {
-                int startIndex = input.Length;
-                byte sign = (byte)(input[startIndex - 1] > 0x7F ? 0xFF : 0x00);
-                Array.Resize(ref input, newLength);
-                for (int i = startIndex; i < newLength; i++)
-                {
-                    input[i] = sign;
+            if(input.Length < newLength) // If the input is a longer than the newLength, something has probably gone horribly wrong. However, there is a good chance they're even. In which case, just return now
+            {                            // because nothing needs to be done.
+                int startIndex = input.Length; // I don't want to overwrite the whole array, so start at the current length(this gives the index after the last byte in the array)
+                Array.Resize(ref input, newLength); // Then resize the array so there is space for the new bytes.
+                // Now I need to determine the sign. Is the sign bit(the MSB) greater than 0x7F? Because if it is, twos compliment says it's going to be negative.
+                // To demonstrate this I will write out each bit in a signed byte,
+                // [-128][64][32][16][8][4][2][1]
+                // Now If I have 0x7F, this is the same as,
+                // [0][1][1][1][1][1][1][1]
+                // So by looking at that I can be 100% sure that any value greater than 0x7F used that last -128 bit.
+                // -128 + 64 + 32 + 16 + 8 + 4 + 2 + 1 = -1, so if the -128 bit is set, it must be negative.
+                // V This could also be done with a bit mask, but there is no significant difference.
+                if(input[startIndex-1] > 0x7F) // Here I take a little shortcut because I know how Array.Resize() works.
+                {                              // It does exactly two things.
+                                               //  1. Assign the input to a new array of the length passed as an argument.
+                                               //     Since the input was passed by reference, this can be done. If it wasn't,
+                                               //     the new array would be lost after the function returns because a new instance
+                                               //     was assigned to the input array. This is exactly how "new" works, don't use it
+                                               //     so blindly, it will destroy the reference. So for us this would mean that the
+                                               //     array after the method would be the same as the array before(to the caller) as
+                                               //     the array created would be local to the callee.
+                                               //  2. A byproduct of step 1, the new array initialised will have all elements equal to
+                                               //     the default value of the type it holds. What this means though is that if the 
+                                               //     type contained is a value type(int, byte, long) it will be 0, or if it inherits
+                                               //     from object(e.g a class), it will be null.(There may be some weird exception somewhere
+                                               //     that I don't know of, but these are pretty safe assumptions). So, we can take advantage
+                                               //     of this, because if a positive number is sign extended, like zero extension, it will
+                                               //     just be filled with zeros until it is the desired length. In short, if it is a signed positive
+                                               //     resize the array and return.
+                    for (int i = startIndex; i < newLength; i++) // If it was a negative, every value after and including the startIndex needs
+                    {                                            // to be set to 0xFF. This is probably the best way of doing so.
+                        input[i] = 0xFF;
+                    }
                 }
             }            
             return input;
         }
-        public static string SignExtend(string bits, int newLength)
+        public static string SignExtend(string bits, int newLength) // Sign extension can also be applied to string representations of byte arrays.
         {
-            string Buffer = "";
-            char SignBit = (bits[0] == '1') ? '1' : '0';
-            for (int i = bits.Length; i < newLength; i++)
+            string Output = "";
+            char SignBit = (bits[0] == '1') ? '1' : '0';  // Determine whether the sign bit is a 1 or 0(thats all sign extension is really, 0xFF=0b1111111)
+            for (int i = bits.Length; i < newLength; i++) // the newLength will be the length of the string not the length of bytes.
             {
-                Buffer += SignBit;
+                Output += SignBit; // Append the sign bit ($newLength-$bits.Length) times
             }
-            return Buffer;
+            return Output;
         }
-        public static byte[] ZeroExtend(byte[] input, byte length) // http://prntscr.com/ofb1dy
+        public static byte[] ZeroExtend(byte[] input, byte length)
         {
-            Array.Resize(ref input, length);
+            // A performance test shows this is as fast as zero extension can get http://prntscr.com/ofb1dy
+            Array.Resize(ref input, length); // See SignExtension() for a full explanation of why this works.
             return input;
         }
     }
