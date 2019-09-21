@@ -7,6 +7,7 @@ namespace debugger.Logging
     public enum LogCode
     {  
         NONE,
+        INVALID_OPCODE,
         DIVIDE_BY_ZERO,
         REGISTER_BADLEN,
         REGISTER_NOTREADY,
@@ -42,7 +43,8 @@ namespace debugger.Logging
     {
         private static readonly Dictionary<LogCode, (Severity, string)> LogMessages = new Dictionary<LogCode, (Severity, string)>()
         {
-            { DIVIDE_BY_ZERO, (Severity.ERROR, "Attempt to divide by zero. Execution from now is undefined.") },
+            { INVALID_OPCODE, (Severity.EXECUTION, "Invalid opcode was read. Execution from now is undefined.") }
+            { DIVIDE_BY_ZERO, (Severity.EXECUTION, "Attempt to divide by zero. Execution from now is undefined.") },
             { REGISTER_NOTREADY, (Severity.ERROR, "Attempt to access register before it had a size assigned.") },
             { REGISTER_BADLEN, (Severity.ERROR, "Register was set to a length that did not match it's capacity.") },
             { DISASSEMBLY_RIPNOTFOUND, (Severity.CRITICAL, "RIP('{0}') pointed to an address not in the internal disassembly list view dictionary.") },
@@ -69,7 +71,8 @@ namespace debugger.Logging
             INFO,
             WARNING,
             ERROR,
-            CRITICAL
+            CRITICAL,
+            EXECUTION
         }
 
         public static void Log(LogCode inputCode, string[] interpolations)
