@@ -2,7 +2,7 @@
 using debugger.Emulator;
 namespace debugger.Util
 {
-    //Please note that throughout the explanation I deal exclusively with single bytes! Greater word values work the exact same but saves me
+    //Please note that throughout the explanations I deal exclusively with single bytes! Greater word values work the exact same but saves me
     //writing 0x7FFFFFFFFF.... all the time.
     public static class Bitwise
     {         
@@ -240,22 +240,22 @@ namespace debugger.Util
                     LastSign = NewSign; // See a few lines below
                     dividend = Buffer; // We verified that our subtraction produced a positive, now we can commit this to the dividend.
                     Increment(Quotient, size, out Quotient); // We just divided by the divisor once, so we ned to reflect this in the quotient.
-                    //Now lets address the elephant in the room. I said treat the numbers as unsigned, so that means the sign should just be completely
-                    //ignored, so why am I using it in unsigned arithmatic? There is a good reason. I can still take advantage of overflows to tell me
-                    //about the state of an unsigned number. If I subtract 0x1 from 0x0, I get 0xFF right? That still tells me that I overflowed regardless
-                    //of signed or unsigned interpretation, and thats really all it is, interpretation. The result of signed/unsigned operations is rarely affected
-                    //by the sign of the inputs, for example when I add two unsigned numbers, I would always just ignore the overflow flag. Its still set, the processor
-                    //doesn't know whether I'm calculating signed or unsigned numbers, it's just there if I want it. However it is not all that simple. What if I start
-                    //with an unsigned number, that is a negative signed number, such as 0x80? This is where the logical OR in the if statement comes into play.
-                    //If LastSign is true at any time, I know I'm dealing with a large unsigned number, because I already eliminated the possibility of a negative
-                    //signed number. 
-                    //Therefore, if LastSign is ever true, that number is going to go through three phases
-                    // 1. A large unsigned number that COULD be interpreted as a negative signed number, LastSign = true
-                    // 2. Become a number < 0x80 such that it can no longer be interpreted as negative, LastSign=NewSign makes this false, " || LastSign" let this get into the if block
-                    // 3. Once again, become a number that is unsigned, but could be interpreted as a negative signed number, NewSign=true LastSign=false = division done!
-                    //Any unsigned number that cannot be interpreted as a signed negative will only go through phases 2 and 3. 
-                    //This three phase process ensures I always always always know when to stop subtracting. 
-                    //(Technically since I never check for equality of the dividend and 0, the loop will always be ran once more than necessary, this is negligible and doesn't affect the result)
+                    // Now lets address the elephant in the room. I said treat the numbers as unsigned, so that means the sign should just be completely
+                    // ignored, so why am I using it in unsigned arithmatic? There is a good reason. I can still take advantage of overflows to tell me
+                    // about the state of an unsigned number. If I subtract 0x1 from 0x0, I get 0xFF right? That still tells me that I overflowed regardless
+                    // of signed or unsigned interpretation, and thats really all it is, interpretation. The result of signed/unsigned operations is rarely affected
+                    // by the sign of the inputs, for example when I add two unsigned numbers, I would always just ignore the overflow flag. Its still set, the processor
+                    // doesn't know whether I'm calculating signed or unsigned numbers, it's just there if I want it. However it is not all that simple. What if I start
+                    // with an unsigned number, that is a negative signed number, such as 0x80? This is where the logical OR in the if statement comes into play.
+                    // If LastSign is true at any time, I know I'm dealing with a large unsigned number, because I already eliminated the possibility of a negative
+                    // signed number. 
+                    // Therefore, if LastSign is ever true, that number is going to go through three phases
+                    //  1. A large unsigned number that COULD be interpreted as a negative signed number, LastSign = true
+                    //  2. Become a number < 0x80 such that it can no longer be interpreted as negative, LastSign=NewSign makes this false, " || LastSign" let this get into the if block
+                    //  3. Once again, become a number that is unsigned, but could be interpreted as a negative signed number, NewSign=true LastSign=false = division done!
+                    // Any unsigned number that cannot be interpreted as a signed negative will only go through phases 2 and 3. 
+                    // This three phase process ensures I always always always know when to stop subtracting. 
+                    // (Technically since I never check for equality of the dividend and 0, the loop will always be ran once more than necessary, this is negligible and doesn't affect the result)
                     
                     // Could this method be applied to other arithmetic operators? Absolutely. Consider 10 + -1000, I could write this as -(1000-10). Fortunately because of twos compliment,
                     // this isn't necessary, I can rely on overflows to do the job for me. However if the numbers were encoded in one compliment or sign magnitude, this method would be needed
@@ -723,7 +723,7 @@ namespace debugger.Util
             {                                                                    // as I want to rotate in total.
                 for (int i = 0; i < (int)size; i++) // Iterate over each byte--bits can be handle at a bigger scale.
                 {
-                    byte Mask = Pull ? 0b1 : 0;                     //
+                    byte Mask = (byte)(Pull ? 0b1 : 0);             //
                     Pull = MSB(Result[i]) == 1;                     // These few lines are the exact same idea as in shift. See ShiftLeft()!
                     Result[i] = (byte)((Result[i] << 1) | Mask);    // 
                     
@@ -735,7 +735,7 @@ namespace debugger.Util
                 }                                            //     and if I was shifting, I would just discard that right here because it wouldn't be needed, but
                 else                                         //     since I want to rotate, it loops right back round.
                 {                                            // If there is no carry,
-                    Result[0] |= Pull ? 0b1 : 0;             //  1. Don't have to worry about step 1 of before, I just set the LSB to the MSB before rotation.
+                    Result[0] |= (byte)(Pull ? 0b1 : 0);     //  1. Don't have to worry about step 1 of before, I just set the LSB to the MSB before rotation.
                 }                                            // Lastly, turn the pull off because now I'm going to do a completely different rotation.
                 Pull = false;                                // The algorithm isn't interdependent on iterations--you could take the result out of any $RotateCount
             }                                                // iteration and get a result equal to the input array rotated $RotateCount times.
@@ -813,25 +813,25 @@ namespace debugger.Util
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
             bool Carry = carryPresent;
-            bool Push = (byte)carryPresent && useCarry; // If theres a carry, its going to become the MSB of the result.
+            bool Push = carryPresent && useCarry; // If theres a carry, its going to become the MSB of the result.
             for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++) // Like ShiftRight(), work backwards
             {
                 for (int i = (int)size-1; i >= 0; i--) 
                 {
-                    byte Mask = Push ? 0b10000000 : 0; // Instead of setting the LSB, I want to set the MSB of the byte in the array,
-                    Push = LSB(Result[i]) == 1);       // due to the direction of bit movement. To think of it simply, every bit in
-                                                       // the input is being shifted one place right, then the LSB from before(preserved
-                                                       // in $Push used to OR the MSB.
+                    byte Mask = (byte)(Push ? 0b10000000 : 0); // Instead of setting the LSB, I want to set the MSB of the byte in the array,
+                    Push = LSB(Result[i]) == 1;               // due to the direction of bit movement. To think of it simply, every bit in
+                                                              // the input is being shifted one place right, then the LSB from before(preserved
+                                                              // in $Push used to OR the MSB.
                     Result[i] = (byte)((Result[i] >> 1) | Mask);
                 }
                 if (useCarry)                                                   // Very similar to RotateLeft, except instead of having shifting left, I shifted
                 {                                                               // right, so the CF represents the initial LSB. If the CF was set already,
-                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0);  // that means the MSB will be set. Read RotateLeft() and ShiftRight(), the 
+                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0);  // that means the MSB will be set. Read RotateLeft() and ShiftRight(), both 
                     Carry = Push;                                               // algorithms are almost identical.
                 }                                                               //
-                else                                                            //
+                else if(Push)                                                   //
                 {                                                               //
-                    Result[Result.Length-1] |= Push;                            //
+                    Result[Result.Length-1] |= 0b10000000;                      //
                 }                                                               //
                 Push = false;
             }
@@ -850,7 +850,7 @@ namespace debugger.Util
             }                                                                                                                 // I don't know when this would be used either, but it's there.
             return ResultFlags;
         }
-        public static (byte,byte) GetBitMask(byte bit) => ((byte)(bit/8), (byte)(1 << ((bit-1) % 8))); // Calculate the position of a bit in a byte array, return it in the format (index, mask)
+        public static (byte,byte) GetBitMask(int bit) => ((byte)(bit/8), (byte)(1 << ((bit-1) % 8)));    // Calculate the position of a bit in a byte array, return it in the format (index, mask)
                                                                                                          // To find the index is easy, just divide the input by 8. There are 8 bits in a x86-64 byte 
                                                                                                          // so that is how many indexes I need to skip over. 
                                                                                                          // Now to create a mask to get the bit I want out of this element. Well, first I take the 
@@ -872,11 +872,11 @@ namespace debugger.Util
         public static byte GetBit(byte[] input, int bit) // An example implementation of GetBitMask, read GetbitMask()
         {
             (byte Index, byte Mask) = GetBitMask(bit);
-            byte WeightedBit = input[Index] & Mask; // This bit could represent 128,64,32,16,8,4,2 or 1. Regardless, I want it to be one. You could work around this in every usage of the method
+            int WeightedBit = input[Index] & Mask;  // This bit could represent 128,64,32,16,8,4,2 or 1. Regardless, I want it to be one. You could work around this in every usage of the method
                                                     // but it would be a lot more consistent to output either a 1 or 0.
-            return WeightedBit / Mask; // Another way of turning the WeightedBit into a 1 or 0 is to use integer division. A number divided by itself is always 1(save zero, but I know that the value
-                                       // of $Mask will be nonzero because I'm left shifting 1 by a value less than 8, which means it could not be shifted out of the byte.) So if the WeightedBit is
-                                       // set, dividing it by itself will give one. If it isn't, I would be dividing 0 by the mask, which would give 0.
+            return (byte)(WeightedBit / Mask); // Another way of turning the WeightedBit into a 1 or 0 is to use integer division. A number divided by itself is always 1(save zero, but I know that the value
+                                               // of $Mask will be nonzero because I'm left shifting 1 by a value less than 8, which means it could not be shifted out of the byte.) So if the WeightedBit is
+                                               // set, dividing it by itself will give one. If it isn't, I would be dividing 0 by the mask, which would give 0.
         }
         public static byte MSB(byte input) => (byte)(input >> 7); // The same method de-weighting a bit as detailed in GetBitMask(). Since I know the MSB is always the 8th bit in x86-64, shifting it
                                                                   // 7 places to the right means that it will either be 1 or 0.
