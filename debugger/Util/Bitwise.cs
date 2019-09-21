@@ -571,63 +571,146 @@ namespace debugger.Util
         }
         public static FlagSet ShiftRight(byte[] input, byte count, int size,  out byte[] Result, bool arithmetic)
         {
-            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // shifting more than 0x3f times in 64bit ins or 0x1f otherwise, isnt allowed, in reality is cut down for performance
-            int StartCount = count; 
-            Result = new byte[size];
-            Array.Copy(input, Result, input.Length);
-            if (StartCount == 0)
+            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); // 
+            int StartCount = count;                                 //
+            Result = new byte[size];                                // See ShiftfLeft()
+            Array.Copy(input, Result, input.Length);                //
+            if (StartCount == 0)                                    //
             {
                 return new FlagSet();
             }            
-            //Arith
-            for (; count > 0; count--)
-            {
-                bool Push = false;
-                for (int i = Result.Length - 1; i >= 0; i--)
-                {
-                    int PushMask = Push ? 0b10000000 : 0;
-                    Push = ((Result[i] & 1) == 1);
-                    Result[i] = (byte)((Result[i] >> 1) | PushMask);
-                }
-                
-            }
-            //Flags
-            int InputMSB = (input.Length == size) ? MSB(input) : 0; // if the input was less than the intended size, the msb would be 0
-            if (arithmetic) // sar keeps the sign of the input in the result, shl keeps it in of
-            {
+            for (; count > 0; count--)                                  // Instead of thinking about pulls in ShiftLeft, now I need to
+            {                                                           // implement the opposite, where the LSB of a byte is pushed in the
+                bool Push = false;                                      // direction of the actual LSB. Literally, a shift right is a shift
+                for (int i = Result.Length - 1; i >= 0; i--)            // left but in the opposite direction. The inverse of ShiftLeft
+                {                                                       // (in scenarios where no bits are pushed out the result), or dividing 
+                    int PushMask = Push ? 0b10000000 : 0;               // by a power of 2. However you want to think of it. Lets show the example
+                    Push = ((Result[i] & 1) == 1);                      // from earlier. I shifted 128 by 1 to get 256, but now I want to go back.
+                    Result[i] = (byte)((Result[i] >> 1) | PushMask);    //  256 = [00000001] [00000000]
+                }                                                       // Obviously if I shifted the value as is, the bit would just be cropped off
+                                                                        // because C# doesn't understand that the byte array represents one value,
+            }                                                           // so I have to predict if this will happen. I can do exactly that by masking
+                                                                        // the value by 1, and seeing if the answer is equal to 1. Essentially I'm
+                                                                        // ignoring all other bits and just checking if the LSB is set. If it is,
+                                                                        // the Push boolean will be on and then shift as normal. The result,
+                                                                        //  128 = [00000000] [10000000]
+                                                                        // does have no bits set in the upper byte, so losing this bit in the upper
+                                                                        // byte does happen--I just have to be aware of when it does.
+                                                                        // So then on the next iteration(because the loop works backwards), if the push
+                                                                        // is set, the result of the shift gets masked by 128(which sets the MSB)
+                                                                        // Read ShiftLeft() if unsure about any of this. They are two very similar
+                                                                        // operations but I don't want to repeat myself.
+            int InputMSB =  MSB(input);  // This(if not earlier) is where things go tragic if you lied in the size argument.
+                                                                    
+            if (arithmetic) // If I was shifting a value for part of an arithmetic operation, but I had a signed negative, what would happen? I would
+            {               // lose that sign bit for every shift greater than 0. That means any negative shifted would be useless in arithmetic, and
+                            // the developer would have to implement their own mechanism to do it themselves, which would be a waste.
+                            // Aside from the overflow flag, this is the difference between shift right(SHR) and shift arithmetic right(SAR)
+                            // Briefly, for shifting left, this problem is not solvable. Since we would be shifting in the direction of the MSB,
+                            // what if bit 7 of the input was on, and shifted into the sign bit? What if bit 8 was on and 7 was off, we just lost
+                            // our sign bit! Either way poses a risk of invaldating the result, the only safe bit to change when shifting left is
+                            // the LSB, because it is guarenteed it would be off. But that doesn't have much use to us, so, this is a limitation
+                            // for using shifts as a way to multiply by powers of 2, it's only going to work for unsigned numbers, despite having
+                            // two mnemonics, "SAL" and "SHL", they both are the exact same operation. They aren't even two different opcodes,
+                            // you could use objdump that would disassemble it as SAL, then use GDB that tells you SHL. 
+                            // So when we want to shift arithmetic right, what do we do? Remember how when shifting left, I could be absolutely
+                            // certain that the LSB would be off, because all the bits moved a place in that direction, here we can apply the exact same
+                            // idea. Since I did the reverse, I can be absolutely certain that the MSB will be off. This is where the whole "sign issue"
+                            // comes from. So, check the sign bit of the input, the MSB, and then OR the last bit of the Result by it(which is 100% off).
+                            // There are two scenarios here,
+                            //  1. The InputMSB was off; ORing by 0 changes nothing, in this case leaves it as 0.
+                            //  2. The InputMSB is on; ORing by 1 sets the LSB of the last byte on. Wait what? That's not what I want. Therefore, I have
+                            //     to shift it by 8. Since we know what shifting does, it is clear that I'm making sure it takes up the 8th bit not the first, 
+                            //     because MSB() just tells us whether the sign bit is on or off, it doesn't actually give me the value of the sign bit(intentionally so).
                 Result[Result.Length - 1] |= (byte)(InputMSB << 8);
             }
             FlagSet OutputFlags = new FlagSet(Result);
             if(StartCount == 1)
             {
-                if (arithmetic) // sar keeps the sign of the input in the result, shl keeps it in of
+                if (arithmetic)
                 {
                     OutputFlags.Overflow = FlagState.OFF;
                 }
                 else
                 {
-                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF;
-                }
+                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF; // So, you may have noticed the InputMSB was calculated whether SAL or not.
+                }                                                                        // this is because in a SHR, we still tell the developer the sign, just
+                                                                                         // don't set it for them. It's done by setting the overflow flag to what
+                                                                                         // we would have set the MSB to in SAR, it's just in a SAR instruction, 
+                                                                                         // we save the developer the time of masking the result themself.
             }
             return OutputFlags;
         }
         public static FlagSet RotateLeft(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
         {
+            // Firstly, we need to make sure we know what a bitwise rotation does. If you don't know what a shift is, read ShiftLeft() first.
+            // When we shift, there is a good chance our bits are going to be pushed out the result. What if we could shift a value, then
+            // take all the bits pushed out and put them in the empty space created by the shift, which would be equal to the number of bits
+            // pushed out. Consider we are working on some single bytes,
+            //  255      = [11111111]
+            //  255 << 1 = [11111110]
+            // When I left shifted 255 by 1, I created an empty LSB and the MSB went into oblivion. What if I kept that MSB and said,
+            // I want to wrap this back around, so if I did this mystery operation on 128, I would get 1.
+            //  128   = [10000000]
+            //  128 ? 1 [00000001]
+            // This socalled "mystery operation" is exactly Rotate Left. Lets go back to 255,
+            //  255       = [11111111]
+            //  255 << 1  = [11111110]
+            //  255 ROL 1 = [11111111]
+            //  255 ROL 9123192389 trillion = [11111111]
+            // Naturally this works for more than one bit,
+            //  96          = [01100000]
+            //  96 ROL 1    = [11000000]
+            //  96 ROL 2    = [10000001]
+            //  96 ROL 3    = [00000011]
+            //  96 ROL 1027 = [00000011]
+            // But how did I do that in my head? Read ahead.
             byte StartCount;
-            if(useCarry)
+            if(useCarry) // What exactly is the purpose of useCarry?
+                         // There is a certain variation of ROL called RCL, Roll carry left juggles the value that would be pushed to bit 1
+                         // into the carry flag instead. In effect, we get an extra bit to work with.
+                         // Lets go back to 128, the extra [] represent the CF.
+                         //  128       =    [10000000]
+                         //  128 ROL 1 =    [00000001]
+                         //  128 RCL 1 = [1][00000000]
+                         //  128 ROL 2 =    [00000010]
+                         //  128 RCL 2 = [0][00000001]
+                         // This effectively gives us a 65-bit number to work with.
             {
                 StartCount = size switch
-                {
-                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
+                {                                                              // Like with shifting, we can save a lot of time by masking the bitRotates
+                                                                               // input to eliminate any uneccesary operations. Let's say I want to ROL
+                                                                               // a value by 8. Well, all the bits are going to go in a full circuit and
+                                                                               // give the same result.
+                                                                               //  128       = [10000000] 
+                                                                               //  128 ROL 8 = [10000000]
+                                                                               // Consider the example earlier, where I did 96 ROL 1027 in two seconds. 
+                                                                               // Well, I know 1024 is some multiple of 8, so I think, how many OVER that
+                                                                               // did I go, that's 3 right? 7-4 = 3. So if I modulo the count by 8, I can
+                                                                               // save a tonne of time right? 
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9), 
                     RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
                     RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
                     RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
-                    _ => throw new Exception(),
+                    _ => throw new Exception(),                                 // Now you may have noticed, I moduloed by 9 not 8. It even took myself a minute
+                                                                                // to realise that this reduction is only done in RCL not ROL! Honestly, this is
+                                                                                // a blind copy from the Intel provided pseudo code on page 523 chapter 4 Vol 2B
+                                                                                // of their 2019 manual, it would be nice if they included this optimisation for
+                                                                                // ROL, and I would guess they do at a hardware level, but let's go with what
+                                                                                // we know.
+
+                                                                                // If you're still unsure as to why its 9 and 17, think of the CF as an extra bit
+                                                                                // and apply the exact same principle.
+                                                                                //  128       = [0][10000000]
+                                                                                //  128 RCL 9 = [0][10000000]
+                                                                                
                 };
             }
             else
             {
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F)); // As before, we only optimise by masking not using modulo.
+                                                                                                    // There is a possibility that on a hardware level, moduloing
+                                                                                                    // by 8 is simply not worth the performance tradeoff.
             }            
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }
