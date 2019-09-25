@@ -334,16 +334,16 @@ namespace debugger.Emulator
             }
             public void SetUpper(byte[] data)
             {
-                byte[] Buffer = new byte[(int)size];
+                byte[] Buffer = new byte[(int)Size];
                 
                 // Copy $data into the upper half of the buffer(because only the upper bytes are changed by the input $data)
                 // Copy either $data.Length bytes or (int)$Size/2 bytes, whichever is smaller(to prevent overflow)
-                System.Array.Copy(data, 0, Buffer, (data.Length < (int)Size/2) ? data.Length : (int)Size/2);
+                System.Array.Copy(data, 0, Buffer, 0, (data.Length < (int)Size/2) ? data.Length : (int)Size/2);
 
                 // Copy the existing lower bytes into the buffer
                 System.Array.Copy(Fetch()[0], 0, Buffer, ((int)Size/2)-1,(int)Size / 2);
 
-                Set(buffer);
+                Set(Buffer);
             }
             public byte[] FetchUpper() => Bitwise.Subarray(FetchOnce(), (int)Size / 2); // Cut all but the upper half of FetchOnce()
             public byte[] FetchLower() => CurrentContext.Registers[Table, (RegisterCapacity)((int)Size/2), Code]; // Fetch the register half the size of the current (Will throw an exception if $Size == BYTE, if this is happening I definitely want to know)

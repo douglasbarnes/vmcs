@@ -33,7 +33,7 @@ namespace debugger.Util
         }
         public static bool IsNegative(this byte[] input)
         { // convert.tostring returns the smallest # bits it can, not to the closest 8, if it evenly divides into 8 it is negative
-            return Bitwise.GetBits(input).Length % 8 == 0 & input[input.Length - 1] >= 0x80;
+            return (input.Length & input.Length - 1) == 0 && input[input.Length - 1] >= 0x80;
             //-128 64 32 16 8  4  2  1
             // twos compliment: negative number always has a greatest set bit of 1 .eg, 1  0  0  0  0  0  0  1 = -128+1 = -127
             // this way is much faster than using GetBits() because padleft iterates the whole string multiple times

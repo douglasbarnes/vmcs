@@ -105,8 +105,7 @@ namespace debugger.Emulator
             InitialiseMMX();
             foreach (var Register in registers)
             {
-                Registers[(int)Register.Key] = BitConverter.GetBytes(Register.Value)
-
+                Registers[(int)Register.Key] = BitConverter.GetBytes(Register.Value);
             }
         }
         private RegisterGroup(RegisterGroup toClone)

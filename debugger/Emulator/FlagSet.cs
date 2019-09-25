@@ -38,14 +38,14 @@ namespace debugger.Emulator
         public FlagSet(FlagState initialiseAs = FlagState.UNDEFINED)
         {
             // Construct a flag set with all flags equal to $intialiseAs
-            Carry = intialiseAs;
-            Auxiliary = intialiseAs;
+            Carry = initialiseAs;
+            Auxiliary = initialiseAs;
             Overflow = initialiseAs; 
-            Zero = intialiseAs; 
-            Sign = intialiseAs;
+            Zero = initialiseAs; 
+            Sign = initialiseAs;
             Parity = initialiseAs;
-            Direction = intialiseAs;
-            Interrupt = intialiseAs;
+            Direction = initialiseAs;
+            Interrupt = initialiseAs;
         }
         public void Set(FlagState setTo)
         {
@@ -69,7 +69,7 @@ namespace debugger.Emulator
             // input[0] == 0b0000 ; PF
             // input[0] == 0b1000 ; NO PF
             // input[0] == 0b1010 ; PF
-            Parity = Bitwise.GetBits(input[0]).Count(x => x == '1') % 2 == 0 ? FlagState.ON : FlagState.OFF;
+            Parity = Bitwise.GetParity(input[0]) ? FlagState.ON : FlagState.OFF;
         }
         public FlagSet Overlap(FlagSet input) => new FlagSet()
         {
@@ -97,21 +97,21 @@ namespace debugger.Emulator
         public bool EqualsOrUndefined(FlagSet toCompare)
         {
             // Return whether two flag sets have the same flags set ON. OFF and UNDEFINED are treat as the same.                        
-            return toCompare.ToString() == ToString();
+            return toCompare.And(this).ToString() == ToString();
         }
         public FlagSet And(FlagSet toCompare) => new FlagSet()
         {
             // Perform a bitwise AND on every flag(in the sense that ON == 1, OFF | UNDEFINED == 0).
             // If both flags of a kind are ON in $toCompare and $this, that flag will be ON in the result. Otherwise, it will be OFF(no UNDEFINED).
-            Carry = (Carry & toCompare.Carry)              == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Overflow = (Overflow & toCompare.Overflow)     == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Sign = (Sign & toCompare.Overflow)             == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Zero = (Zero & toCompare.Zero)                 == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Auxiliary = (Auxiliary & toCompare.Auxiliary)  == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Parity = (Parity & toCompare.Parity)           == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Direction = (Direction & toCompare.Direction)  == FlagState.ON ? FlagState.ON : FlagState.OFF ,
-            Interrupt = (Interrupt & toCompare.Interrupt)   == FlagState.ON ? FlagState.ON : FlagState.OFF
-        }
+            Carry = (Carry & toCompare.Carry) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Overflow = (Overflow & toCompare.Overflow) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Sign = (Sign & toCompare.Sign) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Zero = (Zero & toCompare.Zero) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Auxiliary = (Auxiliary & toCompare.Auxiliary) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Parity = (Parity & toCompare.Parity) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Direction = (Direction & toCompare.Direction) == FlagState.ON ? FlagState.ON : FlagState.OFF,
+            Interrupt = (Interrupt & toCompare.Interrupt) == FlagState.ON ? FlagState.ON : FlagState.OFF
+        };
         public FlagState this[string name]
         {
             // An index attribute allows a flag to be fetched by entering its name in the accessor.

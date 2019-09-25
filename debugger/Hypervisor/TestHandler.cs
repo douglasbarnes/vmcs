@@ -216,7 +216,7 @@ namespace debugger.Hypervisor
                         {
                             Passed = FlagsEqual,
                             Expected = CurrentCheckpoint.ExpectedFlags.ToString(),
-                            Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags)
+                            Found = ControlUnit.Flags.And(CurrentCheckpoint.ExpectedFlags).ToString()
                         });
                     }         
                     Result.CheckpointOutputs.Add(CurrentCheckpoint, CurrentSubresults);

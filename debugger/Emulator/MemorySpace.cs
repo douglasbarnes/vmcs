@@ -56,12 +56,11 @@ namespace debugger.Emulator
                     // If it has data, add all that data until,
                     //  1. There is no more data to add
                     //  2. The defined end of the segment is reached
-                    for (ulong i = 0; i < seg.Data.Length && i < seg.End; i++)
+                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End-seg.StartAddr; i++)
                     {
                         AddressMap.Add(i + seg.StartAddr, seg.Data[i]);                        
                     }
                 }
-
             }
         }
         private MemorySpace(MemorySpace toClone)
@@ -83,7 +82,15 @@ namespace debugger.Emulator
             // A memory space can use an index accessor which will return AddressMap[$address] if it exists, otherwise a 0. This is where a seg fault would occur if segmentation was strict.
             get
             {
-                return AddressMap.ContainsKey(address) ? AddressMap[address] : (byte)0x00;
+                byte Fetched;
+                if(AddressMap.TryGetValue(address, out Fetched))
+                {
+                    return Fetched;
+                }
+                else
+                {
+                    return 0x00;
+                }
             }
             set
             {
@@ -94,7 +101,7 @@ namespace debugger.Emulator
                 {
                     if(value == 0x00)
                     {
-                        AddresMap.Remove(address);
+                        AddressMap.Remove(address);
                     }
                     else 
                     {

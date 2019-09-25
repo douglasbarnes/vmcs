@@ -74,25 +74,13 @@ namespace debugger.Util
         }
         public static FlagSet Or(byte[] input1, byte[] input2, out byte[] Result)
         {
-            // Convert the input into bit-like strings to abstract the need for working with multiple byte arrays
-            string input1Bits = GetBits(input1);
-            string input2Bits = GetBits(input2);
-            PadEqual(ref input1Bits, ref input2Bits); 
-            string Bits = "";
-            for (int i = 0; i < input1Bits.Length; i++)
-            {
-                // Here use a logical OR, if either input1[i] or input2[i] == '1' then result[i] == '1'
-                if (input1Bits[i] == '1' || input2Bits[i] == '1') 
-                {
-                    Bits += "1";
-                }
-                else
-                {
-                    Bits += "0";
-                }
+            Result = new byte[input1.Length];
+
+            // Perform a series of logical ANDs on every byte in $input1[] and $input2[], store the result in $Result
+            for (int ByteCursor = 0; ByteCursor < input1.Length; ByteCursor++)
+            {                
+                Result[ByteCursor] = (byte)(input1[ByteCursor] | input2[ByteCursor]);
             }
-            // Convert the bit-like string back into bytes
-            Result = GetBytes(Bits); 
             return new FlagSet(Result) 
             {
                 // Carry and overflow are always cleared in bitwise boolean operations
@@ -102,26 +90,13 @@ namespace debugger.Util
         }
         public static FlagSet And(byte[] input1, byte[] input2, out byte[] Result)
         {
-            string input1Bits = GetBits(input1);
-            string input2Bits = GetBits(input2);
-            PadEqual(ref input1Bits, ref input2Bits); // Convert the input into bit-like strings to abstract the need for working with multiple byte arrays
+            Result = new byte[input1.Length];
 
-            string Bits = "";
-            for (int i = 0; i < input1Bits.Length; i++)
+            // Perform a series of logical ANDs on every byte in $input1[] and $input2[], store the result in $Result
+            for (int ByteCursor = 0; ByteCursor < input1.Length; ByteCursor++)
             {
-                // Here use a logical AND to create the bitwise AND, if input1[i] and input2[i] == '1' then result[i] = '1'
-                // All a bitwise AND really does is a series of logical ANDs across a whole value of a byte.
-                if (input1Bits[i] == '1' && input2Bits[i] == '1') 
-                {                                                 
-                    Bits += "1";
-                }
-                else
-                {
-                    Bits += "0";
-                }
+                Result[ByteCursor] = (byte)(input1[ByteCursor] & input2[ByteCursor]);
             }
-            // Convert the bit-like string back into bytes
-            Result = GetBytes(Bits); 
             return new FlagSet(Result) 
             {
                 // Carry and overflow are always cleared in bitwise boolean operations
@@ -131,26 +106,13 @@ namespace debugger.Util
         }
         public static FlagSet Xor(byte[] input1, byte[] input2, out byte[] Result)
         {
-            // Convert the input into bit-like strings to abstract the need for working with multiple byte arrays
-            string input1Bits = GetBits(input1);
-            string input2Bits = GetBits(input2);
-            PadEqual(ref input1Bits, ref input2Bits); 
+            Result = new byte[input1.Length];
 
-            string Bits = "";
-            for (int i = 0; i < input1Bits.Length; i++)
+            // Perform a series of logical XORs on every byte in $input1[] and $input2[], store the result in $Result
+            for (int ByteCursor = 0; ByteCursor < input1.Length; ByteCursor++)
             {
-                // Here use a logical XOR, if input1[i] != input2[i] then result[i] = (input1[i] or input2[i])
-                if (input1Bits[i] == '1' ^ input2Bits[i] == '1') 
-                { 
-                    Bits += "1";
-                }
-                else
-                {
-                    Bits += "0";
-                }
+                Result[ByteCursor] = (byte)(input1[ByteCursor] ^ input2[ByteCursor]);
             }
-            // Convert the bit-like string back into bytes
-            Result = GetBytes(Bits);
             return new FlagSet(Result)
             {
                 // Carry and overflow are always cleared in bitwise boolean operations
@@ -1115,23 +1077,18 @@ namespace debugger.Util
             // Get the LSB of a value represented as an array.
             return LSB(input[0]);
         }
-        public static string GetBits(byte[] input) 
+        public static bool GetParity(byte input)
         {
-            // Turn an array-represented value into a string of 1 and 0s for simpler processing.
-            string Output = "";
-            for (int i = 0; i < input.Length; i++)
+            bool Even = true;
+            for (int i = 0; i < 8; i++)
             {
-                // Convert each byte in the array into a string of bits and append it to our output.
-                Output += GetBits(input[i]);
+                if((input & (1 << i)) > 0)
+                {
+                    Even ^= true;
+                }
             }
-            return Output;
-        }
-        public static string GetBits(byte input)
-        {
-            // Convert.ToString(,2) converts a single byte into a string of bits and returns the lowest amount of bits as possible. 
-            // I need to preserve the size of bytes being 8 bits in x86-64, so each byte will keep its length by padding it to 8 columns.
-            return Convert.ToString(input, 2).PadLeft(8, '0');
-        }                                                                                               
+            return Even;
+        }                                                                                            
         public static byte[] GetBytes(string bitString) 
         {
             // Convert a string representation of a byte array back into bytes. This is only going to work properly 

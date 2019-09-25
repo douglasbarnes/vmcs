@@ -140,13 +140,30 @@ namespace debugger.Emulator.DecodedTypes
         private readonly ModRMSettings Settings;
         private struct DeconstructedModRM
         {
-            // This struct stores the bits of the ModRM byte to save masking bits all the time and for readability
-            public readonly Mod Mod; 
-            public byte Reg; 
-            public byte Mem;
-            public DeconstructedModRM(byte mod, byte reg, byte mem)
+            // This struct provides easily readable properties for masking the correct bits in a ModRM byte to get the desired field.
+            // This makes the code a lot more readable and reduces margin of error.
+            // A ModRM is constructed like,
+            // ------------------------------
+            // |   7  6 | 5  4  3 | 2  1  0 |
+            // |   MOD  |  REG    |   MEM   |
+            // ------------------------------
+            // This mask will only return bit 7 and 6 [11000000]
+            public readonly Mod Mod { get => (Mod)((Internal_ModRM & 0xC0) >> 6); }
+            
+            // This mask will only return bits 5, 4, and 3. The value is increased by 8 if ExtendReg.
+            public byte Reg { get => (byte)(((Internal_ModRM & 0x38) >> 3) | (ExtendReg ? 8 : 0)); } 
+
+            // Finally, this mask will return bits 2, 1, and 0. The value is increased by 8 if ExtendMem.
+            public byte Mem { get => (byte)((Internal_ModRM & 0x7) | (ExtendMem ? 8 : 0)); }
+
+            private readonly byte Internal_ModRM;
+            public bool ExtendReg;
+            public bool ExtendMem;
+            public DeconstructedModRM(byte input)
             {
-                (Mod, Reg, Mem) = ((Mod)mod, reg, mem);
+                Internal_ModRM = input;
+                ExtendReg = false;
+                ExtendMem = false;
             }
         }
         public void Initialise(RegisterCapacity size)
@@ -167,24 +184,16 @@ namespace debugger.Emulator.DecodedTypes
             Construct(input);
         }
         private void Construct(byte input)
-        {            
+        {
             // A method to construct the class from a given input byte.
 
-            // Turn the ModRM into a string of bits and store it as a DeconstructedModRM
-            string Bits = Bitwise.GetBits(input);
-            Fields = new DeconstructedModRM(Convert.ToByte(Bits.Substring(0, 2), 2), Convert.ToByte(Bits.Substring(2, 3), 2), Convert.ToByte(Bits.Substring(5, 3), 2));
-
-            // If the current REX byte has the B field set, add 8 to the MR operand.
-            if ((ControlUnit.RexByte | REX.B) == ControlUnit.RexByte)
+            Fields = new DeconstructedModRM(input)
             {
-                Fields.Mem |= 8;
-            }
 
-            // Same goes for with the R field and R operand.
-            if ((ControlUnit.RexByte | REX.R) == ControlUnit.RexByte)
-            {
-                Fields.Reg |= 8;
-            }
+                // If the current REX byte has the B or R field set, adjust Mem and Reg accordingly(See ControlUnit)
+                ExtendMem = (ControlUnit.RexByte | REX.B) == ControlUnit.RexByte,
+                ExtendReg = (ControlUnit.RexByte | REX.R) == ControlUnit.RexByte
+            };
 
             // The source is always known to be a register, so only one instance of a handle ever has to be created.
             Source = new ControlUnit.RegisterHandle((XRegCode)Fields.Reg, RegisterTable.GP);

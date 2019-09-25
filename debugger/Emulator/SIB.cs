@@ -1,4 +1,8 @@
-﻿using System;
+﻿// A SIB is different from an IMyDecoded because of a few reasons.
+//  1. It is a struct an cannot inherit
+//  2. It requires a ModRM before it, there would be no purpose for it otherwise. 
+//  3. SIBs only store information for one operand, be that the destination or the source.
+using System;
 using debugger.Util;
 using debugger.Emulator.DecodedTypes;
 using static debugger.Util.Disassembly;
@@ -6,37 +10,51 @@ namespace debugger.Emulator
 {
     public struct SIB
     {
-        // A SIB is different from an IMyDecoded because of a few reasons.
-        //  1. It is a struct an cannot inherit
-        //  2. It requires a ModRM before it, there would be no purpose for it otherwise. 
-        //  3. SIBs only store information for one operand, be that the destination or the source.
-
         public RegisterCapacity PointerSize;
         public readonly DisassembledPointer Disassemble;
         public ulong Destination;
         public long OffsetValue; 
         private readonly ModRM.Mod Mod;
         private readonly ControlUnit.RegisterHandle BaseHandle;
-        private readonly ControlUnit.RegisterHandle IndexHandle;        
-        public SIB(byte sibByte, ModRM.Mod mod)
+        private readonly ControlUnit.RegisterHandle IndexHandle;
+        private struct DeconstructedSIB
         {
-            // Separate the SIB byte into the scale, index and base.
-            // Take 0xE2 for example,
-            //    [11100010]
-            //  [11][100][010]
-            //   ^    ^    ^
-            //   |  Index  |
-            //  Scale     Base
+            // This struct provides easily readable properties for masking the correct bits in a SIB byte to get the desired field.
+            // This makes the code a lot more readable and reduces margin of error.
+            // A SIB is constructed like,
+            // ------------------------------
+            // |   7  6 | 5  4  3 | 2  1  0 |
+            // |  SCALE |  INDEX  |  BASE   |
+            // ------------------------------
+            //
             // So the byte 0xE2 translates to 
             //  Scale = 3
             //  Index = 4
             //  Base = 2
             // The Mod of the preceeding ModRM byte is also used to determine whether EBP is also added to the resulting pointer.
-            string SIBbits = Bitwise.GetBits(sibByte);            
-            this = new SIB(Convert.ToByte(SIBbits.Substring(0, 2), 2), Convert.ToByte(SIBbits.Substring(2, 3), 2), Convert.ToByte(SIBbits.Substring(5, 3), 2), mod);
+
+            // This mask will only return bit 7 and 6 [11000000]
+            public byte Scale { get => (byte)((Internal_SIB & 0xC0) >> 6); }
+
+            // This mask will only return bits 5, 4, and 3. The value is increased by 8 if ExtendReg.
+            public byte Index { get => (byte)(((Internal_SIB & 0x38) >> 3) | (ExtendBase ? 8 : 0)); }
+
+            // Finally, this mask will return bits 2, 1, and 0. The value is increased by 8 if ExtendMem.
+            public byte Base { get => (byte)((Internal_SIB & 0x7) | (ExtendIndex ? 8 : 0)); }
+
+            private readonly byte Internal_SIB;
+            public bool ExtendBase;
+            public bool ExtendIndex;
+            public DeconstructedSIB(byte inputSIB)
+            {
+                Internal_SIB = inputSIB;
+                ExtendBase = false;
+                ExtendIndex = false;
+            }
         }
-        public SIB(byte scale, byte index, byte _base, ModRM.Mod mod)
+        public SIB(byte inputSIB, ModRM.Mod mod)
         {
+            DeconstructedSIB Fields = new DeconstructedSIB(inputSIB); 
             // To save complication, the SIB is disassembled as it is decoded. Otherwise, more variables would have to be stored.
             Disassemble = new DisassembledPointer();
             OffsetValue = 0;
@@ -44,8 +62,8 @@ namespace debugger.Emulator
             ulong IndexValue = 0;
 
             // If there was a REX.X or a REX.B, adjust the fields accordingly(add 8). 
-            index |= ((ControlUnit.RexByte & REX.X) == ControlUnit.RexByte ? 8 : 0);
-            _base |= ((ControlUnit.RexByte & REX.B) == ControlUnit.RexByte ? 8 : 0);
+            Fields.ExtendIndex = (ControlUnit.RexByte | REX.X) == ControlUnit.RexByte;
+            Fields.ExtendBase = (ControlUnit.RexByte | REX.B) == ControlUnit.RexByte;
 
             Mod = mod;
 
@@ -53,20 +71,20 @@ namespace debugger.Emulator
             PointerSize = (ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD);
 
             // If the index isn't 4, there is an index register that needs to be added to the SIB. Otherwise it is just a base or an immediate pointer.
-            if (index != 4)
+            if (Fields.Index != 4)
             {
                 // Create a new RegisterHandle pointing to the index regster(Always from the GP table)
-                IndexHandle = new ControlUnit.RegisterHandle((XRegCode)index, RegisterTable.GP, PointerSize);
+                IndexHandle = new ControlUnit.RegisterHandle((XRegCode)Fields.Index, RegisterTable.GP, PointerSize);
 
                 // To get the actual value of the index, multiply it by the scale, which is equal to 2^^(scale bits value)
                 // For example, 
                 //  Scale bits == 3
                 //  2^^3 = 8
                 //  Index *= 8
-                IndexValue = (byte)Math.Pow(2,scale) * BitConverter.ToUInt64(Bitwise.SignExtend(IndexHandle.FetchOnce(), 8), 0);
+                IndexValue = (byte)Math.Pow(2,Fields.Scale) * BitConverter.ToUInt64(Bitwise.SignExtend(IndexHandle.FetchOnce(), 8), 0);
                 
                 // The scale coefficient still needs to be shown in the disassembly.
-                Disassemble.IndexScale = scale;
+                Disassemble.IndexScale = Fields.Scale;
                 Disassemble.IndexReg = IndexHandle.DisassembleOnce();
             }
             else
@@ -79,9 +97,9 @@ namespace debugger.Emulator
             // The base bits being 5 denotes that there is an immediate pointer following the SIB byte, this is the only way of hard coding a pointer to a specific location as of now. An immediate displacement in the ModRM and a SIB absolute address pointer are not mutually exclusive.
 
             // If the base isn't 5, there is a base register encoded in the SIB. The base being 5 denotes that there is only a pointer(which could be 0)
-            if (_base != 5) 
+            if (Fields.Base != 5) 
             {
-                BaseHandle = new ControlUnit.RegisterHandle((XRegCode)_base, RegisterTable.GP, RegisterCapacity.QWORD);
+                BaseHandle = new ControlUnit.RegisterHandle((XRegCode)Fields.Base, RegisterTable.GP, RegisterCapacity.QWORD);
                 BaseValue = BitConverter.ToUInt64(BaseHandle.FetchOnce(), 0);
                 Disassemble.AdditionalReg = BaseHandle.DisassembleOnce();
             }

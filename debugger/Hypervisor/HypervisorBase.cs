@@ -6,7 +6,7 @@ using debugger.Emulator;
 using static debugger.Emulator.ControlUnit;
 namespace debugger.Hypervisor
 {
-    public abstract class HypervisorBase : IDisposable
+    public abstract class HypervisorBase
     {
         protected internal readonly Handle Handle;
         public delegate void RunCallback(Context input);
@@ -43,10 +43,5 @@ namespace debugger.Hypervisor
                 };
         }
         public MemorySpace GetMemory() => Handle.ShallowCopy().Memory;
-        public void Dispose()
-        {
-            Handle.Dispose();
-        }
-
     }
 }

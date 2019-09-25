@@ -43,7 +43,7 @@ namespace debugger.Logging
     {
         private static readonly Dictionary<LogCode, (Severity, string)> LogMessages = new Dictionary<LogCode, (Severity, string)>()
         {
-            { INVALID_OPCODE, (Severity.EXECUTION, "Invalid opcode was read. Execution from now is undefined.") }
+            { INVALID_OPCODE, (Severity.EXECUTION, "Invalid opcode was read. Execution from now is undefined.") },
             { DIVIDE_BY_ZERO, (Severity.EXECUTION, "Attempt to divide by zero. Execution from now is undefined.") },
             { REGISTER_NOTREADY, (Severity.ERROR, "Attempt to access register before it had a size assigned.") },
             { REGISTER_BADLEN, (Severity.ERROR, "Register was set to a length that did not match it's capacity.") },
