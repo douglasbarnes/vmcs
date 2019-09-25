@@ -1,4 +1,9 @@
-﻿using System;
+﻿// The Bitwise class provides many efficient algorithms for working with bytes. In general, they are faster than converting to integers.
+// Explaning how algorithms work is also an essential part of understanding assembly. There is a lot of behaviour that is not best 
+// emulated by native functions, such as handling outputs. Assembly operations are generally not just two-in one-out functions,
+// there are many things to consider, such as flags and sizes of results. There is a lot more too ADD EAX, EBX than you may expect.
+// High level languages tend to handle this for the developer, which unfortunately distances the developer from what they are really doing.
+using System;
 using debugger.Emulator;
 namespace debugger.Util
 {

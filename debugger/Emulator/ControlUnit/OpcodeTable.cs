@@ -54,28 +54,24 @@ namespace debugger.Emulator
                   { 0x23, () => new And(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x24, () => new And(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE) },
                   { 0x25, () => new And(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()))},
-                  //0x27 DAA, 32 ONLY
                   { 0x28, () => new Sub(new ModRM(FetchNext()), BYTEMODE,UseBorrow:false)},
                   { 0x29, () => new Sub(new ModRM(FetchNext()), UseBorrow:false) },
                   { 0x2A, () => new Sub(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE, UseBorrow:false)},
                   { 0x2B, () => new Sub(new ModRM(FetchNext(), ModRMSettings.SWAP), UseBorrow:false)},
                   { 0x2C, () => new Sub(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE, UseBorrow:false) },
                   { 0x2D, () => new Sub(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), UseBorrow:false)},
-                  //0X2F DAS, 32 ONLY
                   { 0x30, () => new Xor(new ModRM(FetchNext()), BYTEMODE)},
                   { 0x31, () => new Xor(new ModRM(FetchNext())) },
                   { 0x32, () => new Xor(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE)},
                   { 0x33, () => new Xor(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x34, () => new Xor(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE) },
                   { 0x35, () => new Xor(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()))},
-                  //0x37 AAA 32 ONLY
                   { 0x38, () => new Cmp(new ModRM(FetchNext()), BYTEMODE)},
                   { 0x39, () => new Cmp(new ModRM(FetchNext())) },
                   { 0x3A, () => new Cmp(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE)},
                   { 0x3B, () => new Cmp(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x3C, () => new Cmp(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE) },
                   { 0x3D, () => new Cmp(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()))},
-                  //0X3F AAS 32 ONLY
                   { 0x50, () => new Push(new RegisterHandle(XRegCode.A , RegisterTable.GP)) },
                   { 0x51, () => new Push(new RegisterHandle(XRegCode.C , RegisterTable.GP)) },
                   { 0x52, () => new Push(new RegisterHandle(XRegCode.D , RegisterTable.GP)) },
@@ -92,11 +88,8 @@ namespace debugger.Emulator
                   { 0x5D, () => new Pop (new RegisterHandle(XRegCode.BP, RegisterTable.GP)) },
                   { 0x5E, () => new Pop (new RegisterHandle(XRegCode.SI, RegisterTable.GP)) },
                   { 0x5F, () => new Pop (new RegisterHandle(XRegCode.DI, RegisterTable.GP)) },
-                  //0x60 PUSHA 32 ONLY
-                  //0x61 POPA 32 ONLY
                   { 0x63, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP), "MOVSXD", signExtend:true, RegisterCapacity.DWORD) },
-                  //67 prefix
-                  { 0x68, () => new Push(new Immediate()) }, // its always 32, weird
+                  { 0x68, () => new Push(new Immediate()) }, 
                   { 0x69, () => new  Mul(new ModRM(FetchNext(), ModRMSettings.SWAP), SIGNED) },
                   { 0x6A, () => new Push(new Immediate(ImmediateSettings.SXTBYTE)) },
                   { 0x6B, () => new  Mul(new DecodedCompound(new ModRM(FetchNext(), ModRMSettings.SWAP), new Immediate(ImmediateSettings.SXTBYTE)), SIGNED) },

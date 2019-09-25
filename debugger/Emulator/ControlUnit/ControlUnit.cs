@@ -5,9 +5,11 @@ namespace debugger.Emulator
 {
     public struct Status
     {
+        // A struct that is returned to the caller of ControlUnit.Execute() with some useful data that saves
+        // more time in handle.Invoke()
         public enum ExitStatus
         {
-            BreakpointReached
+            BreakpointReached=0
         }
         public ExitStatus ExitCode; // initialises to breakpoint reached
         public List<string> LastDisassembled;
@@ -15,6 +17,7 @@ namespace debugger.Emulator
     }
     public enum PrefixByte
     {
+        // An enum for defining all legacy prefixes for use and identification throughout the program.
         NONE = 0,
         CS = 0x2E,
         SS = 0x36,
@@ -31,6 +34,7 @@ namespace debugger.Emulator
     [Flags]
     public enum REX
     {
+        // A flags-attributed enum for defining REX prefixes that can contain a number of characteristics.
         NONE=0,
         EMPTY=1,
         B=2,
@@ -40,6 +44,9 @@ namespace debugger.Emulator
     }
     public struct Register
     {
+        // A struct for holding the values of registers without access to them directly.
+        // Essentially a deep copy of a register without unnecessary methods and data that the
+        // higher levels of operation do not need.
         public readonly byte[] Value;
         public readonly string Mnemonic;
         public Register(ControlUnit.RegisterHandle input)
@@ -52,10 +59,12 @@ namespace debugger.Emulator
     {
         public static class LPrefixBuffer
         {
+            // LegacyPrefixBuffer
+            //
             // https://wiki.osdev.org/X86-64_Instruction_Encoding#Legacy_Prefixes
             // OSDev describes 4 different layers of prefixes that can be applied at one time that can be used to
             // simplify the process of deciding which prefixes replace another, because certain prefixes cannot
-            // be present when certain ones are.
+            // be present when certain ones are. LPrefixBuffer is defines this behaviour.
             private static readonly PrefixByte[] Prefixes = new PrefixByte[4];
             private static int DetermineIndex(PrefixByte input)
             {                
@@ -97,22 +106,60 @@ namespace debugger.Emulator
         }
         public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE); // Create a new handle that will be assigned when the ControlUnit is not in use.
         public static Handle CurrentHandle = EmptyHandle; // On startup, default to no handle
-        private static Context CurrentContext { get => CurrentHandle.ShallowCopy(); } // Provide several aliases useful for opcodes
-        public static FlagSet Flags { get => CurrentContext.Flags; set { CurrentContext.Flags = value; } }
-        public static ulong InstructionPointer { get => CurrentContext.InstructionPointer; private set { CurrentContext.InstructionPointer = value; } }
-        public static REX RexByte { get; private set; } = REX.NONE; // A public getter to allow the RexByte of the ControlUnit to be read elsewhere but not set.
+        private static Context CurrentContext 
+        { 
+            // "CurrentContext" is much more intuitive than "CurrentHandle.ShallowCopy()"            
+            // ShallowCopy() is used because the context needs to be interacted directly, so the caller sees the changes made.
+            // If DeepCopy() was used, a separate instance would be created and the changes would only be seen by the callee.
+            get => CurrentHandle.ShallowCopy(); 
+        }
+        public static FlagSet Flags 
+        {            
+            get => CurrentContext.Flags; 
+            set 
+            { 
+                CurrentContext.Flags = value; 
+            } 
+        }
+        public static ulong InstructionPointer 
+        { 
+            // CurrentContext is private, but classes still have a need to view the instruction pointer. For example, RIP relative addressing in ModRM bytes.
+            get => CurrentContext.InstructionPointer; 
+            
+            // Jump() is available for setting the instruction pointer. There are cases where this would want to be ignored.
+            private set 
+            { 
+                CurrentContext.InstructionPointer = value; 
+            } 
+        }
+        
+        public static REX RexByte 
+        {
+            // A public getter to allow the RexByte of the ControlUnit to be read elsewhere.
+            get; 
+            // I don't think anything outside of this class has any good reason to be setting the REX byte.
+            private set;
+            // Default the RexByte to REX.NONE. REX.EMPTY is very different, read the section in Execute() about rex bytes.
+        } = REX.NONE; 
         private static Status Execute(bool step)
         {
-            byte OpcodeWidth = 1; // By default, each opcode has a width of one.
-            List<string> TempLastDisas = new List<string>(); // Store the last disassembled instruction in a variable so I can report it back to the disassembler after stepping.
+            // By default, each opcode has a width of one.
+            byte OpcodeWidth = 1;
+
+            // Store the last disassembled instruction in a variable so it can be reported back to the disassembler(if disassembling) after stepping.
+            List<string> TempLastDisas = new List<string>();
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
             {
 #if DEBUG
-                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer; // CurrentContext.InstructionPointer loads native code therefore cannot be viewed in break mode. 
-                                                                                    // This allows me to debug easier because I can see the instruction pointer.
+                // CurrentContext.InstructionPointer loads native code therefore cannot be viewed in break mode. 
+                // This makes debugging way easier because the instruction pointer can be seen easily.
+                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer; 
 #endif
-                byte Fetched = FetchNext(); // Fetch our next instruction. If this goes wrong somehow, bad things will happen. Best case, we throw a #UD.
-                if (LPrefixBuffer.IsPrefix(Fetched)) // If what I fetched was a prefix, add it to the prefix buffer.
+                // Fetch the next instruction or prefix to execute. If the instruction pointer derailed or the opcode is unrecognized, throw a #UD.
+                byte Fetched = FetchNext(); 
+                
+                // If a prefix was fetched, add it to the LPrefixBuffer
+                if (LPrefixBuffer.IsPrefix(Fetched)) 
                 {
                     LPrefixBuffer.Add((PrefixByte)Fetched);
                 }
@@ -199,12 +246,28 @@ namespace debugger.Emulator
                     }                                                                           
                     if (Fetched == 0x0F)
                     {
-                        // 0x0F is a prefix of sort to declare that the two-byte opcode map will be used for the next instruction. There are a lot of instructions in assembly and can
-                        // definitely not be covered in a single byte, so less common operations are pushed onto this second opcode map where a completely different opcode will be used.
+                        // 0x0F is a prefix of sort to declare that the two-byte opcode map will be used for the next instruction. There are a lot of instructions in x86-64 as it is CISC
+                        // based and so can definitely not be covered in a single byte, so less common operations are pushed onto this second opcode map where a completely different opcode will be used.
                         OpcodeWidth = 2;                                          
+                        
+                        // Once again, the next byte needs to be fetched or 0x0F would be used as an opcode, which would #UD
                         Fetched = FetchNext();
                     }
-                    IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+
+                    // Try get the delegate for initialising an opcode with the settings that can be implied from this specific byte. For example, there are two different bytes for adding
+                    // 32 bit registers and for adding 8 bit registers.
+                    OpcodeCaller CurrentOpcodeCaller;
+                    if(!OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentOpcodeCaller))
+                    {
+                        // If there are no opcodes matching, throw a #UD. This is also true in an actual processor that covers every instruction, there are a few gaps in the tables.
+                        RaiseException(Logging.LogCode.INVALID_OPCODE);
+                    }
+
+                    // Run the delegate to get an instance of the opcode and call its constructor.
+                    IMyOpcode CurrentOpcode = CurrentOpcodeCaller();
+
+                    // If this handle is disassembling, don't waste time executing the opcode(the constructor should do just enough for it to disassemble correctly)
+                    // Also, if it isn't disassembling, don't waste time disassembling the opcode, only execute it.
                     if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                     {
                         TempLastDisas = CurrentOpcode.Disassemble();
@@ -212,22 +275,27 @@ namespace debugger.Emulator
                     else
                     {
                         CurrentOpcode.Execute();
-                    }
-                    
+                    }  
+
+                    // Reset everything that needs to be reset for the next opcode, for example one REX byte doesn't mean every instruction will use that REX byte, it is forgotten
+                    // after the opcode it prefixed is executed.
                     OpcodeWidth = 1;
                     LPrefixBuffer.Clear();
                     RexByte = REX.NONE;
                                     
+                    // If Execute() was called with step true, or reacheda  breakpoint, break.
                     if (step || CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
                     {
                         break;
                     }                    
                 }
             }
+            // Return some things useful to the caller. TempLastDisas will be an empty list if the handle doesn't have DISASSEMBLEMODE set
             return new Status { LastDisassembled = TempLastDisas, InstructionPointer = InstructionPointer };
         }
         public static void SetMemory(ulong address, byte[] data)
         {
+            // Take the address passed and overwrite $data.Length bytes after(and including) that address
             for (uint Offset = 0; Offset < data.Length; Offset++)
             {
                 CurrentContext.Memory[address + Offset] = data[Offset];
@@ -235,6 +303,7 @@ namespace debugger.Emulator
         }
         public static byte[] Fetch(ulong address, int length = 1)
         {
+            // Fetch returns a byte array regardless of $length because it works nicely with other byte arrays rather than having to juggle data types.            
             byte[] output = new byte[length];
             for (byte i = 0; i < length; i++)
             {
@@ -244,12 +313,15 @@ namespace debugger.Emulator
         }
         public static byte FetchNext()
         {
+            // Fetch one byte at the InsturctionPointer, and since there is only one byte take the 0th index of returned array.
             byte Fetched = Fetch(CurrentContext.InstructionPointer, 1)[0];
+            // Increment the instruction pointer. I can think of no situation where the address at pointer $IP would be fetched and this would not be wanted.
             CurrentContext.InstructionPointer++;
             return Fetched;
         }
         public static byte[] FetchNext(int count)
         {
+            // A loop to run FetchNext() multiple times. Useful for fetching immediates.
             byte[] Output = new byte[count];
             for (int i = 0; i < count; i++)
             {
@@ -259,27 +331,45 @@ namespace debugger.Emulator
         }
         public static void Jump(ulong address)
         {
+            // Give non class members a way to change the instruction pointer. For example, the JMP instruction.
+            // However if the handle has NOJMP on, honour that. If the handle is disassembling, it has no need
+            // to follow branches, it just wants to disassemble every instruction. If you did offset your code
+            // to avoid disassembly, you really shouldn't do that.
             if ((CurrentHandle.HandleSettings | HandleParameters.NOJMP) != CurrentHandle.HandleSettings)
             {
                 CurrentContext.InstructionPointer = address;
             }
         }        
-        public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
+        public static void SetFlags(FlagSet input) 
+        {
+            // Overwrite the flags with an input, but if any flags in the input are FlagState.UNDEFINED, don't set them.
+            // Allows a single or couple of flags to be set easily, or all of them if wanted.
+            Flags = Flags.Overlap(input);
+        }
         public static List<Register> FetchAll(RegisterCapacity size)
         {
+            // A method for higher-layered callers to interact with the control unit with handle.Invoke() . E.g, the user interface wants to display the registers            
             List<Register> Output = new List<Register>(0xf);
             for (int i = 0; i < 0xf; i++)
             {
+                // I don't want to give the caller an instance of the register, such as RegisterHandle() where they could change register values unconventionally.
+                // If this was wanted, the caller could use methods in the Handle instead.
+                // As a Register is a struct, if the caller changes any its properties, they do not affect the actual registers.
+                // The Register struct constructor sets up everything given a RegisterHandle.
                 Output.Add(new Register(new RegisterHandle((XRegCode)i, RegisterTable.GP, size)));
             }
             return Output;
         }
         public static void RaiseException(Logging.LogCode exception)
         {
+            // In disassemble mode, no opcode has Execute() called, therefore every register and value will most likely be 0. This means that every division will
+            // throw a divide error, but thats fine so long as it's in the dissassemble handle.
             if(exception == Logging.LogCode.DIVIDE_BY_ZERO && (CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
             {
                 return;
             }
+
+            // Let the logger class handle the rest.
             Logging.Logger.Log(exception, $"State: \nHandle:{CurrentHandle.HandleName}\nInstruction Pointer:{InstructionPointer}");
         }
     }
