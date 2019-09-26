@@ -3,20 +3,21 @@
 // emulated by native functions, such as handling outputs. Assembly operations are generally not just two-in one-out functions,
 // there are many things to consider, such as flags and sizes of results. There is a lot more too ADD EAX, EBX than you may expect.
 // High level languages tend to handle this for the developer, which unfortunately distances the developer from what they are really doing.
+// Please note that throughout the explanations I deal almost exclusively with single bytes unless specified otherwise.  Comments may not
+// exactly 1:1 apply to other word lengths, but saves me writing 0x7FFFFFFFFF.... all the time etc.
 using System;
 using debugger.Emulator;
 namespace debugger.Util
-{
-    //Please note that throughout the explanations I deal exclusively with single bytes! Greater word values work the exact same but saves me
-    //writing 0x7FFFFFFFFF.... all the time.
+{    
     public static class Bitwise
     {         
         public static byte[] ReverseEndian(byte[] input)
         {
-            Array.Reverse(input); // Flip the byte order around
+            // Flip the byte order around
+            Array.Reverse(input);
+
             return input;
-        }
-        
+        }        
         public static byte[] Cut(byte[] input, int count) 
         {
             // Time difference between this and linq.take is huge, http://prntscr.com/od20o4 
@@ -34,19 +35,6 @@ namespace debugger.Util
             // Copy every byte starting at index $offset from input into the buffer(like substring)
             Array.Copy(input, offset, Buffer, 0, input.Length - offset); 
             return Buffer;
-        }
-        public static void PadEqual(ref string input1, ref string input2)
-        {
-            // If the length of input1 is greater than input2, input2 needs to be padded
-            if (input1.Length > input2.Length) 
-            {
-                input2 = SignExtend(input2, input1.Length);
-            }
-            //Otherwise do the opposite(or nothing if they are equal)
-            else if (input2.Length > input1.Length) 
-            {
-                input1 = SignExtend(input1, input2.Length);
-            }
         }
         public static void PadEqual(ref byte[] input1, ref byte[] input2)
         {

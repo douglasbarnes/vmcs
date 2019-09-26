@@ -103,7 +103,7 @@
 // It has 3 settings to define behaviour
 //  SWAP     - The input will be decoded as a RM encoded ModRM
 //  EXTENDED - When a ModRM byte is used in an opcode from the extended table, the reg bits are actually used to encode the opcode. This 
-//             basically turns one byte into 8 different opcodes depending on the ModRM, which is awesome for when said opcode only takes
+//             turns one byte into 8 different opcodes depending on the ModRM, which is awesome for when said opcode only takes
 //             one input, e.g INC,DEC. So by setting EXTENDED, the reg bits will not be interpreted as a source, rather just ignored.
 //             Otherwise some arbitary register would be added to the Fetch() call output. 
 //  HIDEPTR  - If an operand is a pointer, the preceeding "BYTE PTR" or alike will be ommitted from the disassembly. This is useful for when 
@@ -273,23 +273,33 @@ namespace debugger.Emulator.DecodedTypes
 
             DestPtr.Offset = Offset;
             
-            // Finish the disassembly of the destination, 
+            // Finalise the disassembly of the destination, 
             string Dest = Disassembly.DisassemblePointer(DestPtr);
+
+            // If the destination is a pointer, add square braces around it.
+            // e.g EAX -> [EAX]
             if (Fields.Mod != Mod.Register)
             {
                 Dest = $"[{Dest}]";
+
+                // Prepend "WORD PTR" etc if HIDEPTR bit isn't set.
                 if ((Settings | ModRMSettings.HIDEPTR) != Settings)
                 {
                     Dest = $"{Disassembly.DisassembleSize(Size)} PTR {Dest}";
                 }
             }
+
+            // If the ModRM is part of an extended opcode, don't disassemble the source because the source(reg bits) is part of the opcode not the operands.
             if ((Settings | ModRMSettings.EXTENDED) == Settings)
             {
                 return new List<string> { Dest };
             }
             else
             {
+                // Disassemble the already stored Source register handle.
                 string SourceMnemonic = Source.DisassembleOnce();
+
+                // If the SWAP bit is set(RM encoding), return the source and dest the other way round.
                 if ((Settings | ModRMSettings.SWAP) == Settings)
                 {
                     return new List<string> { SourceMnemonic, Dest };
@@ -304,6 +314,8 @@ namespace debugger.Emulator.DecodedTypes
         {
             List<byte[]> Output = new List<byte[]>();
             byte[] DestBytes;
+            
+            // If the mod indicates that the destination is a register, fetch that register. Otherwise, fetch the address at $Destination + $Offset.           
             if (Fields.Mod == Mod.Register)
             {
                 DestBytes = new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size).Fetch()[0];
@@ -313,10 +325,14 @@ namespace debugger.Emulator.DecodedTypes
                 DestBytes = ControlUnit.Fetch(Destination + (ulong)Offset, (int)Size);
             }
             Output.Add(DestBytes);
+
+            // If the ModRM isn't part of an extended opcode, add the source to $Output.
             if (Settings != ModRMSettings.EXTENDED)
             {
                 Output.Add(Source.Fetch()[0]);
             }
+
+            // Swap the Destination and Source around if the ModRM has SWAP(RM encoding) set.
             if (Settings == ModRMSettings.SWAP)
             {
                 Output.Reverse();
@@ -327,28 +343,27 @@ namespace debugger.Emulator.DecodedTypes
         public void SetSource(byte[] data) => _set(data, true);
         private void _set(byte[] data, bool forceSwap)
         {
-            forceSwap ^= (Settings | ModRMSettings.SWAP) == Settings;
-            if (Fields.Mod == Mod.Register)
+            // If $forceSwap is true, but the ModRM already has the SWAP bit set, the swap needs to be swapped back to normal, "unswapped".
+            // Like swapping two letters visually, the end result is the same as the start.
+            //  a b
+            //  b a <- Start here if SWAP bit is set
+            //  a b
+            // Then if swapping, set the source because the source is really the destination, the source will always be a register.               
+            if (forceSwap ^ (Settings | ModRMSettings.SWAP) == Settings)
             {
-                if (forceSwap)
-                {
-                    Source.Set(data);
-                }
-                else
-                {
-                    new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size).Set(data);
-                }
+                Source.Set(data);
+            }
+
+            // If the mod bits indicate that the destination is a register it must be treat differently.
+            else if (Fields.Mod == Mod.Register)
+            {
+                // Create a new register handle for the destination and set its value.
+                new ControlUnit.RegisterHandle((XRegCode)Destination, RegisterTable.GP, Size).Set(data);
             }
             else
             {
-                if (forceSwap)
-                {
-                    Source.Set(data);
-                }
-                else
-                {
-                    ControlUnit.SetMemory(Destination + (ulong)Offset, data);
-                }
+                // Set the memory at pointer *($Destination+$Offset) to $data.
+                ControlUnit.SetMemory(Destination + (ulong)Offset, data);
             }
         }
     }
