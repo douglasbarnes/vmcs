@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using debugger.Emulator.DecodedTypes;
 using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
@@ -6,7 +7,7 @@ namespace debugger.Emulator.Opcodes
     {
         private FlagSet Result;
         public Cmps(StringOpSettings settings = StringOpSettings.NONE)
-            : base("CMPS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.SI), settings | StringOpSettings.COMPARE) {  }
+            : base("CMPS", XRegCode.DI, XRegCode.SI, settings | StringOpSettings.COMPARE) {  }
         protected override void OnInitialise()
         {
             List<byte[]> DestSource = Fetch();

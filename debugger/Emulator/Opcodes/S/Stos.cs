@@ -4,7 +4,7 @@
     {
         byte[] SourceBytes;
         public Stos(StringOpSettings settings = StringOpSettings.NONE) 
-            : base("STOS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.A),  settings) {  }
+            : base("STOS", XRegCode.DI, XRegCode.A,  settings) {  }
         protected override void OnInitialise()
         {
             SourceBytes = Fetch()[1];

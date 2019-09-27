@@ -17,11 +17,12 @@ namespace debugger.Emulator.Opcodes
         private RegisterCapacity PtrSize; // for in the rare rare rare case that esi/edi could carry out
         protected RegisterCapacity Capacity; 
         protected StringOpSettings Settings;
-        private DecodedTypes.MultiRegisterHandle Input;
+        // INITIALISED TO $PTRSIZE NOT $CAPACITY
+        private ControlUnit.RegisterHandle Destination;
+        private ControlUnit.RegisterHandle Source;
         private readonly List<byte[]> Operands;        
-        public StringOperation(string mnemonic, DecodedTypes.MultiRegisterHandle input, StringOpSettings settings)
-        {            
-            Input = input;
+        public StringOperation(string mnemonic, XRegCode destination, XRegCode source, StringOpSettings settings)
+        {           
             Settings = settings;
             if ((Settings | StringOpSettings.BYTEMODE) == Settings)
             {
@@ -43,14 +44,13 @@ namespace debugger.Emulator.Opcodes
                 Capacity = RegisterCapacity.DWORD;
                 mnemonic += 'D';
             }
-            
-            Mnemonic = mnemonic;
+            Mnemonic = mnemonic;                      
             PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD;
-            Input.Initialise(PtrSize);
-            Operands = input.Fetch();            
-            DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Operands[0], 8), 0);
-            SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Operands[1], 8), 0);
-            Input.Initialise(Capacity);
+            Destination = new ControlUnit.RegisterHandle(destination, RegisterTable.GP, PtrSize);
+            Source = new ControlUnit.RegisterHandle(source, RegisterTable.GP, PtrSize);
+            Operands = new List<byte[]> { Destination.FetchAs(Capacity), Source.FetchAs(Capacity) };
+            DestPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Destination.FetchOnce(), 8), 0);
+            SrcPtr = BitConverter.ToUInt64(Bitwise.ZeroExtend(Source.FetchOnce(), 8), 0);
             OnInitialise();
         }
         public void AdjustDI()
@@ -93,14 +93,13 @@ namespace debugger.Emulator.Opcodes
             {
                 Output[0] = Mnemonic.Insert(0, "REPNZ ");
             }
-            Input.Initialise(PtrSize);
-            Output.AddRange(Input.Disassemble());
-            Input.Initialise(Capacity);
-            if (Input.SrcCode == XRegCode.SI)
+            Output.Add(Destination.DisassembleOnce());
+            Output.Add(Source.DisassembleOnce());
+            if (Source.Code == XRegCode.SI)
             {
                 Output[2] = $"[{Output[2]}]";
             }
-            if (Input.DestCode == XRegCode.DI)
+            if (Destination.Code == XRegCode.DI)
             {
                 Output[1] = $"[{Output[1]}]";
             }
@@ -128,11 +127,11 @@ namespace debugger.Emulator.Opcodes
             {                
                 OnExecute();
             }
-            if (Input.DestCode == XRegCode.DI)
+            if (Destination.Code == XRegCode.DI)
             {
                 new ControlUnit.RegisterHandle(XRegCode.DI, RegisterTable.GP, PtrSize).Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? DestPtr : (uint)DestPtr));
             }
-            if (Input.SrcCode == XRegCode.SI)
+            if (Source.Code == XRegCode.SI)
             {
                 new ControlUnit.RegisterHandle(XRegCode.SI, RegisterTable.GP, PtrSize).Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? SrcPtr : (uint)DestPtr));
             }                     
@@ -142,7 +141,7 @@ namespace debugger.Emulator.Opcodes
         public List<byte[]> Fetch()
         {
             List<byte[]> Output = new List<byte[]>(2);
-            if(Input.DestCode == XRegCode.DI)
+            if(Destination.Code == XRegCode.DI)
             {
                 Output.Add(ControlUnit.Fetch(DestPtr, (int)Capacity));                
             }
@@ -150,7 +149,7 @@ namespace debugger.Emulator.Opcodes
             {
                 Output.Add(Operands[0]);
             }
-            if (Input.SrcCode == XRegCode.SI)
+            if (Source.Code == XRegCode.SI)
             {
                 Output.Add(ControlUnit.Fetch(SrcPtr, (int)Capacity));
             }
@@ -163,7 +162,7 @@ namespace debugger.Emulator.Opcodes
         public void Set(byte[] data)
         {
             data = Bitwise.Cut(data, (int)Capacity);
-            if (Input.DestCode == XRegCode.DI)
+            if (Destination.Code == XRegCode.DI)
             {
                 ControlUnit.SetMemory(DestPtr, data);                
             }

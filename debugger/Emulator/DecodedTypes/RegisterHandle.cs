@@ -167,7 +167,8 @@ namespace debugger.Emulator
                 }
             }
             public List<byte[]> Fetch() => new List<byte[]> { FetchOnce() };
-            public byte[] FetchOnce()
+            public byte[] FetchOnce() => FetchAs(Size);
+            public byte[] FetchAs(RegisterCapacity regCap)
             {
                 // A method for fetching the value of the register as a single byte[] rather than a list<byte[]> as the interface requires.
                 byte[] Output;
@@ -190,7 +191,7 @@ namespace debugger.Emulator
                 // not identical for each, so a small workaround can go quite far.
                 // Finally, since the program operates in little endian, the 1st index of the returned WORD byte array will be the upper byte.
                 // Explanations for fetching from a RegisterGroup can be found in its class file.
-                if (Size == RegisterCapacity.BYTE
+                if (regCap == RegisterCapacity.BYTE
                 && Code > XRegCode.B
                 && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) == Settings))
                 {
@@ -198,7 +199,7 @@ namespace debugger.Emulator
                 }
                 else
                 {
-                    Output = CurrentContext.Registers[Table, Size, Code];
+                    Output = CurrentContext.Registers[Table, regCap, Code];
                 }
                 return Output;
             }

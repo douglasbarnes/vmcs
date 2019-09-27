@@ -4,7 +4,7 @@
     {
         byte[] SourceBytes;
         public Lods(StringOpSettings settings = StringOpSettings.NONE) 
-            : base("LODS", new DecodedTypes.MultiRegisterHandle(XRegCode.A, XRegCode.SI),settings)
+            : base("LODS", XRegCode.A, XRegCode.SI,settings)
         {
         }
         protected override void OnInitialise()

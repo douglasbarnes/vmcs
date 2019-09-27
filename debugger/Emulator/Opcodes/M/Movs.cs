@@ -4,7 +4,7 @@
     {
         byte[] SourceBytes;
         public Movs(StringOpSettings settings = StringOpSettings.NONE) 
-            : base("MOVS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.SI), settings) { }
+            : base("MOVS", XRegCode.DI, XRegCode.SI, settings) { }
         protected override void OnInitialise()
         {
             SourceBytes = Fetch()[1];

@@ -82,7 +82,6 @@
     <Compile Include="Emulator\Opcodes\R\Rxr.cs" />
     <Compile Include="Emulator\Opcodes\R\Rxl.cs" />
     <Compile Include="Emulator\Opcodes\StringOperation.cs" />
-    <Compile Include="Emulator\DecodedTypes\MultiRegisterHandle.cs" />
     <Compile Include="Emulator\DecodedTypes\IMyDecoded.cs" />
     <Compile Include="Emulator\DecodedTypes\NoOperands.cs" />
     <Compile Include="Emulator\Opcodes\Opcode.cs" />

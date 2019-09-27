@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     {
         FlagSet ResultFlags;
         public Scas(StringOpSettings settings = StringOpSettings.NONE)
-            : base("SCAS", new DecodedTypes.MultiRegisterHandle(XRegCode.DI, XRegCode.A), settings | StringOpSettings.COMPARE)
+            : base("SCAS", XRegCode.DI, XRegCode.A, settings | StringOpSettings.COMPARE)
         {            
         }
         protected override void OnInitialise()
