@@ -3,14 +3,77 @@
 // emulated by native functions, such as handling outputs. Assembly operations are generally not just two-in one-out functions,
 // there are many things to consider, such as flags and sizes of results. There is a lot more too ADD EAX, EBX than you may expect.
 // High level languages tend to handle this for the developer, which unfortunately distances the developer from what they are really doing.
-// Please note that throughout the explanations I deal almost exclusively with single bytes unless specified otherwise.  Comments may not
+// Byte arrays are used throughout the program as alternatives to bits(which C# gives hardly enough control over). They work exactly as
+// base 256 numbers stored in little endian. As a side effect, numbers of effectively any size can now be worked on rather than any limitations
+// on primitive types. A downside of this would of course be that byte arrays are stored on the heap. General access times for values will be 
+// considerably slower than in a ulong for example. However, it would be incredibly unrepresentative if I did not outline the benefits, that
+// I absolutely believe outweigh said drawback. 
+// Initially, primitive types were used. For reference, see VM.cs in https://github.com/koreanair/debugger/commit/cdae7fa9ef90d62351f4147d22645f4dd54ee4c5
+// Benefits
+//  - A general method can be applied to any input
+//  - Using byte arrays allows me to have much greater control over any algorithm. For example, in Add(), the CF is calculated as a byproduct of
+//    the algorithm itself. No additional masking is required afterwards. Control over bits would have allowed this for the AF.
+//  - To demonstrate how an addition could be done on hardware. A competent programmer could take any algorithm here and implement it with logic
+//    gates.
+//  - If all values were stored as ulongs, lots of memory would be wasted if the input was only of WORD size.
+//  - Otherwise, methods would be needed for every size of integer. There would be little way to overcome this without the former. A work around this
+//    could be to use dynamic types. This was my first thought, until I discovered that dynamic data types were about 3000x slower.
+// Here is an overview of performance comparisons between options. http://prntscr.com/pbvrar
+//  dynamics : 00:00:00.0046894
+//  ulong    : 00:00:00.0000001
+//  bytes    : 00:00:00.0000016
+//  This is not truly representative of the ulong speed, I would imagine it to be at least 10x faster, but the stopwatch reached its resolution.
+// However a lot of this time is made back up for in other parts of the program. For example, no conversion is required after bytes are stored in
+// a MemorySpace. MemorySpace is probably the most efficient way of doing its job, unsafe code could maybe have something going for it if the data
+// stored in MemorySpace was large enough. However, it is non negotiable that storing memory in bytes is the only sane implementation of an address table.
+// This means that if byte arrays were not used all the time, fetched memory would have to be converted with BitConverter with every operation that uses memory.
+// To put this into perspective, it now becomes slightly slower than seen with a byte[] http://prntscr.com/pbw6su
+//  Converted : 00:00:00.0000019
+//  Primitive : 00:00:00.0000002
+// This is still very generous towards using ulongs because every time a DWORD, WORD, or BYTE is fetched from memory, it would have to be zero extended in order for
+// BitConverter.ToUInt64() work. Overall, it seems pretty clear now that byte arrays outperform in every aspect. Maybe its not so much that byte arrays are "faster",
+// just that any other data type would require other operations elsewhere which in turn makes them slower.
+
+// Note that throughout the explanations I deal almost exclusively with single bytes unless specified otherwise.  Comments may not
 // exactly 1:1 apply to other word lengths, but saves me writing 0x7FFFFFFFFF.... all the time etc.
 using System;
 using debugger.Emulator;
 namespace debugger.Util
 {    
     public static class Bitwise
-    {         
+    {
+        public static bool IsNegative(this byte[] input)
+        {
+            // Two tricks for determining if a byte array is negative or not.
+            // Firstly, if $input.Length is not a power of two, it cannot be negative. This could be the case where another method returned the least number of bytes in $input possible,
+            //  e.g instead of returning { [0x22] [0x44] [0x66] [0x88] [0xAA] [0x00] [0x00] [0x00] }, it returned, { [0x22] [0x44] [0x66] [0x88] [0xAA] } (cut of the trailing null bytes),
+            //  it would appear that the byte array represented a negative number because the MSByte (0xAA) has its sign bit(MSB) set, [10101010].
+            // This trick works by doing a bitwise AND on $input.Length and $input.Length - 1. This works because any number that is a power of two has one bit set, and a number that is one
+            // less than a power of two has all bits lower than said power of two set.
+            // For example, 
+            //  0x08 = [1000] 
+            //  0x07 = [0111] 
+            //  0x08 & 0x07 = [0000]
+            //  or,
+            //  0x80 = [10000000]
+            //  0x7F = [01111111]
+            // The second trick is simply to check if the MSB of $input is on. Masking by 0x80([10000000]) does exactly that. Naturally as seen in the example,
+            // this wouldn't work if the previous trick hadn't been done prior.
+            return (input.Length & input.Length - 1) == 0 && (input[input.Length - 1] & 0x80) == 0x80;
+        }
+        public static bool IsZero(this byte[] input)
+        {
+            // Iterate through every byte in the array, checking if it is zero. 
+            for (int i = 0; i < input.Length; i++)
+            {
+                // If any index in $input is not equal to zero, the byte array cannot represent a zero.
+                if (input[i] != 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
         public static byte[] ReverseEndian(byte[] input)
         {
             // Flip the byte order around
@@ -36,17 +99,31 @@ namespace debugger.Util
             Array.Copy(input, offset, Buffer, 0, input.Length - offset); 
             return Buffer;
         }
-        public static void PadEqual(ref byte[] input1, ref byte[] input2)
+        public static void PadEqual(ref byte[] input1, ref byte[] input2, bool signed)
         {
             // If the length of input1 is greater than input2, input2 needs to be padded
             if (input1.Length > input2.Length)
             {
-                input2 = SignExtend(input2, (byte)input1.Length);
+                if (signed)
+                {
+                    input2 = SignExtend(input2, (byte)input1.Length);
+                }
+                else
+                {
+                    input2 = ZeroExtend(input2, (byte)input1.Length);
+                }                
             }
             //Otherwise do the opposite(or nothing if they are equal)
             else if (input2.Length > input1.Length) 
             {
-                input1 = SignExtend(input1, (byte)input2.Length);
+                if (signed)
+                {
+                    input1 = SignExtend(input1, (byte)input2.Length);
+                }
+                else
+                {
+                    input1 = ZeroExtend(input1, (byte)input2.Length);
+                }
             }
         }
         public static FlagSet Negate(byte[] input1, out byte[] Result)

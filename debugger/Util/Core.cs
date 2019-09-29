@@ -1,4 +1,328 @@
-﻿using System;
+﻿// Util.Core provides more general methods used throughout the program. They are generally very necessary but less performant as
+// they make use of higher level objects, most notably linq.
+//
+// Most notably, Util.Core provides DeepCopy() methods. DeepCopy is what I coin a "language-hack". In high level languages, it is
+// often the case that the language works against you. The main problem is that a (good) high level language wants to remove as many
+// unnecessary details as it can from the programmer, whilst still giving them as much control over their code as possible. Most of
+// the time, this plays out great. Unfortunately, in the case of my program, it does not. The ideas of the Context class are great
+// victims of high level languages in this way. The Context class is like a snapshot of the ControlUnit. Think of it like a system backup
+// that can be restored at any time. Now, once my backup is stored away. I definitely would not want that backup to automatically update with
+// the latest changes to my computer, because then what would be the point? If I restored the backup, the filesystem would be the exact same 
+// as before I restored. The Context class suffers a very similar problem. 
+// Lets talk about some language fundamentals before addressing this problem.
+// C# treats real types,chars, and structs as values(not exhaustive). Everything else is considered an object, and most likely put somewhere on the heap.
+// This means that when interacting with a variable that isn't a real type, char, or struct, that interaction is to a reference(pointer), hence "reference type".
+// Consider the following C code,
+//  #include <stdio.h>
+//  int Print_Number(int* pointer)
+//  {
+//      // Dereference the input pointer and pass it to printf()
+//      printf("And the result is, %d\n", *pointer); 
+//  }
+//  int Add_Two(int input)
+//  {
+//      // Add two
+//      input += 2; 
+//  }
+//  int main()
+//  {
+//      int* MyIntegerPointer;
+//
+//      // Define a new integer and assign 1 to it.
+//      int MyInteger = 1;
+//
+//      // Define a pointer to said integer
+//      MyIntegerPointer = &MyInteger;
+//
+//      // Add two to the integer
+//      Add_Two(MyInteger);
+//
+//      // Print it
+//      Print_Number(MyIntegerPointer);
+//  }
+// Can you see the problem already? 
+//  root@kali:~/Documents/c# gcc pointer.c -o pointer.out;./pointer.out
+//  And the result is, 1
+// As you can see, the Add_Two() method seemed to do nothing. This is because an integer was passed as the argument not a pointer to an integer.  When you want to see
+// the changes to an integer in the caller, you need to use a pointer because the pointer points to a constant memory location throughout execution. The following
+// changes to Add_Two() and main() would fix the problem.
+//  int Add_Two(int* input)
+//  {
+//      // Dereference the pointer
+//      *input += 2;
+//  }
+// The pointer has to be dereferenced because it holds an address in memory. This can be explained in assembly.
+// Here is a memory map of 6 bytes representing the solutions of 2x+1,
+//  [Address]                     [Offset]
+//            0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+//   0x100 :  01  03  05  07  09  0B  0D  0F  11  13  15  17  19  1B  1D  1F
+// Now to point to this I have to to access it by its address not its value.
+// For example,
+//  0x100 + 0x5 == 0x6 evaluates FALSE
+//  [0x100] + 0x5 == 0x6 evaluates TRUE (because in the memory map, 0x01 is stored at 0x100]
+// [] denotes a dereferenced pointer in assembly. Dereferencing a pointer just tells the assembler that you intend to access the
+// memory at address $integer, rather than add $integer to a value.
+// In C this could look like
+// *(100) + 0x5 == 0x6 evaluates TRUE
+// Though in C, the compiler will handle specific addressing for you rather than dealing with absolute pointers yourself.
+// Some more examples,
+//  [0x104] == 0x09 TRUE
+//  [0x109] + 2 == [0x0A] TRUE
+//  0x109 + 2 == [0x0A] FALSE
+//  [0x100 + 6] == 0D TRUE
+//  [0x10C] == (C * 2) + 1 TRUE
+// As you can see in the 3rd example, 0x109 was NOT a pointer(no square braces), therefore the expression could be simplfied as,
+//  0x10B == 0x15
+// which is obviously not true.
+// Lets take a look at how the C code from earlier looks in assembly,
+//  0x173 <main+8>     mov    dword ptr [rbp - 0xc], 1
+//  0x17a <main+15>    lea rax, [rbp - 0xc]
+//  0x17e <main+19>    mov qword ptr[rbp - 8], rax
+//  0x182 <main+23>    mov eax, dword ptr[rbp - 0xc]
+//  0x185 <main+26>    mov edi, eax
+//  0x187 <main+28>    call Add_Two<0x15d>
+//  0x18c <main+33>    mov rax, qword ptr [rbp - 8]
+//  0x190 <main+37>    mov rdi, rax
+//  0x193 <main+40>    call Print_Number <0x135>
+// This is the raw disassembly from the GCC command earlier, but I will simplify it a little to make it easier to explain. Read ahead and
+// understand the simpler version then come back and look at the former.
+//  ; This is where $MyInteger is assigned
+//  mov edi, 1 
+//
+//  ; Then it is put into memory because there is no guarantee that Add_Two wont modify $edi, more so if it was an external library.
+//  ; It also ensures that the value of $MyInteger is stored at least somewhere in case the first instruction of Add_TWo modifies $edi etc.
+//  mov dword ptr [rbp - 0xc], edi 
+//
+//  ; Add_Two($edi)
+//  call Add_Two<0x15d> 
+//
+//  ; LEA, Load effective address is often used when dealing with pointers. In this context, it is essentially a compacted add function.
+//  ; It stores the effect address of its source operand in its destination(here in rdi). So instead of dereferencing the pointer(despite the []),
+//  ; only the resulting address of the pointer is calculated.
+//  ; Here it is equivalent to,
+//  ;  mov rdi, rbp
+//  ;  sub rdi, 0xc
+//  ; So at this point, $rdi is a pointer to $MyInteger, because $MyInteger is stored at address [$rbp-0xc]
+//  lea rdi, [rbp - 0xc] 
+//  ; Print the integer pointed to by $rdi
+//  call Print_Number <0x135>
+// You now should have a good idea of what a pointer is, if not, you need to understand the concept before reading on. Now, back to C#. C# will always
+// use references(a pointer, but less specific to a particular address) to a variable that is a "reference type". As said before, this is generally anything
+// that isn't a struct. If you look at https://docs.microsoft.com/en-us/dotnet/api/system.int32 , an integer is actually treat as a struct. Then compared to
+// say an array, https://docs.microsoft.com/en-us/dotnet/api/system.array , which inherits from object, and therefore is a reference type. This is generally for
+// good reason, because copying out every element of an array into memory every single time would be very slow. However, if you wanted to use a integer pointer in
+// a method, you could use the "ref" keyword. Here is the previous C program written in C#, except with a functional Add_Two() method.
+//  private static void Add_Two(ref int input)
+//  {
+//      // Add two
+//      input += 2; 
+//  }
+//  private static int main()
+//  {
+//      MyInteger = 1;
+//      Add_Two(ref MyInteger);
+//  }
+// At the end of main(), MyInteger is equal to 3, because ref meant that a pointer was passed rather than just an integer value. I don't have a source to back this up,
+// but I believe the reason that structs aren't passed by reference is that generally(e.g ulongs, ints) they can fit in a register and so in some cases may never
+// even have to go into memory which is obviously a lot faster. Though sometimes they will be put on the stack.
+// Here is a demonstration showing the same, but with an int[]. http://prntscr.com/pc7blq
+//  private static void Add_Two(ref int[] input)
+// 	{
+// 		input[0] += 2;	
+// 	}
+// 	private static void Add_Two(int[] input)
+//  {
+//      input[0] += 2;
+//  }
+//  public static void Main()
+//  {
+//      int[] MyIntArray = new int[] { 0 };
+//      Add_Two(MyIntArray);
+//      Add_Two(ref MyIntArray);
+//      System.Console.WriteLine("Result: " + MyIntArray[0]);
+//  }
+// As you can see, at the end $MyIntArray[0] was equal to 4. This is because objects are always passed by reference regardless of the ref keyword. Don't be mislead by the
+// fact that the contained type is an integer and therefore would be passed by value type. This goes back to how an array is implemented. The pointer to an index of an
+// element of an array can be calculated by,
+//  (base address of array) + ((size of contained type) * (desired index))
+// So to move MyIntArray[5], which has a base address at $rsp, into eax,
+//  mov eax, dword ptr [$rsp + 20] ; 20 in decimal
+// In effect, the pointer to the integer is inferred from the containing array.
+// So to recap,
+//  - Structs can only passed by reference with the ref keyword
+//  - Objects are always pass by reference
+//  - Structs act like reference types when accessed from a container object such as a class
+// Our current definition of a pointer to a reference type would look like,
+//           -----------------
+//           | Addr on stack |
+//           -----------------
+//                  V
+//            X------------X
+//            |   Object   |
+//            X------------X
+// However, objects can also be passed by reference type. This is where our definition of passing by reference has to be changed slightly, because before was a simplified version. In effect
+// it is the same but has another layer of depth to consider that most high level programmers will neglect.
+// Consider this more accurate definition, where V denotes, "above is a pointer to below".
+//           -----------------
+//           | Addr on stack |
+//           -----------------
+//                   V
+//   -----------------------------------
+//   | Reference stored someplace else |
+//   -----------------------------------
+//                   V
+//             X------------X
+//             |   Object   |
+//             X------------X
+// This is what is called a pointer chain. The address stored on the stack(like in the  assemblyexample earlier) points to the reference stored elsewhere, which is then dereferenced to get the object
+// itself. This is where the difference between a pointer and a reference becomes apparent. A reference is the middle pointer in this chain. However, this is not a converse statement.
+// A reference is specifically a pointer to an object. They are typically the only pointers dealt with in C#. For the last time, a pointer is a reference if it points to any object.
+//   - An address stored on the stack is a pointer. Points to reference. 
+//   - Reference is a reference. Is also a pointer. It points to object
+//   - Object is some data on the heap, such as an array.
+//   - Calling MyMethod(MyByteArray) actually calls MyMethod(Reference to MyByteArray). The passed reference is a NOT a pointer to "Reference stored someplace else", it is a pointer
+//     to Object, which is the value of "Reference stored someplace else".
+// Lets relate back to how value types can be passed by reference with this new definition.
+//  -MyMethod(ref MyInteger) is called.
+//  -MyInteger is stored somewhere. Probably on the heap or in the stack. Lets say it is stored at 0x100.
+//  -A pointer to MyInteger is passed into MyMethod. E.g MyMethod(0x100)
+// Since the compiler knew that there was going to be a ref keyword for arguments into MyMethod(), the method will compile differently to suit the fact that it deals with pointers.
+// For example,
+//  MyInteger += 1; 
+// becomes at compile time,
+//  *MyInteger += 1;
+// Because the value pointed to by the pointer is what should be changed, rather than the pointer. Otherwise would make the pointer point to something else instead, which would probably be useless
+// or if a wilder arithmetic operation was done, throw a seg fault.  In disassembly it would look a lot more like a method that used objects rather than one that only used values because of 
+// the use of many pointers.
+// Now, when an object is passed as an argument is passed into a method, the value of the reference is given instead of the entire object. The value of the reference is the address of the object
+// (The address of the object is a simplification. Each value stored by the class will have its own pointer further down the chain, but this is another story).
+// For example,
+//  Console.WriteLine("Hello world");
+// Before WriteLine() is called, "Hello World" is stored somewhere, then WriteLine is passed a pointer to where it was stored. Remember how arguments are passed to methods at a low level? 
+// Specifics depend on calling convention, but it was really a generalisation when I said "Address stored on stack" earlier because maybe the compiler found a way to avoid that and 
+// kept it in a register, or even the on the heap if it will be used a lot throughout execution(this really is a special case that I won't go into too much). And yes, strings are reference
+// types, I assume because they are translated to char arrays in the front end CIL translator.
+// So what happens when the ref keyword is used in conjunction with a reference type. This is where knowledge of the pointer chain becomes very handy. Remember how the value of the reference
+// was passed to the method(the value being a pointer to the object)? Well, if everything uses that to access the memory of the object, what if the pointer was a pointer to the reference
+// rather than a pointer to the object? This would mean that the reference could be changed, and everywhere else in the program would go along with it. First we have to make some changes
+// to our pseudo code to keep up with this. If MyInteger was a value, then became a pointer when the ref keyword, the exact same happens with the pointer to the reference.
+// For example without ref,
+//  *MyClassReference = null;
+// $MyClassReference is a reference, a pointer that points to the memory of MyClass. This needs to be dereferenced in the CIL as what the programmer wrote was an abstraction. This is because
+// the annotated pointer chain above says that the given pointer is a reference; the last pointer in the chain before an object.
+//  -Memory at *$MyClassReference is set to null(lets go with the idea that nulling a class sets all its memory to nulls, be it [00] or [00] [00] [00] [00]...
+// Now if MyClass was passed into the method with a ref keyword.
+//  **MyClassReference = null;
+// There are two pointers which need to be dereferenced. This is because MyClassReference was passed into the method at a low level was at the top of the earlier pointer chain. 
+// It was a pointer to the reference.
+//  -MyClassReference holds a pointer to the reference. Dereference it and get the reference; a pointer to the object
+//  -Dereference the reference gives the first byte of the object, which is being set to null
+// It was a small lie that nulling nulls the entire class. Don't forget the above concept but understand it instead, because it is definitely a way of implementing the idea. However, in .NET
+// it is done slightly better due to how the CLR works. How about instead of nulling the entire memory of the class, I just forget about it? That would save time. So instead lets consider this
+// idea, (without ref keyword)
+//  MyNullByte := 0x00;
+//  MyNullBytePointer := &MyNullByte;
+//  MyClassReference := MyNullBytePointer;
+// Now, instead of pointing to "MyClass", $MyClassReference points to the null byte. This means that now if I wrote,
+//  MyByte := *MyClassReference
+// It would be 0x00 rather than what the first byte of MyClass was, because the reference is now to a null byte rather to MyClass. However, this is only in the current method right? Because
+// the value of the reference the callee was given was changed. The reference to the object is still somewhere else, it just got lost to the callee. This can be thought of exactly like
+// value types, and can even be demonstrated in C#.
+//  private static void Callee(MyClass MyClassReference)
+//  {
+//      MyClassReference.Name = "Callee";
+//      MyClassReference = null;
+//  }
+//  public static void Main()
+//  {
+//      MyClass MyClassReference = new MyClass();
+//      MyClassReference.Name = "Main";
+//      Callee(MyClassReference);
+//      System.Console.WriteLine("Result: " + MyClassReference.Name);
+//  }
+//  public class MyClass
+//  {
+//      public string Name;
+//  }
+// The output would be "Result: Callee". This is because the reference used as normal before it is nulled. After it is nulled, it can still be used in the caller because the callee changed
+// its own copy of the reference that was passed as an argument, not the actual reference. If I swapped the lines in Callee() around,
+// 	MyClassReference = null;
+//  MyClassReference.Name = "Callee";
+// The following exception is thrown,
+//  Run-time exception: Object reference not set to an instance of an object.
+// This is a little a safety net by .NET because the reference to "null" is likely a hard coded value such as 0 which tells the CLR that something went wrong, giving a more demonstrative
+// exception. 
+// However, what about changing the reference for everybody? What if I want everywhere to see $MyClassReference as null? This is where the ref keyword comes in handy. As shown in pseudo earlier,
+// ref gives the extra layer of pointer that has to be dereferenced. But I showed it being dereferenced twice. If I wanted to change the reference globally, the given pointer could be derefenced
+// once. At this point I'm at the memory of the reference right? because I dereferenced the pointer to the reference. This can absolutely be changed to anything now, and everything would access
+// this new object rather than the former. Lets change the previous example a little bit.
+//   private static void Callee(ref MyClass MyClassReference)
+//	 {
+//		MyClassReference = new MyClass();
+//      MyClassReference.LikesAssembly = true;
+//   }
+//   public static void Main()
+//   {
+//      MyClass MyClassReference = new MyClass();
+//      MyClassReference.Name = "Main";
+//      Callee(ref MyClassReference);
+//      if (MyClassReference.LikesAssembly)
+//      {
+//         System.Console.WriteLine("Me too, " + MyClassReference.Name);
+//      }
+//   }   
+//   public class MyClass
+//   {
+//       public string Name = "MyClass";
+//       public bool LikesAssembly = false;
+//   }
+// The output would be "Me too, MyClass". This is because the reference was globally changed. This is always implied when using a ref keyword, because otherwise you wouldn't require one in the 
+// arguments. 
+// That concludes everything that needs to be known about pointers and references before understanding how a deep copy works.
+// The difference between a deep copy and a shallow copy is the whether a reference is passed to a method or a copy of the object. Generally deep copies are frowned upon because the go against 
+// some concepts of object orientation and are not included in compiler optimisations(in effect, not using deep copies is an optimisation), however they have good use in my program that will be
+// demonstrated later. Most of what has been talked about so far concerns shallow copies, except passing value types into a method. This is a good example of the desired effect of a deep copy.
+// To recap, a value type passed as an argument to a method can be modified by the callee without the caller seeing the changes. The value type is (most likely) copied to the heap, and a reference
+// to it is stored somewhere. 
+// This is exactly what a deep copy aims to do, but with objects rather than only with value types. Due to it being a "language-hack", there is no generic method for deep copying an object.
+// Here I will demonstrate a method of doing so. 
+// Consider the following code, where the intention is to output "Hello world" "Hello program".
+//  public static void Add_Text(byte[] InputBytes, string Input)
+//  {
+//      for (int i = 1; i <= Input.Length; i++)
+//      {
+//          InputBytes[InputBytes.Length - i] = (byte)Input[Input.Length - i];
+//      }
+//  }
+//  public static void Main()
+//  {
+//      byte[] MyBytes = Encoding.ASCII.GetBytes("Hello        ");
+//      byte[] MyOtherBytes = MyBytes;
+//      Add_Text(MyBytes, "world  ");
+//      Add_Text(MyOtherBytes, "program");
+//      Console.WriteLine(Encoding.ASCII.GetString(MyBytes) + "\n" + Encoding.ASCII.GetString(MyOtherBytes));
+//  }
+// However the output is "Hello program" "Hello program". From what we know about references, the bug is evident. $MyOtherBytes is a reference to the object "MyBytes". Essentially, they are the
+// same thing. This is where a deep copy would come in handy(Lets ignore the far better ways of doing this intended function for the sake of simplicity).
+// Now, swap the second line of main for,
+//  byte[] MyOtherBytes = DeepCopy(MyBytes);
+// The output is, http://prntscr.com/pci36q
+//  "Hello world"
+//  "Hello program"
+// Around about the most efficient implementation of an array deep copy function would be,
+//	byte[] Buffer = new byte[ToCopy.Length];
+//  Array.Copy(ToCopy, Buffer, ToCopy.Length);
+//	return Buffer;
+// There is some argument for using Buffer.BlockCopy() for maximum performance, but for purposes in a program when byte arrays are rarely longer than 8, the former is more than adequate. Class
+// specific deep copy methods can be found in their respective classes(where necessary).  This will only work when the contained type is a value type.
+// Back into context, deep copying is a fundamental requirement of the Context class. It allows an element of control and consistency across parts of the program, especially between threads.
+// As a static entity, ControlUnit naturally is a threading nightmare, therefore is essential that the necessary that there are internal methods to maintain easy modularity. Deep copying is
+// one part of that. It allows a Context to be the heart of the ControlUnit. Every method in the ControlUnit acts on the Context which is referenced from its handle. This is where references
+// work absolutely awesome with the Context, so this is mainly the reason the Context cannot be a struct(because the reference is handy). DeepCopy allows the best of both worlds. The context
+// wants to be deep copied when another module wants to use it without changes being reflected in the owner handle, such as the Disassembler class, it copies the VM context and runs it itself. 
+// An entertaining problem in the past was that the disassembler class would run without deep copying, then the VM context would run using the same memory and at the end of execution it would seem
+// like the result of every algorithm was double because its result has already been added to memory when the disassembler ran.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,6 +330,7 @@ namespace debugger.Util
 {
     public enum FormatType
     {
+        // FormatType is a enum used universally for defining and generalising output formats.
         Hex,
         Decimal,
         SignedDecimal,
@@ -15,9 +340,19 @@ namespace debugger.Util
     {
         public static Dictionary<T1, T2> DeepCopy<T1, T2>(this Dictionary<T1, T2> toClone)
         {
+            // A method for creating a DeepCopy of a dictionary
+            // Constraints: 
+            //  It does not recursively deep copy as there is no generic method to do so, therefore only
+            //  works on key pairs which contain value types.
+            // Create the new output dictionary
             Dictionary<T1, T2> Output = new Dictionary<T1, T2>();
+
+            // Convert all the key pairs in toClone into arrays. This also creates a deep copy of
+            // the array index values.
             T1[] ClonedKeys = toClone.Keys.ToArray();
             T2[] ClonedValues = toClone.Values.ToArray();
+
+            // Add the deep copied items to the output.
             for (long i = 0; i < ClonedKeys.LongLength; i++)
             {
                 Output.Add(ClonedKeys[i], ClonedValues[i]);
@@ -25,49 +360,70 @@ namespace debugger.Util
             return Output;
         }
         public static List<T> DeepCopy<T>(this List<T> toClone) => toClone.ToArray().ToList();
-        public static T[] DeepCopy<T>(this T[] toClone) //http://prntscr.com/op88f4
+        public static T[] DeepCopy<T>(this T[] toClone) 
         {
+            // This is one of the fastest implementations of a deep copy. Internally, Array.Copy calls native C++ code using P/Invoke. There is no reason why
+            // this couldn't be as fast as if it was written in C. 
+            // Constraints:
+            //  It does not recursively deep copy as there is no generic method to do so, therefore only
+            //  works on arrays which contain value types.
+            // Performance test: http://prntscr.com/op88f4
+
+            // Create an array to hold the output
             T[] CopyBuffer = new T[toClone.Length];
+
+            // Copy the items of toClone into the CopyBuffer.
             Array.Copy(toClone, CopyBuffer, toClone.LongLength);
             return CopyBuffer;
         }
-        public static bool IsNegative(this byte[] input)
-        { // convert.tostring returns the smallest # bits it can, not to the closest 8, if it evenly divides into 8 it is negative
-            return (input.Length & input.Length - 1) == 0 && input[input.Length - 1] >= 0x80;
-            //-128 64 32 16 8  4  2  1
-            // twos compliment: negative number always has a greatest set bit of 1 .eg, 1  0  0  0  0  0  0  1 = -128+1 = -127
-            // this way is much faster than using GetBits() because padleft iterates the whole string multiple times
-            // this method is just for performance because its used alot
-        }
-        public static bool IsZero(this byte[] input)
-        {
-            for (int i = 0; i < input.Length; i++)
-            {
-                if (input[i] != 0)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
         public static int CompareTo(this byte[] leftSide, byte[] rightSide, bool signed)
         {
-            Bitwise.PadEqual(ref leftSide, ref rightSide);
-            for (int i = leftSide.Length - 1; i > 0; i--)
+            // A method to compare two byte arrays arithmetically. There are 3 possible return values.
+            // 0: The arrays were equal.
+            // 1: The left side was greater than the right.
+            // 3: The right side was greater than the left.
+            
+            // PadEqual sign/zero extends(depending on $signed) the smallest operand to the greatest length of the two input arrays
+            // If they are both equal in length, nothing happens.
+            Bitwise.PadEqual(ref leftSide, ref rightSide, signed);
+            
+            // The main algorithm will not work on inputs with different signs because it doesn't consider the weight of the MSB in twos compliment.
+            if(signed)
             {
-                if (leftSide[i] != rightSide[i]) // if they are not the same; sign doesnt matter here
+                // Get the signs of the inputs
+                bool LeftSign = leftSide.IsNegative();
+                bool RightSign = rightSide.IsNegative();
+
+                // The following statement will evaluate as true if exactly one of the signs are on. In this case it is immediately clear which is greater. 
+                if((LeftSign ^ RightSign) == true)
                 {
-                    if (signed)
-                    {
-                        return (sbyte)leftSide[i] > (sbyte)rightSide[i] ? 1 : -1;
-                    }
-                    else
-                    {
-                        return leftSide[i] > rightSide[i] ? 1 : -1;
-                    }
+                    // If the left side is negative, return -1, because the right side must have been positive for the XOR to work.
+                    return LeftSign ? -1 : 1;
                 }
             }
-            return 0; //equal
+
+            // As little endian is exclusively worked with, work backwards. This means that the bytes in the array are compared in order of magnitude.
+            // For example, 
+            // When comparing two base 10 numbers, 10 and 21, the 0 and 1 digits can be completely ignored, only the tens column is needed to determine the outcome.
+            // The numbers could be,
+            //  1, 2
+            //  10000, 21000
+            // The result is the same. This allows the problem to be abstracted. Naturally, the numbers had to be padded to the correct size with their value preserved
+            // which has already been done.
+            // -The most significant column difference dictates which value is greater. This can be used instead of subtraction to determine the result, which is more
+            //  performant because no unecessary operations are carried out.
+            for (int i = leftSide.Length - 1; i > 0; i--)
+            {
+                // If the two indexes are not the same value, the two inputs cannot be equal, the result can be determined here.
+                if (leftSide[i] != rightSide[i]) 
+                {
+                    // Return 1 if the most significant column difference of leftSide is greater than that of rightSide, -1 if it is not.
+                    return leftSide[i] > rightSide[i] ? 1 : -1;
+                }
+            }
+
+            // If the method hasn't returned already, the two inputs must be equal
+            return 0; 
         }
         public static bool ListsEqual(List<string> input1, List<string> input2)
         {

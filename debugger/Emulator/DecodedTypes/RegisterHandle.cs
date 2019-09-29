@@ -8,7 +8,6 @@
 //            an implementation where the source is implicitly defined as $CL. If the NO_INIT setting did not exist, this would be overwritten to the same size register as the input.
 using System.Collections.Generic;
 using debugger.Util;
-using debugger.Logging;
 namespace debugger.Emulator
 {
     public enum RegisterHandleSettings
