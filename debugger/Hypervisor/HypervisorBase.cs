@@ -8,16 +8,11 @@ namespace debugger.Hypervisor
 {
     public abstract class HypervisorBase
     {
-        protected internal readonly Handle Handle;
+        protected internal Handle Handle { get; private set; }
         public delegate void RunCallback(Context input);
         public event RunCallback OnRunComplete = (input) => { };
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
-            inputContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
-            {
-                { XRegCode.SP, inputContext.Memory.SegmentMap[".stack"].StartAddr },
-                { XRegCode.BP, inputContext.Memory.SegmentMap[".stack"].StartAddr },
-            });
             Handle = new Handle(inputName, inputContext, handleParameters);
         }
         public virtual Status Run(bool Step = false) => Handle.Run(Step);
@@ -28,6 +23,21 @@ namespace debugger.Hypervisor
             Status Result = await RunTask;
             OnRunComplete.Invoke(Handle.DeepCopy());
             return Result;
+        }
+        public void Flash(MemorySpace input)
+        {
+            Handle.UpdateContext(
+                new Context(input.DeepCopy())
+                {
+                    Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
+                      {
+                                  { XRegCode.SP, input.SegmentMap[".stack"].StartAddr },
+                                  { XRegCode.BP, input.SegmentMap[".stack"].StartAddr }
+                      }),
+                    Flags = new FlagSet()
+
+                }
+            );
         }
         public Dictionary<string, bool> GetFlags()
         {

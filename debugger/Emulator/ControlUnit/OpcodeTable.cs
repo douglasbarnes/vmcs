@@ -1,4 +1,29 @@
-﻿using System.Collections.Generic;
+﻿// OpcodeTable provides calling tables for resolving fetched bytes into their correct opcodes. It is essential that the instruction pointer is aligned at all times, othewise 
+// unwanted opcodes will execute and from then on the entire program will be interpreted differently. This is the cause for the complete automation of the instruction pointer
+// through the opcode basee class and methods in ControlUnit.
+// A plethora of information can be inferred from the given byte. This information is absolutely critical for factoring out the generic procedures that an opcode will run,
+// making the opcodes classes themselves have hardly any code at all. By abstracting these procedures, such as decoding operands, the individual opcode class code becomes
+// very demonstrative of the function the opcode performs. This information can be inferred because of the good processor design choices. IA-64/AMD64 architecture is super
+// conservative of bytes used(for the most part). If you look at other architectures, they are an absolute compatibility nightmare, for example ARM. ARM uses 4 bytes per
+// instruction every time, even a nop. This results in massive amount of memory wasted. Not to mention the instruction pointer points to 4 bytes ahead of the current instruction, what?? 
+// Despite IA-64 being stuck with many legacy compatibility features, it certainly does well for the amount it has to uphold(basically still works with 8-bit programs).
+// The layout of the OpcodeTable is super simple, but separated from the ControlUnit class file because of its size. 
+// A tree-like hierarchy is used for tables. Here is an example with a few entries,
+//  Main table
+//  ├───0x01 - Add()
+//  ├───0x08 - Or()
+//  ├───0x0F - Two byte table
+//  │   ├───0x80 - Jo()
+//  │   └───0x81 - Jno()
+//  └───0x80 - Extended Table
+//      ├───0x80.0 - Add()
+//      ├───0x80.1 - Or()
+//      └───0x80.2 - Adc()
+// As you can see, the extended tables and two byte table branch off from the main table if a specific byte was fetched. The difference between the two byte table and the extended table is that
+// the extended table contains the extra opcode information in the following ModRM byte, but the two byte table requires a 0x0F byte to be read before the opcode to tell the processor that the
+// other table should be used. Because of this, less common opcodes are pushed to the two byte table. Extended opcodes forfeit the source(reg bits) of their ModRM byte to allow one byte to
+// represent up to 8 different opcodes(although all 8 are rarely used)
+using System.Collections.Generic;
 using debugger.Emulator.Opcodes;
 using debugger.Emulator.DecodedTypes;
 
@@ -34,12 +59,12 @@ namespace debugger.Emulator
                   { 0x0B, () => new  Or(new ModRM(FetchNext(), ModRMSettings.SWAP)) },
                   { 0x0C, () => new  Or(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE) },
                   { 0x0D, () => new  Or(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()))},
-                  { 0x10, () =>  new Add(new ModRM(FetchNext()), BYTEMODE,UseCarry:true)},
-                  { 0x11, () =>  new Add(new ModRM(FetchNext()), UseCarry:true) },
-                  { 0x12, () =>  new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE, UseCarry:true)},
-                  { 0x13, () =>  new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), UseCarry:true)},
-                  { 0x14, () =>  new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE, UseCarry:true) },
-                  { 0x15, () =>  new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), UseCarry:true)},
+                  { 0x10, () => new Add(new ModRM(FetchNext()), BYTEMODE,UseCarry:true)},
+                  { 0x11, () => new Add(new ModRM(FetchNext()), UseCarry:true) },
+                  { 0x12, () => new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), BYTEMODE, UseCarry:true)},
+                  { 0x13, () => new Add(new ModRM(FetchNext(), ModRMSettings.SWAP), UseCarry:true)},
+                  { 0x14, () => new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE, UseCarry:true) },
+                  { 0x15, () => new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), UseCarry:true)},
 
                   { 0x18, () => new Sub(new ModRM(FetchNext()), BYTEMODE,UseBorrow:true)},
                   { 0x19, () => new Sub(new ModRM(FetchNext()), UseBorrow:true) },
@@ -399,6 +424,11 @@ namespace debugger.Emulator
         private static Opcode DecodeExtension(byte opcode)
         {
             ModRM InputModRM = new ModRM(FetchNext(), ModRMSettings.EXTENDED);
+            ExtendedOpcodeCaller Output;
+            if(!ExtendedOpcodeTable[opcode].TryGetValue((int)InputModRM.Source.Code, out Output))
+            {
+                throw new Logging.LoggedException(Logging.LogCode.INVALID_OPCODE, "");
+            }
             return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
         }
     }

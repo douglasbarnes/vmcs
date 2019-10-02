@@ -8,11 +8,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using System.Diagnostics;
+using debugger.IO;
 using debugger.Hypervisor;
 using debugger.Emulator;
 using debugger.Forms;
-using System.Diagnostics;
-
+using debugger.Logging;
 namespace debugger
 {  
     public partial class MainForm : Form
@@ -32,24 +33,38 @@ namespace debugger
             BackColor = FormSettings.BaseUI.BackgroundColour;
         }
         VM VMInstance;
+        MemorySpace ROM;
         private async void Form1_Load(object sender, EventArgs e)
         {
-            var ins = new MemorySpace(new byte[]
-{ 0xB8, 0x00, 0x01, 0x00, 0x00, 0xBB, 0xFF, 0x00, 0x00, 0x00, 0x67, 0x89, 0x58, 0x50, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x00, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x45, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x1C, 0x85, 0x00, 0x00, 0x00, 0x20, 0x67, 0x89, 0x1C, 0xC3, 0x67, 0x88, 0x9C, 0x18, 0x00, 0x01, 0x00, 0x00, 0x67, 0x89, 0x5C, 0x45, 0x10, 0x67, 0x8A, 0x4C, 0x45, 0x10, 0x90 }
-
-
-
-
-);
-            VMInstance = new VM(ins);
+            VMInstance = new VM();
             VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
             VMInstance.Breakpoints.ListChanged += (s, lc_args) => ListViewDisassembly.Refresh();
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
             await Task.Run(() => RefreshDisassembly());
-            RefreshCallback(ins.EntryPoint);
             ResumeLayout();
             Refresh();
             Update();
+        }
+        private async void ReflashVM()
+        {
+            VMInstance.Flash(ROM);
+            await Task.Run(() => RefreshDisassembly());
+            RefreshCallback(0);
+        }
+        private void FlashFromFile(string path)
+        {
+            FileParser parser;
+            try
+            {
+                parser = new FileParser(new FileInfo(path));                
+            }
+            catch (ArgumentException)
+            {
+                Logger.Log(LogCode.IO_INVALIDFILE, "Bad path");
+                return;
+            }
+            ROM = new MemorySpace(parser.Instructions);
+            ReflashVM();
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {
@@ -107,6 +122,7 @@ namespace debugger
         }      
         private void RefreshDisassembly()
         {
+            ListViewDisassembly.RemoveAll();
             ListViewDisassembly.AddParsed(new Disassembler(VMInstance.Handle).StepAll().Result);
             ListViewDisassembly.SetRIP(VMInstance.GetMemory().EntryPoint);
         }
@@ -194,7 +210,7 @@ namespace debugger
             }
                        
         }
-        private void Reset_Click(object sender, EventArgs e) { VMInstance.Reset(); RefreshCallback(0); }
+        private void Reset_Click(object sender, EventArgs e) => ReflashVM();
         private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
     }   
 }

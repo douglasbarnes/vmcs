@@ -7,12 +7,9 @@ namespace debugger.Hypervisor
 {
     
     public class VM : HypervisorBase
-    {
-        
-        private readonly MemorySpace SavedMemory;       
+    {      
         public BindingList<ulong> Breakpoints { get => new BindingList<ulong>(Handle.ShallowCopy().Breakpoints); }
         public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
-            InstructionPointer = inputMemory.EntryPoint,
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
                 { XRegCode.SP, inputMemory.SegmentMap[".stack"].StartAddr },
@@ -20,23 +17,11 @@ namespace debugger.Hypervisor
             }),          
             })            
         {
-            SavedMemory = inputMemory.DeepCopy();
         }
-        public void Reset()
+        public VM() : base("VM", new Context())
         {
-            Handle.Invoke(() =>
-            {
-                Context VMContext = Handle.ShallowCopy();
-                VMContext.Memory = SavedMemory.DeepCopy();
-                VMContext.InstructionPointer = SavedMemory.EntryPoint;
-                VMContext.Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
-                    {
-                                { XRegCode.SP, SavedMemory.SegmentMap[".stack"].StartAddr },
-                                { XRegCode.BP, SavedMemory.SegmentMap[".stack"].StartAddr }
-                    });
-                VMContext.Flags = new FlagSet();
-            });            
         }
+
         public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
         {
             List<Register> Registers = new List<Register>();

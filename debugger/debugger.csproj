@@ -198,6 +198,10 @@
     <Compile Include="Emulator\RegisterGroup.cs" />
     <Compile Include="Forms\BaseControls\IMyCustomControl.cs" />
     <Compile Include="Hypervisor\HypervisorBase.cs" />
+    <Compile Include="IO\BIN.cs" />
+    <Compile Include="IO\IMyExecutable.cs" />
+    <Compile Include="IO\ELF.cs" />
+    <Compile Include="IO\FileParser.cs" />
     <Compile Include="Logging\Log.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>

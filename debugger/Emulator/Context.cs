@@ -13,6 +13,11 @@ namespace debugger.Emulator
         public RegisterGroup Registers;
         public ulong InstructionPointer;
         public List<ulong> Breakpoints = new List<ulong>();
+        public Context()
+        {
+            Memory = new MemorySpace(new byte[] { 0x00 });
+            Registers = new RegisterGroup();
+        }
         public Context(MemorySpace memory)
         {
             Memory = memory;

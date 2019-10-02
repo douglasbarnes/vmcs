@@ -46,6 +46,10 @@ namespace debugger.Forms
         {
             e.Graphics.FillRectangle(LayerBrush, e.Bounds);
             Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
+            if (!IndexToAddr.ContainsKey(e.ItemIndex))
+            {
+                return;
+            }
             if (BreakpointSource.Contains(IndexToAddr[e.ItemIndex]))
             {
                 Drawing.DrawFormattedText(Drawing.CleanString(new string(IndexToLine[e.ItemIndex])).Insert(18, "^").Insert(0, "^"), e.Graphics, HeightCenteredBounds);
@@ -81,6 +85,13 @@ namespace debugger.Forms
         private readonly Dictionary<ulong, int> AddrToIndex = new Dictionary<ulong, int>();
         private readonly Dictionary<int, ulong> IndexToAddr = new Dictionary<int, ulong>();
         private int RIPIndex;
+        public void RemoveAll()
+        {
+            AddrToLine.Clear();
+            IndexToAddr.Clear();
+            IndexToLine.Clear();
+            AddrToIndex.Clear();
+        }
         public void AddParsed(Dictionary<ulong, Disassembler.DisassembledItem> ParsedLines)
         {
             AddrToLine.Clear();

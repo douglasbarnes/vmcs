@@ -93,7 +93,7 @@ namespace debugger.Hypervisor
             public byte[] ExpectedBytes;
             public bool TryParse(XElement input, out (LogCode, string) ErrorInfo)
             {
-                if (!TryParseHex(input.Value, out ExpectedBytes))
+                if (!Core.TryParseHex(input.Value, out ExpectedBytes))
                 {
                     ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid value of expected memory.");
                     return false;
@@ -111,7 +111,7 @@ namespace debugger.Hypervisor
                 if (input.Attribute("offset") != null)
                 {
                     byte[] OffsetBytes;
-                    if (!TryParseHex(input.Attribute("offset").Value, out OffsetBytes))
+                    if (!Core.TryParseHex(input.Attribute("offset").Value, out OffsetBytes))
                     {
                         ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid hex bytes in memory offset attribute");
                         return false;
@@ -137,8 +137,18 @@ namespace debugger.Hypervisor
         {
             readonly TestcaseObject CurrentTestcase;
             public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
-                base("TestingEmulator", 
-                    (new Context(testcase.Memory) { Breakpoints = testcase.Checkpoints.Keys.ToList(), Flags = new FlagSet(FlagState.OFF)}).DeepCopy()) 
+                base("TestingEmulator",
+                    (new Context(testcase.Memory)
+                    {
+                        Breakpoints = testcase.Checkpoints.Keys.ToList(),
+                        Flags = new FlagSet(FlagState.OFF),
+                        Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
+                        {
+                            { XRegCode.SP, testcase.Memory.SegmentMap[".stack"].StartAddr },
+                            { XRegCode.BP, testcase.Memory.SegmentMap[".stack"].StartAddr },
+                        })
+                    }).DeepCopy() 
+                    ) 
             {
                 CurrentTestcase = testcase;
             }
@@ -256,7 +266,7 @@ namespace debugger.Hypervisor
                             Logger.Log(LogCode.TESTCASE_NOHEX, TestcaseName);
                             continue;
                         }
-                        else if(TryParseHex(InputTestcase.Element("Hex").Value, out byte[] TestcaseMemory))
+                        else if(Core.TryParseHex(InputTestcase.Element("Hex").Value, out byte[] TestcaseMemory))
                         {
                             ParsedTestcase.Memory = new MemorySpace(TestcaseMemory); // memory = <hex>x</hex>
                         }
@@ -321,25 +331,7 @@ namespace debugger.Hypervisor
                 }
             }
         }
-        private static bool TryParseHex(string hex, out byte[] Output)
-        {
-            hex = hex.Trim();
-            if (hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
-            Output = new byte[hex.Length / 2];
-            for (int ByteIndex = 0; ByteIndex < hex.Length / 2; ByteIndex++)
-            {
-                byte NextByte;
-                if(byte.TryParse(hex.Substring(ByteIndex * 2, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out NextByte))
-                {
-                    Output[ByteIndex] = NextByte;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
+        
         private static string ParseBytes(byte[] bytes)
         {
             string[] Output = new string[bytes.Length];

@@ -22,6 +22,8 @@ namespace debugger.Logging
         TESTCASE_BADHEX,
         TESTCASE_BADCHECKPOINT,
         TESTCASE_NOHEX,
+        IO_FILENOTFOUND,
+        IO_INVALIDFILE,
     }
     public class LoggedException : Exception
     {
@@ -58,6 +60,8 @@ namespace debugger.Logging
             { TESTCASE_BADHEX, (Severity.WARNING, "Could not parse testcase '{0}', shellcode in the hex tags could not be parsed as bytes") },
             { TESTCASE_BADCHECKPOINT, (Severity.WARNING, "Could not parse checkpoint in '{0}':'{1}'") },
             { TESTCASE_NOHEX, (Severity.WARNING, "Could not parse testcase '{0}', there was no <Hex></Hex> tags with shellcode present") },
+            { IO_FILENOTFOUND, (Severity.WARNING, "Could not open file '{0}'.") },
+            { IO_INVALIDFILE, (Severity.WARNING, "File contained invalid data: '{0}'") },
         };
         private static Dictionary<Severity, char> SeverityPrefix = new Dictionary<Severity, char>()
         {

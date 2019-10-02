@@ -13,6 +13,7 @@ namespace debugger
         internal EndToolStripMenuItem ExitMenu;
         internal ThemedToolStripMenuHeader DebugMenu;
         internal ThemedToolStripMenuHeader ViewMenu;
+        internal ThemedToolStripMenuHeader FileMenu;
         internal ThemedMenuStrip TopMenuStrip;
         internal ThemedToolStripMenuItem SelectDebugMenu;
         internal ThemedToolStripMenuItem AllDebugMenu;
@@ -71,8 +72,6 @@ namespace debugger
         }
         private void CreateControlButtons()
         {
-            //this.ButtonStep.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            //this.ButtonReset.UseVisualStyleBackColor = true;
             ButtonStep = new ControlButton()
             {
                 Location = new Point(600 + 80 * 1, 430),           
@@ -144,10 +143,11 @@ namespace debugger
             };
             MainMenuStrip = TopMenuStrip;
             Controls.Add(TopMenuStrip);
+            CreateMenuFile();
             CreateMenuDebug();
             CreateMenuExit();
             CreateMenuView();
-            TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { DebugMenu, ViewMenu, ExitMenu });
+            TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { FileMenu, DebugMenu, ViewMenu, ExitMenu });
             TopMenuStrip.PerformLayout();           
         }
         private void CreateMenuExit()
@@ -163,10 +163,31 @@ namespace debugger
             ExitMenu.Click += new EventHandler(ExitToolStripMenuItem_Click);
             
         }
+        private void CreateMenuFile()
+        {
+            FileMenu = new ThemedToolStripMenuHeader()
+            {
+                Name = "FileMenuItem",
+                Size = CorrectedMeasureText(" File ", BaseUI.BaseFont),
+                Text = "File",
+            };
+            ThemedToolStripMenuItem OpenMenu = new ThemedToolStripMenuItem()
+            {
+                Text = "Open"
+            };
+            
+            OpenMenu.Click += (s, a) => 
+            {
+                OpenFileDialog OpenFile = new OpenFileDialog();
+                OpenFile.ShowDialog();
+                FlashFromFile(OpenFile.FileName);
+            };
+            FileMenu.DropDownItems.Add(OpenMenu);
+        }
         private void CreateMenuDebug()
         {
-            //a work around for SelectDebugMenuItem.Dropdown opening when 's' is used in search, this is selected instead, which does nothing.
-            var FillerDebugItem = new ToolStripMenuItem() { Text = "S", Size = new Size(0, 0), AutoSize = false };
+            // A work around for SelectDebugMenuItem.Dropdown opening when 's' is used in search, this is selected instead, which does nothing.
+            ToolStripMenuItem FillerDebugItem = new ToolStripMenuItem() { Text = "S", Size = new Size(0, 0), AutoSize = false };
             Size ItemSize = new Size(70, 20);
             SelectDebugMenu = new ThemedToolStripMenuItem()
             {

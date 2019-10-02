@@ -57,7 +57,7 @@ namespace debugger.Emulator
         {
             // A dictionary that pairs all existing handles with a context.
             private static Dictionary<Handle, Context> StoredContexts = new Dictionary<Handle, Context>();
-            // A private value holding the next handle id.
+
             private static int NextHandleID = 0;
             private static int GetNextHandleID 
             { 
@@ -94,9 +94,17 @@ namespace debugger.Emulator
                 }
 
             }
-            public void Invoke(Action toExecute) // dont invoke run
+            public void UpdateContext(Context inputContext)
             {
-                // A method to interact with a context or the ControlUnit safely. 
+                WaitNotBusy();
+                IsBusy = true;
+                StoredContexts[this] = inputContext;
+                IsBusy = false;
+            }
+
+            public void Invoke(Action toExecute)
+            {
+                // A method to interact with a context or the ControlUnit safely. DONT INVOKE HANDLE.RUN() OR HANDLE.INVOKE() RECURSIVELY!!
                 WaitNotBusy();
                 IsBusy = true;
                 toExecute.Invoke();
@@ -111,6 +119,7 @@ namespace debugger.Emulator
                 Status Result = new Status();
                 WaitNotBusy();
                 IsBusy = true;
+
                 // Set this handle to be the current handle in the ControlUnit.
                 if (CurrentHandle != this)
                 {
@@ -122,6 +131,7 @@ namespace debugger.Emulator
 
                     CurrentHandle = this;
                 }
+
                 // Return the $Result status struct that Execute() returned.
                 Result = new Func<Status>(() => Execute(step)).Invoke();
                 IsBusy = false;

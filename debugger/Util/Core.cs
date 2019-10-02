@@ -528,5 +528,24 @@ namespace debugger.Util
             }
             return input;
         }
+        public static bool TryParseHex(string hex, out byte[] Output)
+        {
+            hex = hex.Trim();
+            if (hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
+            Output = new byte[hex.Length / 2];
+            for (int ByteIndex = 0; ByteIndex < hex.Length / 2; ByteIndex++)
+            {
+                byte NextByte;
+                if (byte.TryParse(hex.Substring(ByteIndex * 2, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out NextByte))
+                {
+                    Output[ByteIndex] = NextByte;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }
