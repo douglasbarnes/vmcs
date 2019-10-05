@@ -104,7 +104,7 @@ namespace debugger.Emulator
         private static Status Execute(bool step)
         {
             byte OpcodeWidth = 1; // By default, each opcode has a width of one.
-            List<string> TempLastDisas = new List<string>(); // Store the last disassembled instruction in a variable so I can report it back to the disassembler after stepping.
+            List<string> DisassemblyBuffer = new List<string>(); // Store the last disassembled instruction in a variable so I can report it back to the disassembler after stepping.
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
             {
 #if DEBUG
@@ -204,27 +204,51 @@ namespace debugger.Emulator
                         OpcodeWidth = 2;                                          
                         Fetched = FetchNext();
                     }
-                    IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-                    if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
-                    {
-                        TempLastDisas = CurrentOpcode.Disassemble();
-                    } 
+
+                    // Mechanism for detecting and handling invalid/unimplemented opcodes.
+                    OpcodeCaller CurrentCaller;
+                    if(OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentCaller))
+                    {                       
+                        IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+
+                        // If disassembling, whether the instruction is executed or not is not of importance(so long as the opcode class is written along with convention),
+                        // Conversely, if executing, whether the instruction is disassembled or not doesn't matter. Together, this check speeds up the program a lot.
+                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+                        {
+                            DisassemblyBuffer = CurrentOpcode.Disassemble();
+                        }
+                        else
+                        {
+                            CurrentOpcode.Execute();
+                        }
+                    }
                     else
                     {
-                        CurrentOpcode.Execute();
+                        // If the opcode is not present in the OpcodeTable, 
+                        //  - Tell the user by changing the disassembly
+                        //  - Throw a #UD when executed.
+                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+                        {
+                            DisassemblyBuffer = new List<string> { "BAD INSTRUCTION" };
+                        }
+                        else
+                        {
+                            RaiseException(Logging.LogCode.INVALID_OPCODE);
+                        }
                     }
                     
                     OpcodeWidth = 1;
                     LPrefixBuffer.Clear();
                     RexByte = REX.NONE;
                                     
+                    // If stepping or hit a breakpoint, stop executing.
                     if (step || CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
                     {
                         break;
                     }                    
                 }
             }
-            return new Status { LastDisassembled = TempLastDisas, InstructionPointer = InstructionPointer };
+            return new Status { LastDisassembled = DisassemblyBuffer, InstructionPointer = InstructionPointer };
         }
         public static void SetMemory(ulong address, byte[] data)
         {

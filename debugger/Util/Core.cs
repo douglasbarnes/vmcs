@@ -492,7 +492,7 @@ namespace debugger.Util
             }
             return Output;
         }
-        public static string Atoi(byte[] toConvert, bool addSpaces=false)
+        public static string Itoa(byte[] toConvert, bool addSpaces=false)
         {            
             string Output = "";
             bool Significant = false;
@@ -514,6 +514,32 @@ namespace debugger.Util
                 Output += "0";
             }
             return Output;
+        }
+        public static bool Htoi(char hexChar, out byte output)
+        {
+            // If the input is between 0 and 9 on the char map, subtract the value of '0' from it.
+            // This would work on any character set that has numbers adjacent in ascending order, e.g 0123456789
+            if(hexChar >= '0' && hexChar <= '9')
+            {
+                output = (byte)(hexChar - '0');
+                return true;
+            }
+            
+            // If the char is a letter, 0xA must be added because 0xA is 10d.
+            else if(hexChar >= 'A' && hexChar <= 'F')
+            {
+                output = (byte)(hexChar - 'A' + 0xA);
+                return true;
+            }
+            else if (hexChar >= 'a' && hexChar <= 'f')
+            {
+                output = (byte)(hexChar - 'a' + 0xA);
+                return true;
+            }
+
+            // Set output to a value that would never be returned from the method and return false to make it super obvious it failed.
+            output = 0xFF;
+            return false;
         }
         public static T[] Trim<T>(T[] input)
         {

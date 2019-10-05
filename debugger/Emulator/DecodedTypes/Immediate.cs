@@ -64,6 +64,6 @@ namespace debugger.Emulator.DecodedTypes
         }
         public List<byte[]> Fetch() => new List<byte[]>() { Buffer };
         public void Set(byte[] data) => throw new Exception("Attempt to set value of immediate");
-        public List<string> Disassemble() => new List<string>() { $"0x{Core.Atoi(Buffer)}" };
+        public List<string> Disassemble() => new List<string>() { $"0x{Core.Itoa(Buffer)}" };
     }
 }

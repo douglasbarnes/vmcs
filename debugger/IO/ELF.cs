@@ -1,4 +1,20 @@
-﻿using System;
+﻿// ELF IMyExecutable provides the ability to load ELF64 and ELF32 files as assembly to debug. ELF has the most practical use case, which is debugging an a linked executable; one that
+// could be run from the terminal. Currently, only the .text segment is loaded(and hard coded to do so). This means
+// that any linked external libraries will not work(be it statically or dynamically). ELF32 is best-effort; it works absolutely fine in terms of parsing, but the code will
+// not be interpreted as x86, rather as x86-64 like an ELF64. This is only a problem for programs that use INC/DEC instructions or the ancient bcd/ascii opcodes.
+// There are a couple of tested ways for creating an ELF that loads,
+// Create an object file
+//  nasm -f elf64 file.asm 
+// Link an existing object file
+//  ld file.o -o file.out
+// OR
+//  gcc file.o -o file.out -nostdlib -no-pie (-m32 if 32 bit)
+// Like this, gcc will call ld behind the scenes. Linking without "-nostdlib" is undefined. It probably will work, but there is no glibc to call, so you will only have erroneous
+// behaviour later. If you are insistent on using external libraries, a best effort would be,
+//  gcc file.o -o file.out -static 
+// then jump over any calls.
+// If you notice instructions that use absolute addressing changing when viewed in the program, use the gcc command with "-no-pie" to prevent them being changed to RIP rel when linked.
+using System;
 using System.IO;
 using debugger.Logging;
 using debugger.Util;
@@ -53,7 +69,7 @@ namespace debugger.IO
                         // The number of section headers in the section header table.
                         SHCount = BitConverter.ToUInt16(FileHeader, 0x30 - 0x05),
 
-                        // The indeex of the section header containing the string names of all other sections in the section header table.
+                        // The index of the section header containing the string names of all other sections in the section header table.
                         SHStrIndex = BitConverter.ToUInt16(FileHeader, 0x32 - 0x05)
                     }; 
                     break;

@@ -198,6 +198,7 @@
     <Compile Include="Emulator\RegisterGroup.cs" />
     <Compile Include="Forms\BaseControls\IMyCustomControl.cs" />
     <Compile Include="Hypervisor\HypervisorBase.cs" />
+    <Compile Include="IO\TXT.cs" />
     <Compile Include="IO\BIN.cs" />
     <Compile Include="IO\IMyExecutable.cs" />
     <Compile Include="IO\ELF.cs" />

@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿// BIN provides a simple way to load bytes in a file as instructions. Bytes are read as-is, there is no extra translation.
+// The use case of this would be when the user's assembler just outputs executable code rather than an object file.
+using System.IO;
 namespace debugger.IO
 {
     public class BIN : IMyExecutable

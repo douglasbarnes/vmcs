@@ -18,7 +18,7 @@ namespace debugger.Emulator.DecodedTypes
         public List<string> Disassemble() 
         {
             // Return a hex representation of the buffer
-            return new List<string>() { $"0x{Util.Core.Atoi(Buffer)}" };
+            return new List<string>() { $"0x{Util.Core.Itoa(Buffer)}" };
         }
 
         public List<byte[]> Fetch() 

@@ -63,7 +63,29 @@ namespace debugger
                 Logger.Log(LogCode.IO_INVALIDFILE, "Bad path");
                 return;
             }
-            ROM = new MemorySpace(parser.Instructions);
+
+            // Somewhere else will log this.
+            byte[] Instructions;
+            if (parser.Parse(ParseMode.AUTO, out Instructions) != ParseResult.SUCCESS)
+            {
+                switch(MessageBox.Show("Press yes to parse as a BIN file, no to parse as a TXT file, or cancel to go back to the program.", "File type cannot be inferred", MessageBoxButtons.YesNoCancel))
+                {
+                    case DialogResult.Yes:
+                        parser.Parse(ParseMode.BIN, out Instructions);
+                        break;
+                    case DialogResult.No:
+                        if(parser.Parse(ParseMode.TXT, out Instructions) != ParseResult.SUCCESS)
+                        {
+                            // This is already handled in the TXT class, but don't commit the changes to the VM if it was unsuccessful.
+                            return;
+                        }
+                        break;
+                    case DialogResult.Cancel:
+                        return;
+                }
+
+            }
+            ROM = new MemorySpace(Instructions);
             ReflashVM();
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
