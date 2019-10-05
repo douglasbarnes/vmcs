@@ -4,7 +4,7 @@
 //      If I was writing a script for GDB and wanted to set the CF, I would have to run the command,
 //      "set eflags |= 1" (OR the register by 2, which would set the first bit on)
 // This is very non-intuitive for somebody who is not as advanced of a user. To set the carry in my program,
-// it is much simpler, 
+// it is much simpler,
 //      ControlUnit.SetFlags(new FlagSet() { Carry = FlagState.ON });
 // Whilst having all the flags stored in one register(as it is on the processor certainly has its benefits,
 // having an intuitive programming interface is more aligned with the intentions of my program.
