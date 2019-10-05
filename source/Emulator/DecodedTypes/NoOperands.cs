@@ -1,5 +1,5 @@
 ﻿// A NoOperands input method is very restricted in what it can do.
-// I believe that in every case a NoOperands is used, there is no alternative input method for that opcode. However for
+// As far as I know, in every case a NoOperands is used, there is no alternative input method for said opcode. However for
 // compatability with the Opcode base class, it still inherits from IMyDecoded. This means its safe to throw an exception
 // whenever certain methods are called(except Initialise() of course). In the Intel manual pre-2019, a NoOperands is referred
 // to as "NP". In the may 2019 release, it is called "ZO". I can't find anywhere that officially confirms the names, however

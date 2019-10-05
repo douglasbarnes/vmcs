@@ -1,4 +1,8 @@
-﻿using System;
+﻿// Immediate provides a robust and IMyDecoded comformant method of handling immediate data. At first thought, you would think it super simple to deal with immediates,
+// it's just ControlUnit.FetchNext($x). However, in terms of generalising disassembly, different immediate settings, etc, having a class to handle it all goes a long way. 
+// In older versions of the code, immediates were handled in the Opcode base class, which became an absolute eye sore. In this sense, the IMyDecoded interface is probably
+// the best thing that happened to this program.
+using System;
 using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator.DecodedTypes

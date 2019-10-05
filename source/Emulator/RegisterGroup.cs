@@ -1,4 +1,8 @@
-﻿using System;
+﻿// RegisterGroup provides a consistent and simple way to segregate registers away from the rest of the program. Before separating RegisterGroup and MemorySpace from ControlUnit,
+// there was always a problem somewhere down the line because of it. Now that they are thoroughly tested, they can be forgotten about as they serve their intended purpose.
+// Internally it is just a cleverly handled jagged array, which is referenced using the numerical values of RegisterTable and XRegCode enum entries. RegisterCapacity is only
+// used to be strict on the setting of registers. 
+using System;
 using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator

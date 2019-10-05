@@ -427,7 +427,7 @@ namespace debugger.Emulator
             ExtendedOpcodeCaller Output;
             if(!ExtendedOpcodeTable[opcode].TryGetValue((int)InputModRM.Source.Code, out Output))
             {
-                throw new Logging.LoggedException(Logging.LogCode.INVALID_OPCODE, "");
+                RaiseException(Logging.LogCode.INVALID_OPCODE);
             }
             return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
         }

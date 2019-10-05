@@ -252,6 +252,7 @@ namespace debugger.Emulator
         }
         public static void SetMemory(ulong address, byte[] data)
         {
+            // Set $data.Length bytes after and including $address with the bytes in data[].
             for (uint Offset = 0; Offset < data.Length; Offset++)
             {
                 CurrentContext.Memory[address + Offset] = data[Offset];
@@ -259,6 +260,7 @@ namespace debugger.Emulator
         }
         public static byte[] Fetch(ulong address, int length = 1)
         {
+            // Fetch $length bytes after and including address
             byte[] output = new byte[length];
             for (byte i = 0; i < length; i++)
             {
@@ -268,12 +270,14 @@ namespace debugger.Emulator
         }
         public static byte FetchNext()
         {
+            // Fetch the next byte at $instruction_pointer
             byte Fetched = Fetch(CurrentContext.InstructionPointer, 1)[0];
             CurrentContext.InstructionPointer++;
             return Fetched;
         }
         public static byte[] FetchNext(int count)
         {
+            // Fetch the next x bytes after and including $instruction_pointer
             byte[] Output = new byte[count];
             for (int i = 0; i < count; i++)
             {
@@ -283,6 +287,7 @@ namespace debugger.Emulator
         }
         public static void Jump(ulong address)
         {
+            // Change the instruction pointer to $address, such that the next byte read will be $address if the handle has NOJMP set.
             if ((CurrentHandle.HandleSettings | HandleParameters.NOJMP) != CurrentHandle.HandleSettings)
             {
                 CurrentContext.InstructionPointer = address;
@@ -291,6 +296,9 @@ namespace debugger.Emulator
         public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
         public static List<Register> FetchAll(RegisterCapacity size)
         {
+            // Turn all GP registers into a register struct list, which contains all the information higher layered caller need to know.
+            // A list of byte arrays would be unhelpful in disassembling.
+            // A dictionary is unnecessary as the output can be referenced like Output[(int)XRegCode.A] to get the A register etc.
             List<Register> Output = new List<Register>(0xf);
             for (int i = 0; i < 0xf; i++)
             {
@@ -300,7 +308,8 @@ namespace debugger.Emulator
         }
         public static void RaiseException(Logging.LogCode exception)
         {
-            if(exception == Logging.LogCode.DIVIDE_BY_ZERO && (CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+            // It is expected that divide instructions will throw this error when disassembling. This is because 
+            if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
             {
                 return;
             }

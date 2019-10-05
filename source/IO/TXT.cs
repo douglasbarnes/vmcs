@@ -37,6 +37,7 @@ namespace debugger.IO
             // This is the premise of the algorithm, converting the characters "B8" into the byte 0xB8.
             // A similar method Core.TryParseHex() does the same job in a different context. Due to the nature of how the data is recieved, the two cannot be combined
             // without significant and unnecessary intermediate conversion procedures.
+            // Despite not looking so at first glance, the algorithm is linear as you would expect given the problem as the method always exits after $reader.Length iterations.
             int BytesParsed = 0;
 
             // Firstly, every byte in the file should be considered as a potential hex byte, so intend to iterate the whole file.

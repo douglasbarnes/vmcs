@@ -1,4 +1,8 @@
-﻿// A SIB is different from an IMyDecoded because of a few reasons.
+﻿// The SIB struct is an implementation of SIB bytes in assembly.  It *could* be merged into the ModRM class, but in the past it turned out really messy. I find there are only
+// advantages to having it separate, for example if you wanted to optimise further, it would be really simple as everything you see is to do with SIBs. It would be impossible
+// (or atleast challenging) to break another part of the program by modifying here. Conversely, the ModRM class is already finicky enough as-is, so by reducing SIB handling to
+// just two lines there makes it a lot easier to debug the ModRM class.
+// A SIB is different from an IMyDecoded because of a few reasons.
 //  1. It is a struct an cannot inherit
 //  2. It requires a ModRM before it, there would be no purpose for it otherwise. 
 //  3. SIBs only store information for one operand, be that the destination or the source.
