@@ -9,11 +9,16 @@ namespace debugger.Util
         private readonly List<T> InternalList;
         public delegate void ListEvent();
         public delegate void OnItemAction(T item, int index);
+        public event OnItemAction OnGet = (item, index) => { };
+        public event OnItemAction OnSet = (item, index) => { };
         public event OnItemAction OnAdd = (item, index) => { };
         public event OnItemAction OnRemove = (item, index) => { };
         public event ListEvent OnClear = () => { };
 
-        public T this[int index] { get => InternalList[index]; set { InternalList[index] = value; } }
+        public T this[int index]
+        {
+            get { OnGet.Invoke(InternalList[index], index); return InternalList[index]; }
+            set { OnSet.Invoke(value, index);  InternalList[index] = value; } }
 
         public int Count { get => InternalList.Count; }
         public bool IsReadOnly { get => false; }
