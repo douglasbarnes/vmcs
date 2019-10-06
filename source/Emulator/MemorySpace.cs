@@ -49,15 +49,19 @@ namespace debugger.Emulator
             // Load all segments into the internal address table.
             foreach (Segment seg in SegmentMap.Values)
             {
-                // If it has data, add all that data until,
-                //  1. There is no more data to add
-                //  2. The defined end of the segment is reached
-                for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End - seg.StartAddr; i++)
+                if(seg.Data != null)
                 {
-                    // Save some memory by not storing 0s.
-                    if(seg.Data[i] != 0x00)
+                    // If the segment has data, add all that data until,
+                    //  1. There is no more data to add
+                    //  2. The defined end of the segment is reached
+                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End - seg.StartAddr; i++)
                     {
-                        AddressMap.Add(i + seg.StartAddr, seg.Data[i]);
+                        // Save some memory by not storing 0s.
+                        if (seg.Data[i] != 0x00)
+                        {
+                            AddressMap.Add(i + seg.StartAddr, seg.Data[i]);
+
+                        }
                     }                    
                 }
             }
