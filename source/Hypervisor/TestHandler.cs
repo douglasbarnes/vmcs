@@ -140,7 +140,7 @@ namespace debugger.Hypervisor
                 base("TestingEmulator",
                     (new Context(testcase.Memory)
                     {
-                        Breakpoints = testcase.Checkpoints.Keys.ToList(),
+                        Breakpoints = new ListeningList<ulong>(testcase.Checkpoints.Keys.ToList()),
                         Flags = new FlagSet(FlagState.OFF),
                         Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
                         {

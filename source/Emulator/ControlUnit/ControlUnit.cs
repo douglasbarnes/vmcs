@@ -103,6 +103,7 @@ namespace debugger.Emulator
         public static REX RexByte { get; private set; } = REX.NONE; // A public getter to allow the RexByte of the ControlUnit to be read elsewhere but not set.
         private static Status Execute(bool step)
         {
+            bool HasUDed = false;
             byte OpcodeWidth = 1; // By default, each opcode has a width of one.
             List<string> DisassemblyBuffer = new List<string>(); // Store the last disassembled instruction in a variable so I can report it back to the disassembler after stepping.
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
@@ -205,11 +206,12 @@ namespace debugger.Emulator
                         Fetched = FetchNext();
                     }
 
-                    // Mechanism for detecting and handling invalid/unimplemented opcodes.
+                    // Mechanism for detecting and handling invalid/unimplemented opcodes. Errors in alternative tables return null.
                     OpcodeCaller CurrentCaller;
-                    if(OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentCaller))
+                    IMyOpcode CurrentOpcode;
+                    if (OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentCaller) && (CurrentOpcode = CurrentCaller()) != null)
                     {                       
-                        IMyOpcode CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
+                        //CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
 
                         // If disassembling, whether the instruction is executed or not is not of importance(so long as the opcode class is written along with convention),
                         // Conversely, if executing, whether the instruction is disassembled or not doesn't matter. Together, this check speeds up the program a lot.
@@ -231,8 +233,11 @@ namespace debugger.Emulator
                         {
                             DisassemblyBuffer = new List<string> { "BAD INSTRUCTION" };
                         }
-                        else
+
+                        // Only tell the user that there was a UD once per step/run. This stops them getting spammed with message boxes.
+                        else if(!HasUDed)
                         {
+                            HasUDed = true;
                             RaiseException(Logging.LogCode.INVALID_OPCODE);
                         }
                     }

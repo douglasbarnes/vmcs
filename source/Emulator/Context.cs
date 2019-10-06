@@ -2,7 +2,6 @@
 // All of the following variables are required for the ControlUnit to run.
 // It also enables the easy manipulation of the ControlUnit, such that the context can be swapped
 // out, modified, and loaded back in.
-using System.Collections.Generic;
 using debugger.Util;
 namespace debugger.Emulator
 {
@@ -12,7 +11,7 @@ namespace debugger.Emulator
         public MemorySpace Memory;
         public RegisterGroup Registers;
         public ulong InstructionPointer;
-        public List<ulong> Breakpoints = new List<ulong>();
+        public ListeningList<ulong> Breakpoints = new ListeningList<ulong>();
         public Context()
         {
             Memory = new MemorySpace(new byte[] { 0x00 });

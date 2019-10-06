@@ -32,15 +32,15 @@ namespace debugger.Emulator
 {
     public static partial class ControlUnit
     {        
-        private enum AlternateTable
+        private enum AlternativeTable
         {
             EXTENDED=1,
         }
         private delegate IMyOpcode OpcodeCaller();
         private delegate IMyOpcode AlternateTableCaller(byte input);
-        private static readonly Dictionary<AlternateTable, AlternateTableCaller> AlternateTableMap = new Dictionary<AlternateTable, AlternateTableCaller>()
+        private static readonly Dictionary<AlternativeTable, AlternateTableCaller> AlternateTableMap = new Dictionary<AlternativeTable, AlternateTableCaller>()
         {
-            { AlternateTable.EXTENDED,  (input) => DecodeExtension(input)}
+            { AlternativeTable.EXTENDED,  (input) => DecodeExtension(input)}
         };
         private static readonly Dictionary<byte, Dictionary<byte, OpcodeCaller>> OpcodeTable = new Dictionary<byte, Dictionary<byte, OpcodeCaller>>()
         {
@@ -136,9 +136,9 @@ namespace debugger.Emulator
                   { 0x7E, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE | ImmediateSettings.SXTBYTE), Condition.LE)},
                   { 0x7F, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE | ImmediateSettings.SXTBYTE), Condition.G )},
 
-                  { 0x80, () => AlternateTableMap[AlternateTable.EXTENDED](0x80) },
-                  { 0x81, () => AlternateTableMap[AlternateTable.EXTENDED](0x81) },
-                  { 0x83, () => AlternateTableMap[AlternateTable.EXTENDED](0x83) },
+                  { 0x80, () => AlternateTableMap[AlternativeTable.EXTENDED](0x80) },
+                  { 0x81, () => AlternateTableMap[AlternativeTable.EXTENDED](0x81) },
+                  { 0x83, () => AlternateTableMap[AlternativeTable.EXTENDED](0x83) },
                   { 0x84, () => new Test(new ModRM(FetchNext()), BYTEMODE) },
                   { 0x85, () => new Test(new ModRM(FetchNext())) },
                   { 0x86, () => new Xchg(new ModRM(FetchNext()), BYTEMODE) },
@@ -191,8 +191,8 @@ namespace debugger.Emulator
                   { 0xBE, () => new Mov(new DecodedCompound(new RegisterHandle(XRegCode.SI, RegisterTable.GP), new Immediate(ImmediateSettings.ALLOWIMM64))) },
                   { 0xBF, () => new Mov(new DecodedCompound(new RegisterHandle(XRegCode.DI, RegisterTable.GP), new Immediate(ImmediateSettings.ALLOWIMM64))) },
 
-                  { 0xC0, () => AlternateTableMap[AlternateTable.EXTENDED](0xC0) },
-                  { 0xC1, () => AlternateTableMap[AlternateTable.EXTENDED](0xC1) },
+                  { 0xC0, () => AlternateTableMap[AlternativeTable.EXTENDED](0xC0) },
+                  { 0xC1, () => AlternateTableMap[AlternativeTable.EXTENDED](0xC1) },
                   { 0xC2, () => new Ret(new Immediate()) },
                   { 0xC3, () => new Ret(new NoOperands()) },
                   
@@ -201,10 +201,10 @@ namespace debugger.Emulator
 
                   
 
-                  { 0xD0, () => AlternateTableMap[AlternateTable.EXTENDED](0xD0) },
-                  { 0xD1, () => AlternateTableMap[AlternateTable.EXTENDED](0xD1) },
-                  { 0xD2, () => AlternateTableMap[AlternateTable.EXTENDED](0xD2) },
-                  { 0xD3, () => AlternateTableMap[AlternateTable.EXTENDED](0xD3) },
+                  { 0xD0, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD0) },
+                  { 0xD1, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD1) },
+                  { 0xD2, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD2) },
+                  { 0xD3, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD3) },
 
                   { 0xE3, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE | ImmediateSettings.SXTBYTE), Condition.RCXZ) },
                   
@@ -213,15 +213,15 @@ namespace debugger.Emulator
 
                   { 0xEB, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE), Condition.NONE, BYTEMODE) },
 
-                  { 0xF6, () => AlternateTableMap[AlternateTable.EXTENDED](0xF6) },
-                  { 0xF7, () => AlternateTableMap[AlternateTable.EXTENDED](0xF7) },
+                  { 0xF6, () => AlternateTableMap[AlternativeTable.EXTENDED](0xF6) },
+                  { 0xF7, () => AlternateTableMap[AlternativeTable.EXTENDED](0xF7) },
                   { 0xF8, () => new Clc(new NoOperands())},
                   { 0xF9, () => new Stc(new NoOperands())},
 
                   { 0xFC, () => new Cld(new NoOperands())},
                   { 0xFD, () => new Std(new NoOperands())},
 
-                  { 0xFF, () => AlternateTableMap[AlternateTable.EXTENDED](0xFF) }
+                  { 0xFF, () => AlternateTableMap[AlternativeTable.EXTENDED](0xFF) }
                 }
             },
             {2, new Dictionary<byte, OpcodeCaller>()
@@ -425,11 +425,15 @@ namespace debugger.Emulator
         {
             ModRM InputModRM = new ModRM(FetchNext(), ModRMSettings.EXTENDED);
             ExtendedOpcodeCaller Output;
-            if(!ExtendedOpcodeTable[opcode].TryGetValue((int)InputModRM.Source.Code, out Output))
+            if (!ExtendedOpcodeTable[opcode].TryGetValue((int)InputModRM.Source.Code, out Output))
             {
                 RaiseException(Logging.LogCode.INVALID_OPCODE);
+                return null;
             }
-            return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
+            else
+            {
+                return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
+            }            
         }
     }
 }

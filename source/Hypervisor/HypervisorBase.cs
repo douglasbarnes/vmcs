@@ -8,9 +8,13 @@ namespace debugger.Hypervisor
 {
     public abstract class HypervisorBase
     {
-        protected internal Handle Handle { get; private set; }
-        public delegate void RunCallback(Context input);
-        public event RunCallback OnRunComplete = (input) => { };
+        protected Handle Handle { get; private set; }
+        public string HandleName { get => Handle.HandleName; }
+        public int HandleID { get => Handle.HandleID; }
+        public delegate void OnRunDelegate(Context input);
+        public delegate void OnFlashDelegate(Context input);
+        public event OnRunDelegate OnRunComplete = (input) => { };        
+        public event OnFlashDelegate OnFlash = (input) => { };
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
             Handle = new Handle(inputName, inputContext, handleParameters);
@@ -26,18 +30,18 @@ namespace debugger.Hypervisor
         }
         public void Flash(MemorySpace input)
         {
-            Handle.UpdateContext(
-                new Context(input.DeepCopy())
-                {
-                    Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
+            Context newContext = new Context(input.DeepCopy())
+            {
+                Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
                       {
                                   { XRegCode.SP, input.SegmentMap[".stack"].StartAddr },
                                   { XRegCode.BP, input.SegmentMap[".stack"].StartAddr }
                       }),
-                    Flags = new FlagSet()
-
-                }
-            );
+                Flags = new FlagSet(),
+                Breakpoints = new Util.ListeningList<ulong>()
+            };
+            Handle.UpdateContext(newContext);
+            OnFlash.Invoke(newContext);
         }
         public Dictionary<string, bool> GetFlags()
         {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
 using System.Drawing;
-using System.ComponentModel;
 using System.Collections.Generic;
 using debugger.Hypervisor;
 using debugger.Util;
@@ -10,7 +9,7 @@ namespace debugger.Forms
 {
     public class DisassemblyListView : CustomListView
     {
-        public BindingList<ulong> BreakpointSource = new BindingList<ulong>();
+        public ListeningList<ulong> BreakpointSource = new ListeningList<ulong>();
 
         public DisassemblyListView(Size size) : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
@@ -21,7 +20,6 @@ namespace debugger.Forms
             MultiSelect = false;
             View = View.Details;
             Size = size;
-            //HideSelection = false;
             Columns.Add(new ColumnHeader() { Width = this.Width - 4 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
             SendToBack();
             SelectedIndexChanged += (sender, args) =>
@@ -40,25 +38,25 @@ namespace debugger.Forms
                     SelectedItems.Clear();
                 }
             };
-            BreakpointSource.ListChanged += (sender, args) => Refresh();
+            
+            BreakpointSource.OnAdd += (item, index) => Refresh();
+            BreakpointSource.OnRemove += (item, index) => Refresh();
         }
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
             e.Graphics.FillRectangle(LayerBrush, e.Bounds);
             Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
-            if (!IndexToAddr.ContainsKey(e.ItemIndex))
+            if (IndexToAddr.ContainsKey(e.ItemIndex))
             {
-                return;
-            }
-            if (BreakpointSource.Contains(IndexToAddr[e.ItemIndex]))
-            {
-                Drawing.DrawFormattedText(Drawing.CleanString(new string(IndexToLine[e.ItemIndex])).Insert(18, "^").Insert(0, "^"), e.Graphics, HeightCenteredBounds);
-            }
-            else
-            {
-                Drawing.DrawFormattedText(new string(IndexToLine[e.ItemIndex]), e.Graphics, HeightCenteredBounds);
-            }
-            
+                if (BreakpointSource.Contains(IndexToAddr[e.ItemIndex]))
+                {
+                    Drawing.DrawFormattedText(Drawing.CleanString(new string(IndexToLine[e.ItemIndex])).Insert(18, "^").Insert(0, "^"), e.Graphics, HeightCenteredBounds);
+                }
+                else
+                {
+                    Drawing.DrawFormattedText(new string(IndexToLine[e.ItemIndex]), e.Graphics, HeightCenteredBounds);
+                }
+            } 
         }
         public void SetRIP(ulong insPtr)
         {

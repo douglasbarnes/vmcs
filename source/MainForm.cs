@@ -37,9 +37,8 @@ namespace debugger
         private async void Form1_Load(object sender, EventArgs e)
         {
             VMInstance = new VM();
-            VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
-            VMInstance.Breakpoints.ListChanged += (s, lc_args) => ListViewDisassembly.Refresh();
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
+            VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
             await Task.Run(() => RefreshDisassembly());
             ResumeLayout();
             Refresh();
@@ -87,6 +86,8 @@ namespace debugger
             }
             ROM = new MemorySpace(Instructions);
             ReflashVM();
+            VMInstance.Breakpoints = new Util.ListeningList<ulong>();
+            ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {
@@ -145,7 +146,7 @@ namespace debugger
         private void RefreshDisassembly()
         {
             ListViewDisassembly.RemoveAll();
-            ListViewDisassembly.AddParsed(new Disassembler(VMInstance.Handle).StepAll().Result);
+            ListViewDisassembly.AddParsed(new Disassembler(VMInstance.HandleID).StepAll().Result);
             ListViewDisassembly.SetRIP(VMInstance.GetMemory().EntryPoint);
         }
         private async void RefreshCallback(ulong instructionPointer)

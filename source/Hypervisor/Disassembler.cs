@@ -20,11 +20,10 @@ namespace debugger.Hypervisor
             public string DisassembledLine;
             public AddressState AddressInfo;
         }
-        private Handle TargetHandle;
-        private Context TargetContext { get => TargetHandle.DeepCopy(); }
-        public Disassembler(Handle targetHandle) : base("Disassembler", targetHandle.DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
+        private readonly Context TargetContext;
+        public Disassembler(int targetHandleID) : base("Disassembler", Handle.GetContextByID(targetHandleID).DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
         {
-            TargetHandle = targetHandle;
+            TargetContext = Handle.GetContextByID(targetHandleID);
         }
         public async Task<Dictionary<ulong, DisassembledItem>> Step(ulong count=0)
         {

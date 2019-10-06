@@ -101,7 +101,17 @@ namespace debugger.Emulator
                 StoredContexts[this] = inputContext;
                 IsBusy = false;
             }
-
+            public static Context GetContextByID(int id)
+            {
+                foreach(var KeyPair in StoredContexts)
+                {
+                    if(KeyPair.Key.HandleID == id)
+                    {
+                        return KeyPair.Value;
+                    }
+                }
+                return null;
+            }
             public void Invoke(Action toExecute)
             {
                 // A method to interact with a context or the ControlUnit safely. DONT INVOKE HANDLE.RUN() OR HANDLE.INVOKE() RECURSIVELY!!
