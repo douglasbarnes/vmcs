@@ -2,6 +2,8 @@
 using System.Drawing;
 using debugger.Util;
 using static debugger.Forms.FormSettings;
+using System;
+
 namespace debugger.Forms
 {
     public abstract class CustomToolStripButton : ToolStripButton, IMyCustomControl
@@ -20,7 +22,7 @@ namespace debugger.Forms
             e.Graphics.FillRectangle(ElevationBrushes[(int)DrawingLayer], Bounds);
             Rectangle InnerBounds = new Rectangle(Bounds.X + 1, Bounds.Y + 1, Bounds.Width - 3, Bounds.Height - 3);
             e.Graphics.DrawRectangle(new Pen(ElevationBrushes[(int)DrawingLayer]), InnerBounds);
-            e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));
+            e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));         
         }
     }
 }

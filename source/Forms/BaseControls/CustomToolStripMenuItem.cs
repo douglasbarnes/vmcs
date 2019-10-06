@@ -1,5 +1,6 @@
 ﻿using System.Windows.Forms;
 using debugger.Util;
+using System.Drawing;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {

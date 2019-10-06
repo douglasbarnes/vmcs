@@ -6,6 +6,7 @@ namespace debugger.Hypervisor
 {    
     public class VM : HypervisorBase
     {
+        public bool Ready { get; private set; } = false;
         public ListeningList<ulong> Breakpoints;
         public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
@@ -20,6 +21,7 @@ namespace debugger.Hypervisor
         {
             OnFlash += (context) =>
             {
+                Ready = true;
                 context.Breakpoints = Breakpoints;
             };
             Breakpoints = Handle.ShallowCopy().Breakpoints;

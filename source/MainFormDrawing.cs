@@ -74,21 +74,21 @@ namespace debugger
         {
             ButtonStep = new ControlButton()
             {
-                Location = new Point(600 + 80 * 1, 430),           
+                Location = new Point(600 + 80 * 1, 450),           
                 Text = "Step",
                 
             };
             ButtonStep.Click += new EventHandler(VMContinue_ButtonEvent);
             ButtonRun = new ControlButton()
             {
-                Location = new Point(600 + 80 * 2, 430),
+                Location = new Point(600 + 80 * 2, 450),
                 Text = "Run",
 
             };
             ButtonRun.Click += new EventHandler(VMContinue_ButtonEvent);
             ButtonReset = new ControlButton()
             {
-                Location = new Point(600 + 80 * 3, 430),
+                Location = new Point(600 + 80 * 3, 450),
                 Text = "Reset"
             };            
             ButtonReset.Click += new EventHandler(Reset_Click);

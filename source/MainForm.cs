@@ -24,11 +24,14 @@ namespace debugger
         public Dictionary<string, ulong> Registers = new Dictionary<string, ulong>();
         public MainForm()
         {
+            Name = "MainForm";
             Font = FormSettings.BaseUI.BaseFont;
             SuspendLayout();
             InitializeComponent();
-            InitialiseCustom();            
+            InitialiseCustom();
+#if DEBUG
             MouseDoubleClick += (s, e) => Trace.WriteLine($"X: {e.X} Y: {e.Y}");
+#endif
             ForeColor = FormSettings.BaseUI.SurfaceColour;
             BackColor = FormSettings.BaseUI.BackgroundColour;
         }
@@ -81,7 +84,6 @@ namespace debugger
                     case DialogResult.Cancel:
                         return;
                 }
-
             }
             FlashProcedure(Instructions);
         }
@@ -98,8 +100,12 @@ namespace debugger
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {
-            //sender is name of button
-            VMContinue(((Control)sender).Text == "Step"); // bool  1=step
+            // Check if the VMInstance has been flashed yet.
+            if (VMInstance.Ready)
+            {
+                // Check the text of the sender to see if it Step and tell continue to step if so.
+                VMContinue(((Control)sender).Text == "Step"); 
+            }            
         }
         private void VMContinue(bool Step)
         {
