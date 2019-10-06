@@ -43,6 +43,7 @@ namespace debugger.Logging
     }
     public static class Logger
     {
+        private static readonly FileInfo LogPath = new FileInfo(Environment.CurrentDirectory + "\\Log.txt");
         private static readonly Dictionary<LogCode, (Severity, string)> LogMessages = new Dictionary<LogCode, (Severity, string)>()
         {
             { INVALID_OPCODE, (Severity.EXECUTION, "Invalid opcode was read. Execution from now is undefined.") },
@@ -69,6 +70,7 @@ namespace debugger.Logging
             { Severity.WARNING, '*' },
             { Severity.ERROR, 'X' },
             { Severity.CRITICAL, '!' },
+            { Severity.EXECUTION, '$' },
         };
         private enum Severity
         {
@@ -78,10 +80,22 @@ namespace debugger.Logging
             CRITICAL,
             EXECUTION
         }
-
         public static void Log(LogCode inputCode, string[] interpolations)
         {
-            System.Windows.Forms.MessageBox.Show(string.Format(LogMessages[inputCode].Item2, interpolations));
+            (Severity, string) CodeInfo = LogMessages[inputCode];
+            string ErrorMessage = string.Format(CodeInfo.Item2, interpolations);
+            System.Windows.Forms.MessageBox.Show(ErrorMessage);
+            if (!LogPath.Exists)
+            {
+                LogPath.Create();
+            }
+
+            using (StreamWriter stream = LogPath.AppendText())
+            {            
+                
+                stream.Write($"[{SeverityPrefix[CodeInfo.Item1]}][{DateTime.UtcNow.ToString()}] " + ErrorMessage + "\n");
+            }
+
         }
         public static void Log(LogCode inputCode, string interpolation) => Log(inputCode, new string[] { interpolation });
         public static string FetchMessage(LogCode inputCode, string[] interpolations) => String.Format(LogMessages[inputCode].Item2, interpolations);
