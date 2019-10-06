@@ -34,34 +34,34 @@ namespace debugger.Emulator
         {
             // For simplicity a MemorySpace starts at 0 because there is no kernel implementation.
             EntryPoint = 0;
+
             // Define $End to tell when there are no more addresses to be read, anything after $End would return 0x00.
             // It is used to set a breakpoint after all instructions to avoid this.
             End = (ulong)memory.LongLength;
+
             // ".main" is where the ControlUnit will read the instructions from initially. It contains the data passed in as $memory.
             SegmentMap.Add(".main", new Segment() { StartAddr = EntryPoint, End = EntryPoint + (ulong)memory.LongLength, Data = memory });
+
             // ".stack" holds the start address of the stack. There is no defined $End of said stack. A manually crafted stack could be added
             // by setting $Segment.Data 
             SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, End = 0x0 });
-            
+
             // Load all segments into the internal address table.
             foreach (Segment seg in SegmentMap.Values)
             {
-                // If the segment has no defined data, just add a 0x0.
-                if (seg.Data == null)
+                // If it has data, add all that data until,
+                //  1. There is no more data to add
+                //  2. The defined end of the segment is reached
+                for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End - seg.StartAddr; i++)
                 {
-                    AddressMap.Add(seg.StartAddr, 0x0);
-                }
-                else
-                {
-                    // If it has data, add all that data until,
-                    //  1. There is no more data to add
-                    //  2. The defined end of the segment is reached
-                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End-seg.StartAddr; i++)
+                    // Save some memory by not storing 0s.
+                    if(seg.Data[i] != 0x00)
                     {
-                        AddressMap.Add(i + seg.StartAddr, seg.Data[i]);                        
-                    }
+                        AddressMap.Add(i + seg.StartAddr, seg.Data[i]);
+                    }                    
                 }
             }
+                
         }
         private MemorySpace(MemorySpace toClone)
         {
@@ -73,10 +73,7 @@ namespace debugger.Emulator
             EntryPoint = toClone.EntryPoint;
             End = toClone.End;
         }
-        public MemorySpace DeepCopy()
-        {
-            return new MemorySpace(this);
-        }
+        public MemorySpace DeepCopy() => new MemorySpace(this);
         public byte this[ulong address]
         {
             // A memory space can use an index accessor which will return AddressMap[$address] if it exists, otherwise a 0. This is where a seg fault would occur if segmentation was strict.
