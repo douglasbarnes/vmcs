@@ -554,24 +554,84 @@ namespace debugger.Util
             }
             return input;
         }
-        public static bool TryParseHex(string hex, out byte[] Output)
+        public static bool TryParseHex(string hex, out byte[] Output) => TryParseHex(Encoding.UTF8.GetBytes(hex), out Output);
+        public static bool TryParseHex(byte[] encoded_bytes, out byte[] Output)
         {
-            hex = hex.Trim();
-            if (hex.Length % 2 != 0) { hex = hex.Insert(0, "0"); }
-            Output = new byte[hex.Length / 2];
-            for (int ByteIndex = 0; ByteIndex < hex.Length / 2; ByteIndex++)
+            // The following is an method of parsing the UTF-8 encoded bytes in the file as actual hex bytes.
+            // Throughout explanation of this particular algorithm I will use "character" to describe a character in the file, e.g A, B, 1, G, ]
+            // and use byte to refer to an actual byte in memory. This is not technically accurate but extremely necessary to explain the logic of this algorithm,
+            // so forget about this definition afterwards.
+            // Understand that a byte written in hex as text is two bytes in the file. E.g, writing B8 is two characters B and 8. The numerical value of "B8" is not 0xB8.
+            // This is the premise of the algorithm, converting the characters "B8" into the byte 0xB8.
+            // Despite not looking so at first glance, the algorithm is linear as you would expect given the problem as the method always exits after $reader.Length iterations.
+
+            Output = new byte[encoded_bytes.Length / 2 + encoded_bytes.Length % 2];
+
+            // $BytesParsed holds the total number of bytes parsed.
+            int NibblesParsed = 0;
+
+            // $CharsLeft holds the number of characters left needed to finish the current byte.
+            bool UpperNibble = true;
+
+            // $Caret is the iterator, it holds the position in the array throughout iteration.
+            int Caret = 0;
+
+            // Loop the entire array
+            while (Caret < encoded_bytes.Length)
             {
-                byte NextByte;
-                if (byte.TryParse(hex.Substring(ByteIndex * 2, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out NextByte))
+                // Here the fortunate fact that each character in a hex byte is a nibble can be used.
+                // For example if I had two hex values,
+                //  0xD - [00001101]
+                //  0x7 - [00000111]
+                // 0xD7 would just be,
+                //  0xD7 - [11010111]
+                // This is an cool relationship between bases that are powers of 2, but some maths can be used to implement it.
+                // In the code I take a little bit of a performance shortcut because single byte values are being dealt with, such
+                // that there will only ever be two columns, e.g 0xFF not 0x100. Conversely, the single digit value will either be
+                // shifted by 4 or none at all. This is because as shown before, one digit represents a nibble.
+                // So, if it is the first character in the byte being parsed, it is shifted by 4 because it would be the D in D7 in
+                // the earlier example. Otherwise it's just ORed normally.
+                byte ParsedNibble;
+
+                // Core.Htoi() will convert a char to the hex byte it visually represented, e.g B -> 0xB.
+                if (Htoi((char)encoded_bytes[Caret], out ParsedNibble))
                 {
-                    Output[ByteIndex] = NextByte;
+                    // Don't change this order without considering the ternary condition!
+
+                    // If the current character represents the upper nibble(e.g the D in 0xD7), shift it into the upper nibble.
+                    // $NibblesParsed / 2 will always give the desired index.
+                    // For example,                   
+                    // 2 / 2 = 1
+                    // 3 / 2 = 1
+                    // 4 / 2 = 2
+                    // There will always be 2 values(2n/2 and 2n/2 +1) for each index, as there are two nibbles in a byte.
+                    // If there were 3 nibbles in a byte, $NP/3 would work so and and so forth.
+                    Output[NibblesParsed / 2] |= UpperNibble ? (byte)(ParsedNibble << 4) : ParsedNibble;
+
+                    // XOR $UpperNibble and true; Toggle it. if the upper nibble was just parsed, the next character must be the lower nibble.
+                    // If the lower nibble was just parsed, the upper nibble of the next byte must be next(false ^ true = true).
+                    UpperNibble ^= true;
+
+                    NibblesParsed++;
                 }
-                else
-                {
-                    return false;
-                }
+
+                // Whether the byte could be parsed or not, the next character is next to be parsed.
+                Caret++;
             }
-            return true;
-        }
+            
+           
+            if (NibblesParsed > 0)
+            {
+                // Resize the array to the number of bytes parsed, as the worst case scenario was assumed earlier. Otherwise a whole host of "add    byte ptr [rax], al" would be added to the
+                // end of the program because the unused array elements would be [00] [00] [00] [00] ...                
+                Array.Resize(ref Output, NibblesParsed / 2 + NibblesParsed % 2);
+                return true;
+            }
+            else
+            {
+                // The file must be invalid if nothing at all could be parsed.
+                return false;
+            }
+        }        
     }
 }

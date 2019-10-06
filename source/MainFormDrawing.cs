@@ -174,14 +174,18 @@ namespace debugger
             ThemedToolStripMenuItem OpenMenu = new ThemedToolStripMenuItem()
             {
                 Text = "Open"
-            };
-            
+            };            
             OpenMenu.Click += (s, a) => 
             {
                 OpenFileDialog OpenFile = new OpenFileDialog();
                 OpenFile.ShowDialog();
                 FlashFromFile(OpenFile.FileName);
             };
+            ThemedToolStripMenuItem OpenClipboardMenu = new ThemedToolStripMenuItem()
+            {
+                Text = "Open from clipboard"
+            };
+            //OpenClipboardMenu.Click +=
             FileMenu.DropDownItems.Add(OpenMenu);
         }
         private void CreateMenuDebug()
