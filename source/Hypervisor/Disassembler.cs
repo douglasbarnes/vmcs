@@ -3,51 +3,60 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using debugger.Emulator;
 using debugger.Util;
-
 using static debugger.Emulator.ControlUnit;
 namespace debugger.Hypervisor
 {
     public class Disassembler : HypervisorBase
     {
-        public struct DisassembledItem
+        public struct ParsedLine
         {
-            [Flags]
-            public enum AddressState
-            {
-                NONE = 0,
-                RIP = 1,
-            }
             public string DisassembledLine;
-            public AddressState AddressInfo;
-        }
-        private readonly Context TargetContext;
-        public Disassembler(int targetHandleID) : base("Disassembler", Handle.GetContextByID(targetHandleID).DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP)
-        {
-            TargetContext = Handle.GetContextByID(targetHandleID);
-        }
-        public async Task<Dictionary<ulong, DisassembledItem>> Step(ulong count=0)
-        {
-            ulong IP = Handle.ShallowCopy().InstructionPointer;
-            return await Step(IP, IP + count);
-        }
-        public async Task<Dictionary<ulong, DisassembledItem>> Step(ulong startAddress, ulong endAddress)
-        {
-            Handle.ShallowCopy().InstructionPointer = startAddress;
-            Dictionary<ulong, DisassembledItem> Output = new Dictionary<ulong, DisassembledItem>();
-            for (ulong CurrentAddr = startAddress; CurrentAddr < endAddress; Handle.Invoke(() => CurrentAddr = Handle.ShallowCopy().InstructionPointer))
+            public AddressInfo Info;
+            public ulong Address;
+            public ParsedLine(DisassembledLine input)
             {
-                DisassembledItem CurrentLine = new DisassembledItem();          
-                if (CurrentAddr == TargetContext.InstructionPointer)
-                {
-                    CurrentLine.AddressInfo |= DisassembledItem.AddressState.RIP;
-                }
-                string Disassembly = JoinDisassembled((await RunAsync(true)).LastDisassembled);
-                CurrentLine.DisassembledLine = $"{Disassembly}";
-                Output.Add(CurrentAddr, CurrentLine);
+                DisassembledLine = JoinDisassembled(input.Line);
+                Info = input.Info;
+                Address = input.Address;
             }
-            return Output;
         }
-        private string JoinDisassembled(List<string> RawDisassembled)
+        public readonly ListeningList<ParsedLine> ParsedLines = new ListeningList<ParsedLine>();
+        public List<(ulong, ulong)> AddressRanges;
+        public Disassembler(int targetHandleID) 
+            : base("Disassembler", Handle.GetContextByID(targetHandleID).DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP | HandleParameters.NOBREAK)
+        {
+            Context targetContext = Handle.GetContextByID(targetHandleID);
+            AddressRanges = new List<(ulong, ulong)>
+            {
+                (targetContext.Memory.SegmentMap[".main"].StartAddr,
+                targetContext.Memory.SegmentMap[".main"].End)
+            };
+        }
+        public void UpdateTarget(int targetHandleID)
+        {
+            ParsedLines.Clear();
+            Flash(Handle.GetContextByID(targetHandleID).Memory);
+        }
+        public void DisassembleAll()
+        {
+            ParsedLines.Clear();
+            for (int i = 0; i < AddressRanges.Count; i++)
+            {
+                DisassembleRange(AddressRanges[i]);
+            }
+        }
+        public void DisassembleRange((ulong start, ulong end) input)
+        {
+            Handle.ShallowCopy().Breakpoints.Add(input.end);
+            Handle.ShallowCopy().InstructionPointer = input.start;
+            List<DisassembledLine> RawLines = Run().Disassembly;
+            for (int i = 0; i < RawLines.Count; i++)
+            {
+                ParsedLines.Add(new ParsedLine(RawLines[i]));
+            }
+        }
+        
+        private static string JoinDisassembled(List<string> RawDisassembled)
         {
             if (RawDisassembled.Count < 3)
             {
@@ -62,11 +71,6 @@ namespace debugger.Hypervisor
                 }
                 return Output;
             }
-        }
-        public async Task<Dictionary<ulong, DisassembledItem>> StepAll()
-        {
-            Context DisasContext = Handle.ShallowCopy();
-            return await Step(DisasContext.Memory.EntryPoint, DisasContext.Memory.SegmentMap[".main"].End);
         }
     }
 

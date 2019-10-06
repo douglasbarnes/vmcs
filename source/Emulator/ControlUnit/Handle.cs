@@ -17,6 +17,10 @@ namespace debugger.Emulator
         // JMP opcodes are ignored. More precisely, the instruction pointer can only be changed by the ControlUnit itself.
         // Used in conjunction with DISASSEMBLEMODE, but there may be a time when both behaviours need to be separated.
         NOJMP=2,
+
+        // The handle will ignore breakpoints set for the Context. Not very useful at the minute as the disassembler(which it is intended for) runs before any breakpoints are set,
+        // however in the future a custom IO file structure for loading contexts with breakpoints saved in them may find this useful. It will still return at the end of memory.
+        NOBREAK=4,
     }
     public static partial class ControlUnit
     {        

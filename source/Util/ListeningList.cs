@@ -9,7 +9,7 @@ namespace debugger.Util
         private readonly List<T> InternalList;
         public delegate void ListEvent();
         public delegate void OnItemAction(T item, int index);
-        public event OnItemAction OnGet = (item, index) => { };
+        public event OnItemAction OnGet = (item, index) => { };        
         public event OnItemAction OnSet = (item, index) => { };
         public event OnItemAction OnAdd = (item, index) => { };
         public event OnItemAction OnRemove = (item, index) => { };

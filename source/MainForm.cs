@@ -26,6 +26,11 @@ namespace debugger
         {
             Name = "MainForm";
             Font = FormSettings.BaseUI.BaseFont;
+
+            // KEEP BEFORE INITIALISE..()
+            VMInstance = new VM();
+            d = new Disassembler(VMInstance.HandleID);
+
             SuspendLayout();
             InitializeComponent();
             InitialiseCustom();
@@ -39,10 +44,8 @@ namespace debugger
         MemorySpace ROM;
         private async void Form1_Load(object sender, EventArgs e)
         {
-            VMInstance = new VM();
-            ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
+            VMInstance.OnFlash += (c) => { d.UpdateTarget(VMInstance.HandleID); };
             VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
-            await Task.Run(() => RefreshDisassembly());
             ResumeLayout();
             Refresh();
             Update();
@@ -50,7 +53,6 @@ namespace debugger
         private async void ReflashVM()
         {
             VMInstance.Flash(ROM);
-            await Task.Run(() => RefreshDisassembly());
             RefreshCallback(0);
         }
         private void FlashFromFile(string path)
@@ -96,6 +98,7 @@ namespace debugger
             VMInstance.Breakpoints = new Util.ListeningList<ulong>();
 
             // Update the reference to the breakpoint list in the disassembly listview.
+            d.DisassembleAll();
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
@@ -155,13 +158,8 @@ namespace debugger
                 if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
                 memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
             })));                    
-        }      
-        private void RefreshDisassembly()
-        {
-            ListViewDisassembly.RemoveAll();
-            ListViewDisassembly.AddParsed(new Disassembler(VMInstance.HandleID).StepAll().Result);
-            ListViewDisassembly.SetRIP(VMInstance.GetMemory().EntryPoint);
         }
+        Disassembler d;
         private async void RefreshCallback(ulong instructionPointer)
         {
             List<Task> RefreshTasks = new List<Task>
@@ -171,8 +169,7 @@ namespace debugger
                 new Task(() => RefreshFlags())
             };
             RefreshTasks.ForEach(x => x.Start());
-            await Task.WhenAll(RefreshTasks);
-            ListViewDisassembly.SetRIP(instructionPointer);                   
+            await Task.WhenAll(RefreshTasks);               
             Invoke(new Action(() => Refresh()));
         }  
         private void SetMemviewPos(object sender, EventArgs e)

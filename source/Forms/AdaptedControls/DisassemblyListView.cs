@@ -10,9 +10,11 @@ namespace debugger.Forms
     public class DisassemblyListView : CustomListView
     {
         public ListeningList<ulong> BreakpointSource = new ListeningList<ulong>();
-
-        public DisassemblyListView(Size size) : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
+        private readonly ListeningList<Disassembler.ParsedLine> ParsedLines;
+        public DisassemblyListView(ListeningList<ulong> breakpointSource, ListeningList<Disassembler.ParsedLine> parsedLines, Size size) : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
+            BreakpointSource = breakpointSource;
+            ParsedLines = parsedLines;
             OwnerDraw = true;
             BorderStyle = BorderStyle.None;
             FullRowSelect = true;
@@ -22,113 +24,69 @@ namespace debugger.Forms
             Size = size;
             Columns.Add(new ColumnHeader() { Width = this.Width - 4 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
             SendToBack();
-            SelectedIndexChanged += (sender, args) =>
-            {
-                if (SelectedItems.Count > 0)
-                {
-                    ulong Address = IndexToAddr[SelectedItems[0].Index];
-                    if (BreakpointSource.Contains(Address))
-                    {
-                        BreakpointSource.Remove(Address);
-                    }
-                    else
-                    {
-                        BreakpointSource.Add(Address);
-                    }
-                    SelectedItems.Clear();
-                }
-            };
-            
+            //SelectedIndexChanged += (sender, args) =>
+            //{
+            //    if (SelectedItems.Count > 0)
+            //    {
+            //        ulong Address = IndexToAddr[SelectedItems[0].Index];
+            //        if (BreakpointSource.Contains(Address))
+            //        {
+            //            BreakpointSource.Remove(Address);
+            //        }
+            //        else
+            //        {
+            //            BreakpointSource.Add(Address);
+            //        }
+            //        SelectedItems.Clear();
+            //    }
+            //};
+            ParsedLines.OnSet += FormatAndApply;
+            ParsedLines.OnAdd += FormatAndApply;
+            ParsedLines.OnRemove += (item, index ) => { Items[index].Remove(); };
+            ParsedLines.OnClear += () => Items.Clear();
             BreakpointSource.OnAdd += (item, index) => Refresh();
             BreakpointSource.OnRemove += (item, index) => Refresh();
+        }
+        private void FormatAndApply(Disassembler.ParsedLine line, int index)
+        {            
+            string FormattedNumber = Core.FormatNumber(line.Address, FormatType.Hex);
+
+            // Only dim trailing zeros if its not a breakpoint, make it purple otherwise.
+            if ((line.Info | Emulator.AddressInfo.BREAKPOINT) == line.Info)
+            {
+                FormattedNumber = $"^0x{FormattedNumber}^";
+            }
+            else
+            {
+                
+                string[] CutAddress = Core.SeparateString(FormattedNumber.Substring(2, FormattedNumber.Length - 2), "0", stopAtFirstDifferent: true);
+                if (CutAddress[1].Length > 0) // if there are trailing 0's, make them darker
+                {
+                    CutAddress[1] = $"%{CutAddress[1]}%";
+                }
+                FormattedNumber = $"%0x%{CutAddress[1]}{CutAddress[0].Trim()}";
+            }            
+            
+            if((line.Info | Emulator.AddressInfo.RIP) == line.Info)
+            {
+                FormattedNumber = FormattedNumber.Remove(23, 4).Insert(23, "←RIP");
+            }
+
+            if (Items.Count - 1 < index)
+            {
+                Items.Add(new ListViewItem($"{FormattedNumber}                  {line.DisassembledLine}"));
+            }
+            else
+            {
+                Items[index].Text = $"{FormattedNumber}                  {line.DisassembledLine}";
+            }
+            
         }
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
             e.Graphics.FillRectangle(LayerBrush, e.Bounds);
             Rectangle HeightCenteredBounds = new Rectangle(new Point(e.Bounds.X, e.Bounds.Y + 3), e.Bounds.Size);
-            if (IndexToAddr.ContainsKey(e.ItemIndex))
-            {
-                if (BreakpointSource.Contains(IndexToAddr[e.ItemIndex]))
-                {
-                    Drawing.DrawFormattedText(Drawing.CleanString(new string(IndexToLine[e.ItemIndex])).Insert(18, "^").Insert(0, "^"), e.Graphics, HeightCenteredBounds);
-                }
-                else
-                {
-                    Drawing.DrawFormattedText(new string(IndexToLine[e.ItemIndex]), e.Graphics, HeightCenteredBounds);
-                }
-            } 
-        }
-        public void SetRIP(ulong insPtr)
-        {
-            try
-            {
-                if (!AddrToLine.ContainsKey(insPtr))
-                {
-                    insPtr -= 1;
-                }
-                for (int i = 0; i < 4; i++)
-                {
-                    IndexToLine[RIPIndex][23 + i] = ' ';
-                    AddrToLine[insPtr][23 + i] = "←RIP"[i];
-                }
-                RIPIndex = AddrToIndex[insPtr];
-            }
-            catch
-            {
-                Logging.Logger.Log(Logging.LogCode.DISASSEMBLY_RIPNOTFOUND, insPtr.ToString("X"));
-            }
-        }
-        private readonly Dictionary<ulong, char[]> AddrToLine = new Dictionary<ulong, char[]>();
-        private readonly Dictionary<int, char[]> IndexToLine = new Dictionary<int, char[]>();
-        private readonly Dictionary<ulong, int> AddrToIndex = new Dictionary<ulong, int>();
-        private readonly Dictionary<int, ulong> IndexToAddr = new Dictionary<int, ulong>();
-        private int RIPIndex;
-        public void RemoveAll()
-        {
-            AddrToLine.Clear();
-            IndexToAddr.Clear();
-            IndexToLine.Clear();
-            AddrToIndex.Clear();
-        }
-        public void AddParsed(Dictionary<ulong, Disassembler.DisassembledItem> ParsedLines)
-        {
-            AddrToLine.Clear();
-            int Index = 0;
-            foreach (var Line in ParsedLines)
-            {
-                
-                string FormattedNumber = Core.FormatNumber(Line.Key, FormatType.Hex);
-                string[] CutAddress = Core.SeparateString(FormattedNumber.Substring(2,FormattedNumber.Length-2), "0", stopAtFirstDifferent: true);
-                char[] Reference;
-                
-                if (CutAddress[1].Length > 0) // if there are trailing 0's, make them darker
-                {
-                    CutAddress[1] = $"%{CutAddress[1]}%";
-                }
-                Reference = $"%0x%{CutAddress[1]}{CutAddress[0].Trim()}                  {Line.Value.DisassembledLine}".ToCharArray();       
-                AddrToLine.Add(Line.Key, Reference);
-                IndexToLine.Add(Index, Reference);
-                AddrToIndex.Add(Line.Key, Index);
-                IndexToAddr.Add(Index, Line.Key);
-                if ((Line.Value.AddressInfo | Disassembler.DisassembledItem.AddressState.RIP) == Line.Value.AddressInfo)
-                {
-                    RIPIndex = Index;
-                    SetRIP(Line.Key);
-                }
-                Index++;
-            }
-            Invoke(new Action(() =>
-            {
-                BeginUpdate();
-                Items.Clear();
-                foreach (var Line in IndexToLine)
-                {
-                    Items.Add(new string(Line.Value));
-                }
-                EnsureVisible(RIPIndex);               
-                EndUpdate();
-                Update();
-            }));
+            Drawing.DrawFormattedText(e.Item.Text, e.Graphics, HeightCenteredBounds);
         }
     }
 }

@@ -3,15 +3,30 @@ using System.Collections.Generic;
 using debugger.Emulator.Opcodes;
 namespace debugger.Emulator
 {
+    public enum AddressInfo
+    {
+        NONE=0,
+        RIP=1,
+        BREAKPOINT=2,
+        BAD=4,
+    }
+    public struct DisassembledLine
+    {
+        public ulong Address;
+        public List<string> Line;
+        public AddressInfo Info;
+        public DisassembledLine(List<string> line, AddressInfo info, ulong address)
+        {
+            Line = line;
+            Info = info;
+            Address = address;
+        }
+    }
     public struct Status
     {
-        public enum ExitStatus
-        {
-            BreakpointReached
-        }
-        public ExitStatus ExitCode; // initialises to breakpoint reached
-        public List<string> LastDisassembled;
+        public List<DisassembledLine> Disassembly;
         public ulong InstructionPointer;
+
     }
     public enum PrefixByte
     {
@@ -103,17 +118,28 @@ namespace debugger.Emulator
         public static REX RexByte { get; private set; } = REX.NONE; // A public getter to allow the RexByte of the ControlUnit to be read elsewhere but not set.
         private static Status Execute(bool step)
         {
+            // A variable to prevent #UD spam.
             bool HasUDed = false;
-            byte OpcodeWidth = 1; // By default, each opcode has a width of one.
-            List<string> DisassemblyBuffer = new List<string>(); // Store the last disassembled instruction in a variable so I can report it back to the disassembler after stepping.
+
+            // By default, each opcode has a width of one.
+            byte OpcodeWidth = 1;
+
+            // Store the disassembled instructions in a list so it can be reported back to the disassembler after stepping.
+            List<DisassembledLine> DisassemblyBuffer = new List<DisassembledLine>(); ;
+
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
             {
 #if DEBUG
-                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer; // CurrentContext.InstructionPointer loads native code therefore cannot be viewed in break mode. 
-                                                                                    // This allows me to debug easier because I can see the instruction pointer.
+                // CurrentContext.InstructionPointer loads native code therefore cannot be viewed in break mode.
+                // This makes debugging easier because its easy to see instruction pointer.
+                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer;
+
 #endif
-                byte Fetched = FetchNext(); // Fetch our next instruction. If this goes wrong somehow, bad things will happen. Best case, we throw a #UD.
-                if (LPrefixBuffer.IsPrefix(Fetched)) // If what I fetched was a prefix, add it to the prefix buffer.
+                // Fetch next instruction.
+                byte Fetched = FetchNext();
+
+                // Check if what was fetched is a prefix
+                if (LPrefixBuffer.IsPrefix(Fetched)) 
                 {
                     LPrefixBuffer.Add((PrefixByte)Fetched);
                 }
@@ -211,13 +237,14 @@ namespace debugger.Emulator
                     IMyOpcode CurrentOpcode;
                     if (OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentCaller) && (CurrentOpcode = CurrentCaller()) != null)
                     {                       
-                        //CurrentOpcode = OpcodeTable[OpcodeWidth][Fetched]();
-
                         // If disassembling, whether the instruction is executed or not is not of importance(so long as the opcode class is written along with convention),
                         // Conversely, if executing, whether the instruction is disassembled or not doesn't matter. Together, this check speeds up the program a lot.
                         if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                         {
-                            DisassemblyBuffer = CurrentOpcode.Disassemble();
+                            DisassemblyBuffer.Add(
+                                new DisassembledLine(CurrentOpcode.Disassemble(), 
+                                                     CurrentContext.Breakpoints.Contains(InstructionPointer) ? AddressInfo.BREAKPOINT : AddressInfo.NONE
+                                                     , InstructionPointer));
                         }
                         else
                         {
@@ -231,7 +258,7 @@ namespace debugger.Emulator
                         //  - Throw a #UD when executed.
                         if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                         {
-                            DisassemblyBuffer = new List<string> { "BAD INSTRUCTION" };
+                            DisassemblyBuffer.Add(new DisassembledLine(new List<string> { "BAD INSTRUCTION" }, AddressInfo.BAD, InstructionPointer));
                         }
 
                         // Only tell the user that there was a UD once per step/run. This stops them getting spammed with message boxes.
@@ -242,18 +269,19 @@ namespace debugger.Emulator
                         }
                     }
                     
+                    // Reset variables after opcode is executed
                     OpcodeWidth = 1;
                     LPrefixBuffer.Clear();
                     RexByte = REX.NONE;
                                     
-                    // If stepping or hit a breakpoint, stop executing.
-                    if (step || CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer))
+                    // If stepping or hit a breakpoint(and honouring breakpoints), stop executing.
+                    if (step || ((CurrentHandle.HandleSettings | HandleParameters.NOBREAK) == CurrentHandle.HandleSettings && CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer)))
                     {
                         break;
                     }                    
                 }
-            }
-            return new Status { LastDisassembled = DisassemblyBuffer, InstructionPointer = InstructionPointer };
+            }            
+            return new Status { Disassembly = DisassemblyBuffer, InstructionPointer = InstructionPointer };
         }
         public static void SetMemory(ulong address, byte[] data)
         {
