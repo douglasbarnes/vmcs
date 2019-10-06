@@ -185,8 +185,17 @@ namespace debugger
             {
                 Text = "Open from clipboard"
             };
-            //OpenClipboardMenu.Click +=
-            FileMenu.DropDownItems.Add(OpenMenu);
+            OpenClipboardMenu.Click += (s, a) =>
+            {
+                IO.TXT ParsedClipboard = IO.TXT.Parse(System.Text.Encoding.UTF8.GetBytes(Clipboard.GetText(TextDataFormat.UnicodeText)));
+                if (ParsedClipboard == null)
+                {
+                    // This is already handled in the TXT class, but don't commit the changes to the VM if it was unsuccessful.
+                    return;
+                }
+                FlashProcedure(ParsedClipboard.Instructions);
+            };
+            FileMenu.DropDownItems.AddRange(new[] { OpenMenu, OpenClipboardMenu });
         }
         private void CreateMenuDebug()
         {

@@ -562,9 +562,12 @@ namespace debugger.Util
             // and use byte to refer to an actual byte in memory. This is not technically accurate but extremely necessary to explain the logic of this algorithm,
             // so forget about this definition afterwards.
             // Understand that a byte written in hex as text is two bytes in the file. E.g, writing B8 is two characters B and 8. The numerical value of "B8" is not 0xB8.
-            // This is the premise of the algorithm, converting the characters "B8" into the byte 0xB8.
-            // Despite not looking so at first glance, the algorithm is linear as you would expect given the problem as the method always exits after $reader.Length iterations.
+            // This is the premise of the algorithm, converting the characters "B8" into the byte 0xB8.            
 
+            // An array to store the bytes in the file once parsed. As said earlier, two bytes in the file really represents a single byte, so this 2:1 ratio can
+            // be used to save memory in the array. It also depicts a worst(memory-wise) case scenario, that every byte is valid hex, e.g no line feeds etc.
+            // If there is an odd number of bytes, the greatest possibility is that there are invalid characters in the input,
+            // however if that isn't the case assume the last parsable character to be the upper nibble and the lower nibble to be [0000]
             Output = new byte[encoded_bytes.Length / 2 + encoded_bytes.Length % 2];
 
             // $BytesParsed holds the total number of bytes parsed.

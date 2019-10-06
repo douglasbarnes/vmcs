@@ -62,8 +62,7 @@ namespace debugger
                 Logger.Log(LogCode.IO_INVALIDFILE, "Bad path");
                 return;
             }
-
-            // Somewhere else will log this.
+                        
             byte[] Instructions;
             if (parser.Parse(ParseMode.AUTO, out Instructions) != ParseResult.SUCCESS)
             {
@@ -84,9 +83,17 @@ namespace debugger
                 }
 
             }
+            FlashProcedure(Instructions);
+        }
+        public void FlashProcedure(byte[] Instructions)
+        {
             ROM = new MemorySpace(Instructions);
             ReflashVM();
+
+            // Reset the breakpoints
             VMInstance.Breakpoints = new Util.ListeningList<ulong>();
+
+            // Update the reference to the breakpoint list in the disassembly listview.
             ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)

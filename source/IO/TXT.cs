@@ -20,27 +20,30 @@ namespace debugger.IO
             // Read all of the file into FileBytes.
             reader.Seek(0, SeekOrigin.Begin);                      
 
-            // Make sure FileBytes[] has an even length, but not necessarily $reader.Length aswell
-            byte[] FileBytes = new byte[reader.Length % 2 == 0 ? reader.Length : reader.Length + 1];
+            // Make sure FileBytes[] has an even length, but not necessarily $reader.Length aswell. Essentially this rounds $FileBytes.Length
+            // up to the nearest multiple of two.
+            byte[] FileBytes = new byte[reader.Length / 2 + reader.Length % 2];
             reader.Read(FileBytes, 0, (int)reader.Length);
+            return Parse(FileBytes);  
+        }
 
-            // An array to store the bytes in the file once parsed. As said earlier, two bytes in the file really represents a single byte, so this 2:1 ratio can
-            // be used to save memory in the array. It also depicts a worst(memory-wise) case scenario, that every byte is valid hex, e.g no line feeds etc.
-            byte[] ParsedBytes;     
-            
+        public static TXT Parse(byte[] encoded_bytes)
+        {
+            byte[] ParsedBytes;
+
             // Try to parse the encoded bytes into their intended byte values. Returns false if none could.
-            if (Util.Core.TryParseHex(FileBytes, out ParsedBytes))
+            if (Util.Core.TryParseHex(encoded_bytes, out ParsedBytes))
             {
                 return new TXT()
                 {
                     Instructions = ParsedBytes
-                };                
+                };
             }
             else
             {
-                Logger.Log(LogCode.IO_INVALIDFILE, "Input file did not contain any hex-parsable characters.");
+                Logger.Log(LogCode.IO_INVALIDFILE, "Input did not contain any hex-parsable characters.");
                 return null;
-            }            
+            }
         }
     }
 }
