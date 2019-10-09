@@ -10,13 +10,18 @@ namespace debugger.Hypervisor
         protected Handle Handle { get; private set; }
         public string HandleName { get => Handle.HandleName; }
         public int HandleID { get => Handle.HandleID; }
-        public delegate void OnRunDelegate(Context input);
+        public delegate void OnRunDelegate(Status input);
         public delegate void OnFlashDelegate(Context input);
-        public event OnRunDelegate OnRunComplete = (input) => { };        
-        public event OnFlashDelegate OnFlash = (input) => { };
+        public event OnRunDelegate RunComplete = (input) => { };
+        public event OnFlashDelegate Flash;
         public HypervisorBase(string inputName, Context inputContext, HandleParameters handleParameters = HandleParameters.NONE) //new handle from context
         {
             Handle = new Handle(inputName, inputContext, handleParameters);
+            Flash += OnFlash;
+        }
+        protected virtual void OnFlash(Context input)
+        {
+
         }
         public virtual Status Run(bool Step = false) => Handle.Run(Step);
         public virtual async Task<Status> RunAsync(bool Step = false)
@@ -24,10 +29,10 @@ namespace debugger.Hypervisor
             Task<Status> RunTask = new Task<Status>(() => Run(Step));
             RunTask.Start();
             Status Result = await RunTask;
-            OnRunComplete.Invoke(Handle.DeepCopy());
+            RunComplete.Invoke(await RunTask);
             return Result;
         }
-        public void Flash(MemorySpace input)
+        public virtual void FlashMemory(MemorySpace input)
         {
             Context newContext = new Context(input.DeepCopy())
             {
@@ -37,11 +42,11 @@ namespace debugger.Hypervisor
                                   { XRegCode.BP, input.SegmentMap[".stack"].StartAddr }
                       }),
                 Flags = new FlagSet(),
-                Breakpoints = new Util.ListeningList<ulong>()
             };
             Handle.UpdateContext(newContext);
-            OnFlash.Invoke(newContext);
+            Flash.Invoke(newContext);
         }
+
         public Dictionary<string, bool> GetFlags()
         {
             FlagSet VMFlags = Handle.ShallowCopy().Flags;
@@ -56,5 +61,6 @@ namespace debugger.Hypervisor
                 };
         }
         public MemorySpace GetMemory() => Handle.ShallowCopy().Memory;
+
     }
 }

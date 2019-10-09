@@ -16,31 +16,32 @@ namespace debugger.Hypervisor
             get;
             private set;
         } = false;
-        public ListeningList<ulong> Breakpoints;
+        public ListeningList<ulong> Breakpoints = new ListeningList<ulong>();
         public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
                 { XRegCode.SP, inputMemory.SegmentMap[".stack"].StartAddr },
                 { XRegCode.BP, inputMemory.SegmentMap[".stack"].StartAddr }
-            }),          
-            })            
+            }),
+        })
         {
+            Handle.ShallowCopy().Breakpoints = Breakpoints;            
+            Ready = true;
         }
         public VM() : base("VM", new Context())
         {
-            // Once the VM is flashed, update the breakpoints reference to the new context.
-            OnFlash += (context) =>
-            {
-                Ready = true;
-                context.Breakpoints = Breakpoints;
-            };
-            Breakpoints = Handle.ShallowCopy().Breakpoints;
+            Handle.ShallowCopy().Breakpoints = Breakpoints;
+        }
+        protected override void OnFlash(Context input)
+        {
+            Ready = true;
+            Handle.ShallowCopy().Breakpoints = Breakpoints;
         }
         public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
         {
             List<Register> Registers = new List<Register>();
 
-            // Add RIP manually because it is a register indepdenent of RegisterGroup
+            // Add RIP manually because it is a register independent of RegisterGroup
             Dictionary<string, ulong> ParsedRegisters = new Dictionary<string, ulong>()
             {
                 { "RIP", GetRIP()}
@@ -63,6 +64,17 @@ namespace debugger.Hypervisor
             if (Handle.ShallowCopy().Memory[address] == 0x00)
             {
 
+            }
+        }
+        public void ToggleBreakpoint(ulong address)
+        {
+            if (Breakpoints.Contains(address))
+            {
+                Breakpoints.Remove(address);
+            }
+            else
+            {
+                Breakpoints.Add(address);
             }
         }
         public ulong GetRIP() => Handle.ShallowCopy().InstructionPointer;

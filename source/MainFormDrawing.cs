@@ -48,11 +48,13 @@ namespace debugger
         }
         private void CreateDisassemblyView()
         {
-            ListViewDisassembly = new DisassemblyListView(VMInstance.Breakpoints, d.ParsedLines, new Size(620, 382))
+            ListViewDisassembly = new DisassemblyListView(d.ParsedLines, new Size(620, 382))
             {
                 Location = new Point(0, 0),
                 BackColor = LayerBrush.Color,
             };
+
+            ListViewDisassembly.OnAddressClicked += VMInstance.ToggleBreakpoint;
             DisassemblyPadding = new Panel()
             {
                 Location = new Point(15, 15),

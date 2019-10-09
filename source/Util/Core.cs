@@ -635,6 +635,6 @@ namespace debugger.Util
                 // The file must be invalid if nothing at all could be parsed.
                 return false;
             }
-        }        
+        }   
     }
 }

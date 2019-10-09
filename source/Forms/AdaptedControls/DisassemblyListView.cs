@@ -5,15 +5,26 @@ using System.Collections.Generic;
 using debugger.Hypervisor;
 using debugger.Util;
 using static debugger.Forms.FormSettings;
+using static debugger.Hypervisor.Disassembler;
 namespace debugger.Forms
 {
     public class DisassemblyListView : CustomListView
     {
-        public ListeningList<ulong> BreakpointSource = new ListeningList<ulong>();
-        private readonly ListeningList<Disassembler.ParsedLine> ParsedLines;
-        public DisassemblyListView(ListeningList<ulong> breakpointSource, ListeningList<Disassembler.ParsedLine> parsedLines, Size size) : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
+        private readonly ListeningDict<AddressRange, ListeningList<ParsedLine>> ParsedLines;
+
+        public delegate void OnAddressClickedDelegate(ulong address);
+        public event OnAddressClickedDelegate OnAddressClicked = (a) => { };
+        public DisassemblyListView(ListeningDict<AddressRange, ListeningList<ParsedLine>> parsedLines, Size size) 
+            : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
-            BreakpointSource = breakpointSource;
+            SelectedIndexChanged += (_, args) =>
+            {
+                if (SelectedItems.Count > 0)
+                {
+                    OnAddressClicked.Invoke(ulong.Parse(SelectedItems[0].SubItems[1].Text));
+                }
+                SelectedItems.Clear();
+            };
             ParsedLines = parsedLines;
             OwnerDraw = true;
             BorderStyle = BorderStyle.None;
@@ -24,41 +35,30 @@ namespace debugger.Forms
             Size = size;
             Columns.Add(new ColumnHeader() { Width = this.Width - 4 });// width of DissassemblyPadding, allows the border to not get cropped off by the listview
             SendToBack();
-            //SelectedIndexChanged += (sender, args) =>
-            //{
-            //    if (SelectedItems.Count > 0)
-            //    {
-            //        ulong Address = IndexToAddr[SelectedItems[0].Index];
-            //        if (BreakpointSource.Contains(Address))
-            //        {
-            //            BreakpointSource.Remove(Address);
-            //        }
-            //        else
-            //        {
-            //            BreakpointSource.Add(Address);
-            //        }
-            //        SelectedItems.Clear();
-            //    }
-            //};
-            ParsedLines.OnSet += FormatAndApply;
-            ParsedLines.OnAdd += FormatAndApply;
-            ParsedLines.OnRemove += (item, index ) => { Items[index].Remove(); };
+            ParsedLines.OnAdd += AddNewRange;
             ParsedLines.OnClear += () => Items.Clear();
-            BreakpointSource.OnAdd += (item, index) => Refresh();
-            BreakpointSource.OnRemove += (item, index) => Refresh();
         }
-        private void FormatAndApply(Disassembler.ParsedLine line, int index)
+        private void AddNewRange(AddressRange range, ListeningList<ParsedLine> lines)
+        {            
+            for (int i = 0; i < lines.Count; i++)
+            {
+                lines[i] = new ParsedLine(lines[i]) { Index = Items.Count };                
+                FormatAndApply(lines[i]);
+            }
+            lines.OnSet += (line, _) => FormatAndApply(line);
+            lines.OnAdd += (line, _) => FormatAndApply(line);
+        }
+        private void FormatAndApply(ParsedLine line)
         {            
             string FormattedNumber = Core.FormatNumber(line.Address, FormatType.Hex);
 
             // Only dim trailing zeros if its not a breakpoint, make it purple otherwise.
             if ((line.Info | Emulator.AddressInfo.BREAKPOINT) == line.Info)
             {
-                FormattedNumber = $"^0x{FormattedNumber}^";
+                FormattedNumber = $"^{FormattedNumber}^";
             }
             else
-            {
-                
+            {                
                 string[] CutAddress = Core.SeparateString(FormattedNumber.Substring(2, FormattedNumber.Length - 2), "0", stopAtFirstDifferent: true);
                 if (CutAddress[1].Length > 0) // if there are trailing 0's, make them darker
                 {
@@ -66,21 +66,21 @@ namespace debugger.Forms
                 }
                 FormattedNumber = $"%0x%{CutAddress[1]}{CutAddress[0].Trim()}";
             }            
-            
-            if((line.Info | Emulator.AddressInfo.RIP) == line.Info)
+            FormattedNumber = $"{FormattedNumber}                  {line.DisassembledLine}";
+            if ((line.Info | Emulator.AddressInfo.RIP) == line.Info)
             {
                 FormattedNumber = FormattedNumber.Remove(23, 4).Insert(23, "←RIP");
             }
 
-            if (Items.Count - 1 < index)
+            if (Items.Count - 1 < line.Index)
             {
-                Items.Add(new ListViewItem($"{FormattedNumber}                  {line.DisassembledLine}"));
+                Items.Add(new ListViewItem(new string[] { FormattedNumber, line.Address.ToString() }));
             }
             else
             {
-                Items[index].Text = $"{FormattedNumber}                  {line.DisassembledLine}";
+                Items[line.Index].Text = FormattedNumber;
+                Items[line.Index].SubItems[1].Text = line.Address.ToString();
             }
-            
         }
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {

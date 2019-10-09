@@ -40,7 +40,14 @@ namespace debugger.Util
             InternalList.Add(item);
             OnAdd.Invoke(item, InternalList.Count-1);
         }
-
+        public void AddRange(IList<T> items)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                InternalList.Add(items[i]);
+                OnAdd.Invoke(items[i], InternalList.Count - 1);
+            }
+        }
         public void Clear()
         {
             InternalList.Clear();

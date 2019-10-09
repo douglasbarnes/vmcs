@@ -13,20 +13,22 @@ namespace debugger.Emulator
     public struct DisassembledLine
     {
         public ulong Address;
+        public byte Length;
         public List<string> Line;
         public AddressInfo Info;
-        public DisassembledLine(List<string> line, AddressInfo info, ulong address)
+        public DisassembledLine(List<string> line, AddressInfo info, ulong address, ulong length)
         {
             Line = line;
             Info = info;
             Address = address;
+            Length = (byte)length;
         }
     }
     public struct Status
     {
         public List<DisassembledLine> Disassembly;
-        public ulong InstructionPointer;
-
+        public ulong EndRIP;
+        public ulong InitialRIP;
     }
     public enum PrefixByte
     {
@@ -109,6 +111,19 @@ namespace debugger.Emulator
                                                        input == (byte)PrefixByte.LOCK ||
                                                        input == (byte)PrefixByte.REPNZ ||
                                                        input == (byte)PrefixByte.REPZ;
+            public static byte Count { get
+                {
+                    byte count = 0;
+                    for (int i = 0; i < Prefixes.Length; i++)
+                    {
+                        if(Prefixes[i] != 0)
+                        {
+                            count++;
+                        }
+                    }
+                    return count;
+                }
+            }
         }
         public static readonly Handle EmptyHandle = new Handle("None", new Context(new MemorySpace(new byte[] { 0x00 })), HandleParameters.NONE); // Create a new handle that will be assigned when the ControlUnit is not in use.
         public static Handle CurrentHandle = EmptyHandle; // On startup, default to no handle
@@ -118,7 +133,10 @@ namespace debugger.Emulator
         public static REX RexByte { get; private set; } = REX.NONE; // A public getter to allow the RexByte of the ControlUnit to be read elsewhere but not set.
         private static Status Execute(bool step)
         {
-            // A variable to prevent #UD spam.
+            // Holds $RIP before execution
+            ulong InitialIP = InstructionPointer;
+
+            // A variable to prevent #UD error message spam.
             bool HasUDed = false;
 
             // By default, each opcode has a width of one.
@@ -128,13 +146,8 @@ namespace debugger.Emulator
             List<DisassembledLine> DisassemblyBuffer = new List<DisassembledLine>(); ;
 
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
-            {
-#if DEBUG
-                // CurrentContext.InstructionPointer loads native code therefore cannot be viewed in break mode.
-                // This makes debugging easier because its easy to see instruction pointer.
-                ulong Debug_InstructionPointer = CurrentContext.InstructionPointer;
+            {              
 
-#endif
                 // Fetch next instruction.
                 byte Fetched = FetchNext();
 
@@ -145,6 +158,10 @@ namespace debugger.Emulator
                 }
                 else
                 {
+                    // $Start_RIP holds $RIP before an instruction is executed. This is useful for debugging and for disassembly.
+                    // Subtract 1 because of FetchNext() and the number of preceeding prefixes.
+                    ulong Start_RIP = CurrentContext.InstructionPointer - LPrefixBuffer.Count - 1;
+
                     // The following conditions can only be met immediately before an opcode, i.e no legacy prefixes can follow these.
                     // Any byte that is inclusively in the range of 0x40 and 0x4F must be a REX.
                     // This is because technically a REX prefix is any byte which has an upper nibble
@@ -153,8 +170,8 @@ namespace debugger.Emulator
                     // After identifying the prefix, I can identify its characteristics.
                     // However firstly, there is a universal characteristic that is applied to all cases
                     // where a REX prefix is present. If I wanted to access the lower byte of the stack pointer,
-                    // base pointer, source index or destination registers, well I wouldn't be able to without
-                    // fetching the whole lower word. Now with a REX prefix, I can opt to lose my access to
+                    // base pointer, source index or destination registers, I wouldn't be able to without
+                    // fetching the whole lower word. With a REX prefix, I opt to lose my access to
                     // the higher byte registers(AH,CH,DH,BH) and be able to access SPL, BPL, SIL, DIL, which
                     // are accessed with the same XRegCode as you would use to access larger selections of the register.
                     // A quick demonstration,
@@ -244,7 +261,8 @@ namespace debugger.Emulator
                             DisassemblyBuffer.Add(
                                 new DisassembledLine(CurrentOpcode.Disassemble(), 
                                                      CurrentContext.Breakpoints.Contains(InstructionPointer) ? AddressInfo.BREAKPOINT : AddressInfo.NONE
-                                                     , InstructionPointer));
+                                                     , Start_RIP
+                                                     , InstructionPointer-Start_RIP));
                         }
                         else
                         {
@@ -258,7 +276,7 @@ namespace debugger.Emulator
                         //  - Throw a #UD when executed.
                         if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
                         {
-                            DisassemblyBuffer.Add(new DisassembledLine(new List<string> { "BAD INSTRUCTION" }, AddressInfo.BAD, InstructionPointer));
+                            DisassemblyBuffer.Add(new DisassembledLine(new List<string> { "BAD INSTRUCTION" }, AddressInfo.BAD, Start_RIP, 1));
                         }
 
                         // Only tell the user that there was a UD once per step/run. This stops them getting spammed with message boxes.
@@ -275,13 +293,13 @@ namespace debugger.Emulator
                     RexByte = REX.NONE;
                                     
                     // If stepping or hit a breakpoint(and honouring breakpoints), stop executing.
-                    if (step || ((CurrentHandle.HandleSettings | HandleParameters.NOBREAK) == CurrentHandle.HandleSettings && CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer)))
+                    if (step || ((CurrentHandle.HandleSettings | HandleParameters.NOBREAK) != CurrentHandle.HandleSettings && CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer)))
                     {
                         break;
                     }                    
                 }
             }            
-            return new Status { Disassembly = DisassemblyBuffer, InstructionPointer = InstructionPointer };
+            return new Status { Disassembly = DisassemblyBuffer, EndRIP = InstructionPointer, InitialRIP = InitialIP };
         }
         public static void SetMemory(ulong address, byte[] data)
         {

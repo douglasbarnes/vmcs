@@ -29,7 +29,7 @@ namespace debugger
 
             // KEEP BEFORE INITIALISE..()
             VMInstance = new VM();
-            d = new Disassembler(VMInstance.HandleID);
+            d = new Disassembler(VMInstance);
 
             SuspendLayout();
             InitializeComponent();
@@ -44,15 +44,14 @@ namespace debugger
         MemorySpace ROM;
         private async void Form1_Load(object sender, EventArgs e)
         {
-            VMInstance.OnFlash += (c) => { d.UpdateTarget(VMInstance.HandleID); };
-            VMInstance.OnRunComplete += (context) => RefreshCallback(context.InstructionPointer);
+            VMInstance.RunComplete += (context) => RefreshCallback(context.EndRIP);
             ResumeLayout();
             Refresh();
             Update();
         }
         private async void ReflashVM()
         {
-            VMInstance.Flash(ROM);
+            VMInstance.FlashMemory(ROM);
             RefreshCallback(0);
         }
         private void FlashFromFile(string path)
@@ -95,11 +94,10 @@ namespace debugger
             ReflashVM();
 
             // Reset the breakpoints
-            VMInstance.Breakpoints = new Util.ListeningList<ulong>();
+            VMInstance.Breakpoints.Clear();
 
-            // Update the reference to the breakpoint list in the disassembly listview.
             d.DisassembleAll();
-            ListViewDisassembly.BreakpointSource = VMInstance.Breakpoints;
+
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {

@@ -9,19 +9,17 @@ namespace debugger.Emulator
     {
         public FlagSet Flags = new FlagSet(FlagState.OFF);
         public MemorySpace Memory;
-        public RegisterGroup Registers;
+        public RegisterGroup Registers = new RegisterGroup();
         public ulong InstructionPointer;
         public ListeningList<ulong> Breakpoints = new ListeningList<ulong>();
         public Context()
         {
             Memory = new MemorySpace(new byte[] { 0x00 });
-            Registers = new RegisterGroup();
         }
         public Context(MemorySpace memory)
         {
             Memory = memory;
             InstructionPointer = Memory.EntryPoint;
-            Registers = new RegisterGroup();
         }
 
         private Context(Context toClone)

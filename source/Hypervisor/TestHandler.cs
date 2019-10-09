@@ -136,19 +136,21 @@ namespace debugger.Hypervisor
         private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
-            public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
-                base("TestingEmulator",
-                    (new Context(testcase.Memory)
-                    {
-                        Breakpoints = new ListeningList<ulong>(testcase.Checkpoints.Keys.ToList()),
-                        Flags = new FlagSet(FlagState.OFF),
-                        Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
+            private static Context GenerateContext(TestcaseObject testcase)
+            {
+                Context c = new Context(testcase.Memory)
+                {
+                    Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
                         {
                             { XRegCode.SP, testcase.Memory.SegmentMap[".stack"].StartAddr },
                             { XRegCode.BP, testcase.Memory.SegmentMap[".stack"].StartAddr },
                         })
-                    }).DeepCopy() 
-                    ) 
+                }.DeepCopy();
+                c.Breakpoints.AddRange(testcase.Checkpoints.Keys.ToList());
+                return c;
+            }
+            public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
+                base("TestingEmulator", GenerateContext(testcase)) 
             {
                 CurrentTestcase = testcase;
             }
