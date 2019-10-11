@@ -620,8 +620,7 @@ namespace debugger.Util
 
                 // Whether the byte could be parsed or not, the next character is next to be parsed.
                 Caret++;
-            }
-            
+            }            
            
             if (NibblesParsed > 0)
             {
@@ -636,5 +635,39 @@ namespace debugger.Util
                 return false;
             }
         }   
+
+        public static string ReverseEndian(string input)
+        {
+            // A method to flip the endianness of a given string that represents bytes.
+
+            // If the length of the input is uneven, add a 0 to the start. This will not affect the value but is a necessary precondition
+            // for the algorithm.
+            if(input.Length % 2 == 1)
+            {
+                input = input.Insert(0, "0");
+            }
+
+            // Create a new char array to store the result in. Strings are immutable in C#, so every $string1 += $string2 in theory would require
+            // the entire string to be relocated in memory every time. A char array allocated enough memory initially so this only has to happen once(afterwards).
+            char[] Reversed = new char[input.Length];
+
+            // Reversing endian of a string representation is not as simple as reversing its order, as two characters represent one byte.
+            // This means that the character at $i and the character at $i+1 need to have their order preserved.
+            // Consider the following,
+            //  Big endian      Little endian
+            //    0xB4              0xB4
+            //   0xB4C3            0xC3B4
+            //  0xB4C3D2E1       0xE1D2C3B4
+            // In both examples, B4 is the MSByte. 
+            // If the string was reversed, B4 would become 4B. By incrementing $i by 2 after each iteration and accounting for so by acting on two
+            // characters in each iteration, the order of the characters in each byte is preserved.
+            // This is where without the "evening" of the length earlier, there would be an ArrayOutOfBoundsException for any odd length array.
+            for (int i = 0; i < input.Length; i+=2)
+            {
+                Reversed[i] = input[input.Length - i - 2];
+                Reversed[i+1] = input[input.Length - i - 1];
+            }
+            return new string(Reversed);
+        }
     }
 }

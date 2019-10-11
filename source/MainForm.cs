@@ -96,8 +96,6 @@ namespace debugger
             // Reset the breakpoints
             VMInstance.Breakpoints.Clear();
 
-            d.DisassembleAll();
-
         }
         private void VMContinue_ButtonEvent(object sender, EventArgs e)
         {

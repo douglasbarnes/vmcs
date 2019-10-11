@@ -187,7 +187,7 @@ namespace debugger.Util
         }
         public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
         {
-            // First ensure both operands are both the intended size so we can iterate both in parallel later
+            // First ensure both operands are both the intended size so they can iterated in parallel later
             input1 = SignExtend(input1, (byte)size);
             input2 = SignExtend(input2, (byte)size); 
             Result = new byte[size];
@@ -196,7 +196,7 @@ namespace debugger.Util
             for (int i = 0; i < size; i++)                                     
             {
                 // Declare a sum integer, which must be an integer because I anticipate values > 0xFF, which are handled using carries shortly.
-                // If we carried on the previous byte(or operation even, if the CF was set), add that to the sum.
+                // If there was a carry on the previous byte in the array(or operation even, if the CF was set), add that to the sum.
                 // Consider 9 + 1, the least significant digit overflows to 0 whilst the 1 carries to the next. It is impossible for the carry
                 // to represent a value greater than one in the next column(e.g 9+9=18) in addition.
                 int sum = input1[i] + input2[i] + (carry ? 1 : 0);
@@ -204,8 +204,9 @@ namespace debugger.Util
                 if (sum > 0xFF)
                 {
                     // Leftover value stays in the current column. For example, 9 + 5, the left over value is 4, making 14. The "left over" can be calculated by 
-                    // taking the modulo of the new sum and the greatest amount a byte can represent + 1. Literally, we are dividing the sum and finding the remainder.
+                    // taking the modulo of the new sum and the greatest amount a byte can represent + 1. Literally, dividing the sum and finding the remainder.                    
                     Result[i] += (byte)(sum % 0x100);
+
                     //Then account for this overflow by carrying to the next.
                     carry = true;
                 }
@@ -236,13 +237,13 @@ namespace debugger.Util
                 // BCD is actually only supported when the x86-64 processor is in compatibility mode. It is possible an end-user is dealing with BCD
                 // through their own implementation--my program can do just that.
                 // To check if the auxiliary flag is set, I mask the first byte of both inputs to get the lower 3 bits. If the sum of
-                // these bits its greater than 0b111, or 7, it is clear that we overflowed into the 4th bit.
+                // these bits its greater than 0b111, or 7, it is clear that there was an overflow into the 4th bit.
                 Auxiliary = ((input1[0] & 0b111) + (input2[0] & 0b111)) > 0b111 ? FlagState.ON : FlagState.OFF
             };  
         }
         public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
         {
-            // First ensure both operands are both the intended size so we can iterate both in parallel later
+            // First ensure both operands are both the intended size so they can be iterated in parallel later
             input1 = SignExtend(input1, (byte)size);
             input2 = SignExtend(input2, (byte)size); 
             Result = new byte[size];
@@ -352,12 +353,15 @@ namespace debugger.Util
                 if (LastSign == NewSign || LastSign) 
                 {
                     LastSign = NewSign;
-                    // I verified that our subtraction produced a positive, now we can commit this to the dividend.
+
+                    // Verify that the subtraction produced a positive and can be committed to the dividend.
                     // The former dividend array will then be disposed behind the scenes.
                     dividend = Buffer;
+
                     // A single step of the divison is complete, so this needs to be reflected in the quotient.
                     Increment(Quotient, size, out Quotient);
-                    // Now, the elephant. I said treat the numbers as unsigned, so that means the sign should just be completely ignored, so why am I using it in unsigned arithmetic? 
+
+                    // Now,  I said treat the numbers as unsigned, so that means the sign should just be completely ignored, so why am I using it in unsigned arithmetic? 
                     // There is a good reason. I can still take advantage of overflows to tell me about the state of an unsigned number. If I subtract 0x1 from 0x0, I get 0xFF right? 
                     // That still tells me that I overflowed regardless of wheter the number is interpreted as signed or unsigned, and thats really all it is, interpretation. 
                     // The result of signed/unsigned operations is rarely affected by the sign of the inputs, for example when I add two unsigned numbers, I would always just ignore 
@@ -396,7 +400,7 @@ namespace debugger.Util
             //  1. -x/y == -(x/y) http://prntscr.com/p8cymm
             //  2. -x/y == x/-y http://prntscr.com/p8ctdk
             //  3. -x/-y = x/y http://prntscr.com/p8cwrr
-            // Therefore, we can use this to predict the sign of the outcome using the signs of the initial dividend and divisor
+            // Therefore, this can be used to predict the sign of the outcome using the signs of the initial dividend and divisor
             // As statement one shows, if exclusively one of x or y are negative, the result is negative.
             // Statement two, the result is not dependent on which side of the fraction is negative.
             // Statement three, two negatives divided make a positive.
@@ -417,8 +421,10 @@ namespace debugger.Util
             // input arrays are long enough to be iterated over to complete the multiplication.
             input1 = signed ? SignExtend(input1, (byte)(size * 2)) : ZeroExtend(input1, (byte)(size * 2));
             input2 = signed ? SignExtend(input2, (byte)(size * 2)) : ZeroExtend(input2, (byte)(size * 2));
+
             // The result is going to be size*2, so to match the length of the inputs doubling, double the result length as well then resize it later.
             Result = new byte[size * 4];
+
             // Firstly I will explain the ideas behind this multiplication algorithm.
             // It acts in a very similar way to as if you wrote out long multiplication
             // For example if I wanted to multiply 123 by 45,
@@ -434,6 +440,7 @@ namespace debugger.Util
                 { 
                     // Times the bottom row digit at "ColumnPos" by the top row digit at "BytePos". 
                     int mul = (input1[ColumnPos] * input2[BytePos]) + Result[BytePos + ColumnPos];
+
                     // What is the meaning of Result[BytePos+ColumnPos]?
                     // Well, this serves a few purposes, remember how when I multiplied 123 and 45, when I moved on to the digit 4, 
                     // I added an extra zero in the CursorPos=1 column (http://prntscr.com/p8epnj) where I would write ther result of (1*4) + (2*4) + (3*4)
@@ -450,6 +457,7 @@ namespace debugger.Util
                     // However, when I added, I showed that the carry would also be one(9+9=18), but that is obviously not the case for
                     // multiplication, so for now, take the LSB and leave that in the result, deal with everything else shortly. 
                     Result[BytePos + ColumnPos] = (byte)(mul % 0x100);
+
                     //If the result was in fact greater than a single byte 
                     if (mul > 0xFF) 
                     {
@@ -471,12 +479,16 @@ namespace debugger.Util
             // Resize back the array that I dont want(it was only used as extra space for carries as the inputs were resized initially)
             Array.Resize(ref Result, size * 2); 
             byte[] UpperComparison = new byte[size * 2];
+
             // Copy the bottom bytes of result to upper comparison to guarentee both have the bottom half equal
             Array.Copy(Result, UpperComparison, size);
+
             // Fill the rest of the array with what unused upper bytes would look like, e.g FF,FF,FF,.. from a sign extension of a signed negative result or just 0,0,0,0,0,.. in any other case
             UpperComparison = (signed) ? SignExtend(UpperComparison, (byte)(size * 2)) : ZeroExtend(UpperComparison, (byte)(size * 2));
+
             // Then compare the the two, if the result isn't zero, that means those upper bytes were used
             bool UpperUsed = UpperComparison.CompareTo(Result, signed) != 0;
+
             // Intel's explanation of this reads 
             // "The CF and OF flags are set when the signed integer value of the intermediate product differs from the sign
             // extended operand-size-truncated product, otherwise the CF and OF flags are cleared."
@@ -515,6 +527,7 @@ namespace debugger.Util
         public static FlagSet Increment(byte[] input, int size, out byte[] Result)
         {
             Result = new byte[size];
+
             // Create a buffer and copy the result into. Why? This is a problem .NET implementation. Instead of
             // creating lists as object orientated counterparts to arrays, arrays are also instance based, and a
             // reference to the instance was passed when the method was called, not the whole array. Since we are
@@ -534,6 +547,7 @@ namespace debugger.Util
             // exactly this in other parts of this program that I wont spoil now, but hope you look forward to reading about.
             // Here is a short annotated demonstration written in C#: http://prntscr.com/p8tb5s
             Array.Copy(input, Result, input.Length);
+
             // A little more streamlined than add, but takes a different perspective.
             // Firstly I just increment the byte offset by $i.
             // From here, there are two situations that matter:
@@ -646,19 +660,24 @@ namespace debugger.Util
             // often used to multiply by a big power of two quickly. So, WORDs and BYTEs may waste cycles, but DWORDs
             // follow the exact same logic as described for QWORDs.
             count &= (byte)((size == 8) ? 0b00111111 : 0b00011111);
+
             // This gets a little fiddley, flags later are checked based on this, so I ought to save a copy.   
             int StartCount = count;
+
             // This is another way of the Array.Copy() method to get a new copy of an existing instance(a deep copy) as shown in other methods.
             Result = input;
             Array.Resize(ref Result, size);
+
             // Don't bother shifting by 0, just return now without changing the flags(as said by Intel)
             if (count == 0) { 
                 return new FlagSet();
             }
-            // Pull is a term coined by myself for a carry in shift instructions. I think it describes the idea a little more, because it wouldn't really
+
+            // Pull is a term coined by myself to denote a carry in shift instructions. I think it describes the idea a little more, because it wouldn't really
             // be a carry. It has to be initialised here or compiler moans because ""it may not be initialised"". I already returned from the method if
             // count was zero!!! 
             bool Pull = false;
+
             // So, what's my thinking with this algorithm. 
             // Briefly, I will explain what a bitwise shift is.
             // Know how multiplying an integer by ten is really easy? All I do is add a zero 
@@ -724,6 +743,7 @@ namespace debugger.Util
                     Result[i] = (byte)(((Result[i]) << 1) | PullMask);    
                 }                                                        
             }
+
             // Create some flags, use the constructor for a generic arithmetic flag set, e.g set SF, ZF, and PF as per usual.
             FlagSet OutputFlags = new FlagSet(Result); 
             if(StartCount == 1)
@@ -909,11 +929,14 @@ namespace debugger.Util
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
+
             // Set this if there is a carry flag already. If the instruction is ROL, this is set but never used.
             bool Carry = carryPresent;
+
             // Pre-set if there is already a carry flag. This is the value that would be pushed into LSB
             // This is done a little differently if I'm not using the carry flag. Or could be said that I only have to worry about this if I am using the carry flag.
             bool Pull = carryPresent && useCarry;
+
             // Each iteration of $RotateCount rotates the result by one, so do that as many times  
             // as I want to rotate in total.
             for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)                                            
@@ -926,6 +949,7 @@ namespace debugger.Util
                     Result[i] = (byte)((Result[i] << 1) | Mask);
                     
                 }
+
                 // Since I'm rotating a byte, I care about every bit in said byte, so I need to handle the pull before the damage is done.
                 // If there is a carry,
                 //  1. Set the LSB of the result if there is a carry
@@ -1033,8 +1057,10 @@ namespace debugger.Util
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
             bool Carry = carryPresent;
+
             // If theres a carry, its going to become the MSB of the result.
             bool Push = carryPresent && useCarry;
+
             // Like ShiftRight(), work backwards.
             for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++) 
             {
@@ -1178,8 +1204,10 @@ namespace debugger.Util
             {
                 // I don't want to overwrite the whole array, so start at the current length(this gives the index after the last byte in the array)
                 int startIndex = input.Length;
+
                 // Then resize the array so there is space for the new bytes.
                 Array.Resize(ref input, newLength);
+
                 // Now I need to determine the sign. Is the sign bit(the MSB) greater than 0x7F? Because if it is, twos compliment says it's going to be negative.
                 // To demonstrate this I will write out each bit in a signed byte,
                 // [-128][64][32][16][8][4][2][1]
@@ -1223,8 +1251,10 @@ namespace debugger.Util
         {
             // Sign extension can also be applied to string representations of byte arrays.
             string Output = "";
+
             // Determine whether the sign bit is a 1 or 0(thats all sign extension is really, 0xFF=0b1111111)
             char SignBit = (bits[0] == '1') ? '1' : '0';
+
             // $newLength will be the length of the string not the length of bytes.
             for (int i = bits.Length; i < newLength; i++) 
             {

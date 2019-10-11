@@ -12,7 +12,7 @@ namespace debugger.Emulator
         NONE=0,
 
         // Opcodes are not executed rather disassembled.
-        DISASSEMBLEMODE=1,
+        DISASSEMBLE=1,
 
         // JMP opcodes are ignored. More precisely, the instruction pointer can only be changed by the ControlUnit itself.
         // Used in conjunction with DISASSEMBLEMODE, but there may be a time when both behaviours need to be separated.
@@ -147,7 +147,7 @@ namespace debugger.Emulator
                 }
 
                 // Return the $Result status struct that Execute() returned.
-                Result = new Func<Status>(() => Execute(step)).Invoke();
+                Result = Execute(step);
                 IsBusy = false;
                 return Result;
             }

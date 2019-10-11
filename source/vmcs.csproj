@@ -67,6 +67,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Emulator\AddressRange.cs" />
     <Compile Include="Emulator\DecodedTypes\DecodedCompound.cs" />
     <Compile Include="Emulator\DecodedTypes\SplitRegisterHandle.cs" />
     <Compile Include="Emulator\Opcodes\C\Call.cs" />

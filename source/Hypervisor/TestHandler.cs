@@ -111,12 +111,12 @@ namespace debugger.Hypervisor
                 if (input.Attribute("offset") != null)
                 {
                     byte[] OffsetBytes;
-                    if (!Core.TryParseHex(input.Attribute("offset").Value, out OffsetBytes))
+                    if (!Core.TryParseHex(Core.ReverseEndian(input.Attribute("offset").Value), out OffsetBytes))
                     {
                         ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid hex bytes in memory offset attribute");
                         return false;
                     }
-                    Offset = BitConverter.ToInt64(Bitwise.SignExtend(Bitwise.ReverseEndian(OffsetBytes), 8), 0);
+                    Offset = BitConverter.ToInt64(Bitwise.SignExtend(OffsetBytes, 8), 0);
                     if (Offset < 0 && OffsetRegister == null)
                     {
                         ErrorInfo = (LogCode.TESTCASE_BADCHECKPOINT, "Cannot have a negative memory offset without a register to offset it");
@@ -136,21 +136,16 @@ namespace debugger.Hypervisor
         private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
-            private static Context GenerateContext(TestcaseObject testcase)
-            {
-                Context c = new Context(testcase.Memory)
+            public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
+                base("TestingEmulator", new Context(testcase.Memory)
                 {
                     Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
                         {
                             { XRegCode.SP, testcase.Memory.SegmentMap[".stack"].StartAddr },
                             { XRegCode.BP, testcase.Memory.SegmentMap[".stack"].StartAddr },
-                        })
-                }.DeepCopy();
-                c.Breakpoints.AddRange(testcase.Checkpoints.Keys.ToList());
-                return c;
-            }
-            public TestingEmulator(TestcaseObject testcase) :  //crazy that we even have to deep copy here.. otherwise the same instance of new context is used....
-                base("TestingEmulator", GenerateContext(testcase)) 
+                        }),
+                    Breakpoints = new ListeningList<ulong>(testcase.Checkpoints.Keys.ToList())
+                }.DeepCopy()) 
             {
                 CurrentTestcase = testcase;
             }
@@ -159,7 +154,7 @@ namespace debugger.Hypervisor
                 TestcaseResult Result = new TestcaseResult();                
                 for (int CheckpointNum = 0; CheckpointNum < CurrentTestcase.Checkpoints.Count; CheckpointNum++)
                 {
-                    await RunAsync();    
+                    Run();    
                     Context Snapshot = Handle.ShallowCopy();
                     Checkpoint CurrentCheckpoint;
                     if (!CurrentTestcase.Checkpoints.TryGetValue(Snapshot.InstructionPointer, out CurrentCheckpoint))
@@ -237,6 +232,10 @@ namespace debugger.Hypervisor
             } 
         }
         static TestHandler()
+        {
+            ReadTestcases();
+        }
+        private static void ReadTestcases()
         {
             foreach (string FilePath in Directory.GetFiles("Testcases")) //each testcase in file
             {

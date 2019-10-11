@@ -1,4 +1,10 @@
-﻿using System;
+﻿// Disassembler is an example of a module for the VM class. It does nothing that any other HypervisorBase could not do. Despite being
+// a module, it provides some of the core functionality that the standalone program provides. The class itself depends only on lower
+// layer modules. Any modifications to them should consider the current preconditions the disassembler requires. Notably something to 
+// consider would be the DisassembledLine struct. 
+// The Disassembler works by listening on events provided by HypervisorBase for the given VM class. When the VM calls FlashMemory(), the
+// disassembler will copy its context, execute it, and store the disassembled results in the ParsedLines class. A listener of the ParsedLines.OnAdd
+// could then parse these lines. 
 using System.Collections.Generic;
 using debugger.Emulator;
 using debugger.Util;
@@ -9,6 +15,9 @@ namespace debugger.Hypervisor
     {
         public struct ParsedLine
         {
+            // ParsedLine is the intermediary struct for parsed DisassembledLines from ControlUnit. Mostly it is responsible for
+            // the concatenation of the list of disassembled mnemonics. The two additional constructor parameters are very use
+            // case specific and are explained in other parts of the class.
             public string DisassembledLine;
             public AddressInfo Info;
             public ulong Address;
@@ -27,57 +36,53 @@ namespace debugger.Hypervisor
                 Info ^= toXor;
             }
         }
-        public struct AddressRange
-        {
-            public readonly ulong Start;
-            public readonly ulong End;
-            public AddressRange(ulong start, ulong end)
-            {                
-                Start = start;
-                End = end;
-                if (Start > End)
-                {
-                    throw new Exception();
-                }
-            }
 
-        }
         public readonly ListeningDict<AddressRange, ListeningList<ParsedLine>> ParsedLines = new ListeningDict<AddressRange, ListeningList<ParsedLine>>();
-        private readonly List<AddressRange> AddressRanges;
+        private readonly AddressMap Map;
         private HypervisorBase Target;
         public Disassembler(VM target) 
-            : base("Disassembler", Handle.GetContextByID(target.HandleID).DeepCopy(), HandleParameters.DISASSEMBLEMODE | HandleParameters.NOJMP | HandleParameters.NOBREAK)
-        {            
+            : base("Disassembler", Handle.GetContextByID(target.HandleID).DeepCopy(), HandleParameters.DISASSEMBLE | HandleParameters.NOJMP | HandleParameters.NOBREAK)
+        {        
+            // Target will hold a reference to the VM
             Target = target;
-            AddressRanges = new List<AddressRange>
-            {
-                new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End)
-            }; 
+
+            // Create a new address range to disassemble(the loaded instructions)
+            Map = new AddressMap();
+            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End));
+
+            // When the target VM calls flash(), the context reference will change, so it is necessary to listen for this and update accordingly.
             target.Flash += UpdateTarget;
             
+            // When the target finishes execution, update the address marked as RIP and the new RIP.
             target.RunComplete += (status) =>
             {                
-                if (BinarySearchRange(status.InitialRIP).present)
+                // These conditions will only pass if the address is present. It would be perfectly normal for it not to,
+                // for example when all the instructions have been executed, $RIP is out of the disassembly.
+                if (Map.Search(status.InitialRIP).Present)
                 {
                     ToggleSetting(status.InitialRIP, AddressInfo.RIP);
                 }
-                if (BinarySearchRange(status.EndRIP).present)
+                if (Map.Search(status.EndRIP).Present)
                 {
                     ToggleSetting(status.EndRIP, AddressInfo.RIP);
                 }
             };
+
+            // Listen for changes to breakpoints on the target VM.
             target.Breakpoints.OnAdd += (addr, index) => ToggleSetting(addr, AddressInfo.BREAKPOINT); 
             target.Breakpoints.OnRemove += (addr, index) => ToggleSetting(addr, AddressInfo.BREAKPOINT);
         }
-        private void ToggleSetting(ulong address, AddressInfo info)
+        public void ToggleSetting(ulong address, AddressInfo info)
         {
             // Set AddressInfo at a particular line. Nothing happens if the line is in a range but isn't an instruction(e.g mid way through one), 
             // but one will be created if it is out of any existing range.
 
             // Find the address range the address lies in
-            BinarySearchResult index = BinarySearchRange(address);
+            BinarySearchResult index = Map.Search(address);
 
-            if (!index.present)
+            // If it not present, disassemble it and toggle it. I would imagine the only time for this to happen would be if instructions were
+            // unpacked onto the stack then executed there. A rare case but one worth accounting for.
+            if (!index.Present)
             {
                 DisassembleStep(address);
                 ToggleSetting(address, info);
@@ -85,7 +90,7 @@ namespace debugger.Hypervisor
             else
             {
                 // Iterate through each line in the address range until the desired is found, then OR its $Info with $info.
-                ListeningList<ParsedLine> Lines = ParsedLines[AddressRanges[index.index]];
+                ListeningList<ParsedLine> Lines = ParsedLines[Map[index.Index]];
                 for (int i = 0; i < Lines.Count; i++)
                 {
                     if (Lines[i].Address == address)
@@ -93,186 +98,143 @@ namespace debugger.Hypervisor
                         Lines[i] = new ParsedLine(Lines[i], info);
                     }
                 }
-            }            
-        }
- 
-        public void AddAddressRange(AddressRange range)
-        {
-            // Method to preserve the order of the address ranges, such that every value in AddressRange[x] is greater than AddressRange[x-1].
-            // lower >= x < upper
-            BinarySearchResult index = BinarySearchRange(range.Start);
-
-            // Was higher than all existing ranges
-            if(index.index == -2)
-            {
-                AddressRanges.Add(range);
-            }
-
-            // Lower than all existing ranges
-            else if(index.index == -1)
-            {
-                AddressRanges.Insert(0, range);
-            }
-
-            // If the intersection of AddressRanges[index] and $range has a cardinality greater than 0, create a new range which is the union of AddressRanges[index] and $range.
-            else if (index.present && AddressRanges[index.index].End < range.End)
-            {
-                // $range.Start may be in the middle of AddressRanges[index], so the union can only be calculated by the following.
-                AddressRanges.Add(new AddressRange(AddressRanges[index.index].Start , range.End));             
-            }
-
-            else if(!index.present && AddressRanges[index.index].End > range.End)
-            {
-                AddressRanges.Add(new AddressRange(range.End, AddressRanges[index.index].Start));
-            }
-
-            else if (!index.present)
-            {
-                AddressRanges.Insert(index.index, range);
             }
         }
+
         public void ClearAddressRange()
         {
-            AddressRanges.Clear();
-            AddressRanges.Add(new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End));
+            // When clearing the range, make sure that the initial code segment is added back to the address ranges. This would be called
+            // for example when new instructions are loaded onto the VM. The disassembler will have to adjust the ranges it disassembled to
+            // match new code.
+            Map.Clear();
+            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End));
         }
         public void UpdateTarget(Context targetMemory)
         {
+            // UpdateTarget is called when the VM instance calls FlashMemory(). This means that there are new instructions that need to be 
+            // disassembled, so the disassembler will, in this particular order,
+            //  -Clear what it already has.
+            //  -Flash the new instructions of the VM
+            //  -Clear its address range entries(must be after, see ClearAddressRange()
+            //  -Disassemble the new range.
+            // From this explanation it is clear why this order is needed, as the first 3 methods set up the preconditions for disassembly
+            // to take place.
+            // It can also be called by an external class, as there may be a time where this is necessary.
             ParsedLines.Clear();
-            FlashMemory(targetMemory.Memory.DeepCopy());            
+            FlashMemory(targetMemory.Memory.DeepCopy());
             ClearAddressRange();
             DisassembleAll();
         }
         public void DisassembleAll()
         {
+            // Clear any existing lines.
             ParsedLines.Clear();
-            for (int i = 0; i < AddressRanges.Count; i++)
+
+            for (int i = 0; i < Map.Count; i++)
             {
-                DisassembleRange(AddressRanges[i]);
+                DisassembleRange(Map[i]);
             }
         }
         public void DisassembleStep(ulong address)
         {
+            // Set the instruction pointer to $address 
             Handle.ShallowCopy().InstructionPointer = address;
-            AddAddressRange(new AddressRange(address, Run(true).EndRIP));
-            DisassembleRange(AddressRanges[BinarySearchRange(address).index]);
+
+            // Run with step true because only this address is being disassembled.
+            Status RunResult = Run(true);
+
+            // Dissassemble and add the lines to a new range which is the starting address and $rip afterwards(the entire instruction)
+            AddLines(new AddressRange(address, RunResult.EndRIP), ParseLines(RunResult.Disassembly));
         }
         public void DisassembleRange(AddressRange range)
         {
+            // Set breakpoints at the start and end of the range(address at $range.End will not be executed)
             Handle.ShallowCopy().Breakpoints.Add(range.End);
             Handle.ShallowCopy().InstructionPointer = range.Start;
-            List<DisassembledLine> RawLines = Run().Disassembly;
 
-            // Don't create a new list if one is already present.
-            ListeningList<ulong> TargetBreakpoints = Handle.GetContextByID(Target.HandleID).Breakpoints;
-            ListeningList<ParsedLine> CurrentLines = new ListeningList<ParsedLine>();
-            ulong targetRIP = Handle.GetContextByID(Target.HandleID).InstructionPointer;
-            for (int i = 0; i < RawLines.Count; i++)
-            {
-                AddressInfo Info = 0;
-                if(RawLines[i].Address == targetRIP)
-                {
-                    Info |= AddressInfo.RIP;
-                }
-                if (TargetBreakpoints.Contains(RawLines[i].Address))
-                {
-                    Info |= AddressInfo.BREAKPOINT;
-                }
-                if(i == CurrentLines.Count)
-                {
-                    CurrentLines.Add(new ParsedLine(RawLines[i], Info));
-                }
-                else
-                {
-                    CurrentLines[i] = new ParsedLine(RawLines[i], Info);
-                }
-            }
+            // Run and parse the instructions then add them to the collection.
+            AddLines(range, ParseLines(Run().Disassembly));            
+        }
+        private void AddLines(AddressRange range, List<ParsedLine> lines) => SetLines(range, new ListeningList<ParsedLine>(lines));
+        private void SetLines(AddressRange range, ListeningList<ParsedLine> lines)
+        {
+            // SetLines() generalises adding lines to ParsedLines. It is much simpler and consistent than having a specific method tailored to each use case.
+            // The result of TryGetValue() is discarded because it is not useful, the value is about to be overwritten. It is also slightly faster than ContainsKey().
             if (ParsedLines.TryGetValue(range, out _))
             {
-                ParsedLines[range] = CurrentLines;                
+                ParsedLines[range] = lines;
             }
             else
             {
-                ParsedLines.Add(range, CurrentLines);
+                ParsedLines.Add(range, lines);
             }
-        }        
+        }
+        private List<ParsedLine> ParseLines(List<DisassembledLine> rawLines)
+        {
+            // Firstly get any useful information from the target context. $TargetContext is only used to avoid calling GetContextByID() twice.
+            Context TargetContext = Handle.GetContextByID(Target.HandleID);
+
+            // The breakpoints list will be useful for setting the AddressInfo value when necessary.
+            ListeningList<ulong> TargetBreakpoints = TargetContext.Breakpoints;
+
+            // Similar to above.
+            ulong targetRIP = TargetContext.InstructionPointer;
+            
+            List<ParsedLine> OutputLines = new List<ParsedLine>();
+
+            // Every raw line is iterated as every line is to be parsed.
+            for (int i = 0; i < rawLines.Count; i++)
+            {
+                // Start with the assumption that it is an ordinary line. This information will be useful to other classes that
+                // use the output of the Disassembler.
+                AddressInfo Info = 0;
+
+                // If the address is the same as $RIP, mark it as RIP.
+                if (rawLines[i].Address == targetRIP)
+                {
+                    Info |= AddressInfo.RIP;
+                }
+
+                // If it is a breakpoint, mark it like so.
+                if (TargetBreakpoints.Contains(rawLines[i].Address))
+                {
+                    Info |= AddressInfo.BREAKPOINT;
+                }
+
+                // Add the result to the output. The constructor of ParsedLine will do the rest of the work.
+                OutputLines.Add(new ParsedLine(rawLines[i], Info));                
+            }
+
+            return OutputLines;
+        }
         private static string JoinDisassembled(List<string> RawDisassembled)
         {
+            // Simply enforce a little bit of convention. Take the following examples,
+            //  INC EAX
+            //  MOV EAX, 0x10
+            //  IMUL EAX, EBX, 0x20            
+            // Each item in the input list will be a part of the resulting disassembly. E.g,
+            //  { "INC", "EAX" }
+            //  { "MOV", "EAX", "0x10" }
+            //  { "IMUL", "EAX, "EBX", "0x20" }
+            // As shown earlier, if there are less than 3 of these parts, there is no comma.
+            // Otherwise, every comma after zero index 1 has one afterwards.
             if (RawDisassembled.Count < 3)
             {
                 return string.Join(" ", RawDisassembled);
             }
             else
             {
+                // Start the string with the two that will not have a comma.
                 string Output = $"{RawDisassembled[0]} {RawDisassembled[1]}";
+
+                // Append the rest with a preceeding ", ".
                 for (int i = 2; i < RawDisassembled.Count; i++)
                 {
                     Output += ", " + RawDisassembled[i];
                 }
                 return Output;
             }
-        }
-        private struct BinarySearchResult
-        {
-            public int index;
-            public bool present;
-        }
-        private BinarySearchResult BinarySearchRange(ulong address)
-        {
-            // Binary search adapted to work with ranges. As would be expected, this is in logarithmic time.
-            // The domain of the method would be any ulong, as values out of boundary are handled.
-            // The range of the result index is x = -2, x = -1 or 0 >= x < $AddressRanges.Count.
-            // The former two have different meanings:
-            //  -2: The input was above all other ranges.
-            //  -1: The input was below all other ranges.
-            // $Present would indicate that $address is in no existing range, however if not in the above
-            // category, would give the index where $address lies between.
-            // And to be clear, the output would otherwise be the index in AddressRanges which holds the address.
-
-            // Exit early if possible.
-            if (AddressRanges.Count == 0)
-            {
-                return new BinarySearchResult { present = false, index = 0 };
-            }
-            // Start in the middle
-            int index = AddressRanges.Count / 2;
-
-            // Keep $last_index equal to the previous index
-            int prev_index = -1;
-
-            // If prev_index was either boundary of the function range,the input must not be in AddressRanges.
-            // This has to be prev_index because the boundary index needs to be checked first.
-            while (prev_index != 0 && prev_index < AddressRanges.Count - 1)
-            {
-                prev_index = index;
-
-                // If it is gte to the start and lt the end, it must be in that range(lower bound is inclusive)
-                if (AddressRanges[index].Start <= address && AddressRanges[index].End > address)
-                {
-                    return new BinarySearchResult { present = true, index = index };
-                }
-
-                // If the end was less than the input address, check middle of the upper range.
-                else if (AddressRanges[index].End < address)
-                {
-                    index += index / 2 + index % 2;
-                }
-                else if (index != 0 && AddressRanges[index].Start > address && AddressRanges[index - 1].End <= address)
-                {
-                    return new BinarySearchResult { present = false, index = index };
-                }
-                // Otherwise it must have been less than the start(because it wasn't in or above the range)
-                // Equivalent to 
-                //  else if (AddressRanges[index].Start > address)
-                else
-                {
-                    index /= 2;
-                }
-            }
-
-            // If it isn't 0, its $AddressRange.Count-1;
-            return new BinarySearchResult() { present = false, index = prev_index == 0 ? -1 : -2 };
-        }
+        }        
     }
-
 }

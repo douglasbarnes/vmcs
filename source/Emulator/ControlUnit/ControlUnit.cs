@@ -256,7 +256,7 @@ namespace debugger.Emulator
                     {                       
                         // If disassembling, whether the instruction is executed or not is not of importance(so long as the opcode class is written along with convention),
                         // Conversely, if executing, whether the instruction is disassembled or not doesn't matter. Together, this check speeds up the program a lot.
-                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
                         {
                             DisassemblyBuffer.Add(
                                 new DisassembledLine(CurrentOpcode.Disassemble(), 
@@ -274,7 +274,7 @@ namespace debugger.Emulator
                         // If the opcode is not present in the OpcodeTable, 
                         //  - Tell the user by changing the disassembly
                         //  - Throw a #UD when executed.
-                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+                        if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
                         {
                             DisassemblyBuffer.Add(new DisassembledLine(new List<string> { "BAD INSTRUCTION" }, AddressInfo.BAD, Start_RIP, 1));
                         }
@@ -360,7 +360,7 @@ namespace debugger.Emulator
         public static void RaiseException(Logging.LogCode exception)
         {
             // It is expected that divide instructions will throw this error when disassembling. This is because 
-            if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLEMODE) == CurrentHandle.HandleSettings)
+            if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
             {
                 return;
             }

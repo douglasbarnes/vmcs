@@ -10,11 +10,11 @@ namespace debugger.Forms
 {
     public class DisassemblyListView : CustomListView
     {
-        private readonly ListeningDict<AddressRange, ListeningList<ParsedLine>> ParsedLines;
+        private readonly ListeningDict<Emulator.AddressRange, ListeningList<ParsedLine>> ParsedLines;
 
         public delegate void OnAddressClickedDelegate(ulong address);
         public event OnAddressClickedDelegate OnAddressClicked = (a) => { };
-        public DisassemblyListView(ListeningDict<AddressRange, ListeningList<ParsedLine>> parsedLines, Size size) 
+        public DisassemblyListView(ListeningDict<Emulator.AddressRange, ListeningList<ParsedLine>> parsedLines, Size size) 
             : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
             SelectedIndexChanged += (_, args) =>
@@ -38,7 +38,7 @@ namespace debugger.Forms
             ParsedLines.OnAdd += AddNewRange;
             ParsedLines.OnClear += () => Items.Clear();
         }
-        private void AddNewRange(AddressRange range, ListeningList<ParsedLine> lines)
+        private void AddNewRange(Emulator.AddressRange range, ListeningList<ParsedLine> lines)
         {            
             for (int i = 0; i < lines.Count; i++)
             {

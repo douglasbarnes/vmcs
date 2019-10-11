@@ -14,7 +14,7 @@ namespace debugger.Emulator
 {
     public class MemorySpace
     {
-        private Dictionary<ulong, byte> AddressMap = new Dictionary<ulong, byte>();
+        private Dictionary<ulong, byte> AddressDict = new Dictionary<ulong, byte>();
         public Dictionary<string, Segment> SegmentMap = new Dictionary<string, Segment>();
         public ulong EntryPoint;
         public ulong End;
@@ -29,7 +29,7 @@ namespace debugger.Emulator
             public ulong End;
             public byte[] Data = null;
         }
-        public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressMap;
+        public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressDict;
         public MemorySpace(byte[] memory)
         {
             // For simplicity a MemorySpace starts at 0 because there is no kernel implementation.
@@ -44,7 +44,7 @@ namespace debugger.Emulator
 
             // ".stack" holds the start address of the stack. There is no defined $End of said stack. A manually crafted stack could be added
             // by setting $Segment.Data 
-            SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, End = 0x0 });
+            SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, End = 0x800001 });
 
             // Load all segments into the internal address table.
             foreach (Segment seg in SegmentMap.Values)
@@ -59,7 +59,7 @@ namespace debugger.Emulator
                         // Save some memory by not storing 0s.
                         if (seg.Data[i] != 0x00)
                         {
-                            AddressMap.Add(i + seg.StartAddr, seg.Data[i]);
+                            AddressDict.Add(i + seg.StartAddr, seg.Data[i]);
 
                         }
                     }                    
@@ -71,7 +71,7 @@ namespace debugger.Emulator
         {
             // A deep cloning constructor, so that editing addresses in $this does not change the addresses in $toClone.
             // Classes are object orientated, so C# will try to use a reference where ever possible, but this can get in the way.
-            AddressMap = toClone.AddressMap.DeepCopy();
+            AddressDict = toClone.AddressDict.DeepCopy();
             SegmentMap = toClone.SegmentMap.DeepCopy();
             // Value types do not need to be deep copied, by default they are not passed by reference.
             EntryPoint = toClone.EntryPoint;
@@ -81,37 +81,28 @@ namespace debugger.Emulator
         public byte this[ulong address]
         {
             // A memory space can use an index accessor which will return AddressMap[$address] if it exists, otherwise a 0. This is where a seg fault would occur if segmentation was strict.
-            get
-            {
-                byte Fetched;
-                if(AddressMap.TryGetValue(address, out Fetched))
-                {
-                    return Fetched;
-                }
-                else
-                {
-                    return 0x00;
-                }
-            }
+            get => AddressDict.TryGetValue(address, out byte Fetched) ? Fetched : (byte)0x00;
+           
             set
             {
                 // The address map doesn't need to be filled with 0s at initialisation. That would be massive waste of space. So instead, addresses are added to the dictionary as they are given values,
                 // if the address is already in $AddressMap, its value is changed.
                 // By default a 0 byte is returned if the address is not used. This means that an address can be removed if a 0 byte is assigned to it, or never added to the address table at all.
-                if (AddressMap.ContainsKey(address))
+
+                if (AddressDict.ContainsKey(address))
                 {
                     if(value == 0x00)
                     {
-                        AddressMap.Remove(address);
+                        AddressDict.Remove(address);
                     }
                     else 
                     {
-                        AddressMap[address] = value;
+                        AddressDict[address] = value;
                     }
                 }
                 else if(value != 0x00)
                 {
-                    AddressMap.Add(address, value);
+                    AddressDict.Add(address, value);
                 }
             }
         }
