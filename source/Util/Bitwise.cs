@@ -95,6 +95,7 @@ namespace debugger.Util
         {
             // Create a new buffer with the size of the output
             byte[] Buffer = new byte[input.Length - offset];
+
             // Copy every byte starting at index $offset from input into the buffer(like substring)
             Array.Copy(input, offset, Buffer, 0, input.Length - offset); 
             return Buffer;
@@ -191,6 +192,7 @@ namespace debugger.Util
             input1 = SignExtend(input1, (byte)size);
             input2 = SignExtend(input2, (byte)size); 
             Result = new byte[size];
+
             // Instead of using built-in methods, I use my own algorithms compatible with byte arrays increased performance 
             // on critical operations that are frequently used. http://prntscr.com/ojwfs2
             for (int i = 0; i < size; i++)                                     
@@ -200,6 +202,7 @@ namespace debugger.Util
                 // Consider 9 + 1, the least significant digit overflows to 0 whilst the 1 carries to the next. It is impossible for the carry
                 // to represent a value greater than one in the next column(e.g 9+9=18) in addition.
                 int sum = input1[i] + input2[i] + (carry ? 1 : 0);
+
                 // If the sum was greater than 0xFF, it can't be stored in the byte array without losing its value
                 if (sum > 0xFF)
                 {
@@ -207,13 +210,14 @@ namespace debugger.Util
                     // taking the modulo of the new sum and the greatest amount a byte can represent + 1. Literally, dividing the sum and finding the remainder.                    
                     Result[i] += (byte)(sum % 0x100);
 
-                    //Then account for this overflow by carrying to the next.
+                    // Then account for this overflow by carrying to the next.
                     carry = true;
                 }
                 else
                 {
                     // Otherwise add normally, nothing special.
                     Result[i] += (byte)sum;
+
                     // If there was a carry, turn it off because it was already accounted for when the sum was calculated.
                     carry = false;
                 }
@@ -308,16 +312,20 @@ namespace debugger.Util
             
             Quotient = new byte[size / 2];
             Modulo = new byte[size / 2];
-            // Are we trying to divide by zero? This would be bad, so throw a divide error.
+
+            // Dividing by zero would be bad, so throw a divide error.
             if (divisor.IsZero())
             {                
                 ControlUnit.RaiseException(Logging.LogCode.DIVIDE_BY_ZERO);
                 return;
             }
+
             // Get the sign of the dividend. This will be useful shortly.(Negative == true)   
             bool LastSign = dividend.IsNegative();
+
             // Is this a signed division operation? If so, am I dividing a negative, or just a really big unsigned number?
             bool NegativeDividend = signed && LastSign;
+
             // If this is signed division, I don't want to deal with negatives. More importantly, at least with this algorithm, it can't.
             // Why? I use a repeated subtraction method to divide akin to long divison on paper. It's obvious when to stop subtracting on paper
             // but a computer cannot see obvious! I have to tell it the rules for such. This would require a completely different algorithm that
@@ -328,6 +336,7 @@ namespace debugger.Util
             if (NegativeDividend) 
             {       
                 Negate(dividend, out dividend);
+
                 // This is a little extra hack that I will explain later, but an unsigned number does have cause to be percieved as a negative signed,
                 // I will explain this later.
                 LastSign = false;
@@ -389,6 +398,7 @@ namespace debugger.Util
                     break;                
                 }
             }
+
             // Now I need to get the sign back if the number was initially to be interpreted as a negative signed number. Negative signed   
             // numbers work in the same way as signed numbers for most arithmetic, but not so with division(multiplication just requires different flags)
             // So to solve this problem, I just create the ideal scenario of a dividing a positive instead, but the result still needs to be converted back
@@ -411,6 +421,7 @@ namespace debugger.Util
             {                                     
                 Negate(Quotient, out dividend);
             }
+
             //Size variable is the size of twice the result.      
             Array.Copy(dividend, Modulo, size / 2); 
         }
@@ -463,9 +474,11 @@ namespace debugger.Util
                     {
                         // This carry needs to be added to the result like a large number. Let Add() handle all the subcarries(carries within Result+Carry).
                         byte[] carry = new byte[size * 4];
+
                         // Set the current byte position + 1 to the value of the multiplication / by the smallest value a byte cannot be
                         // simply, how many times over the max value did we go, or the little superscript numbers shown in the annotated example.
                         carry[ColumnPos + BytePos + 1] = (byte)(mul / 0x100);
+
                         // Finally add the MSB here,(a carry). For example, A12B % 0x100 = 2B, A12B / 0x100 = A1(where / is integer division)
                         // 2B goes in the current byte position, A1 goes into the next.                                                     
                         Add(Result, carry, size * 4, out Result);                                                                 

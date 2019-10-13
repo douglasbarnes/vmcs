@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Testcase name="lea">
-    <Hex>48C7C023010000488D1CC5FFFFFF008D0C4500223333668D148500FC000090</Hex>
+    <Hex>48C7C023010000488D1CC5FFFFFF008D0C4500223333668D148500FC000090</Hex> 
     <Checkpoint tag="Win" position_hex="1e">
         <Register id="B" size="8">1000917</Register>
         <Register id="C" size="8">33332446</Register>

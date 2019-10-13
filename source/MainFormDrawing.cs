@@ -181,7 +181,14 @@ namespace debugger
             {
                 OpenFileDialog OpenFile = new OpenFileDialog();
                 OpenFile.ShowDialog();
-                FlashFromFile(OpenFile.FileName);
+
+                // "" is returned when the user closes the DialogBox with alt f4 or the X, it was annoying when
+                // the error message showed up after doing this.
+                if(OpenFile.FileName != "")
+                {
+                    FlashFromFile(OpenFile.FileName);
+                }
+                
             };
             ThemedToolStripMenuItem OpenClipboardMenu = new ThemedToolStripMenuItem()
             {
