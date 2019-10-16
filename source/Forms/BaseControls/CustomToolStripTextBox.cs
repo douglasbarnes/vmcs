@@ -1,4 +1,7 @@
-﻿using System.Windows.Forms;
+﻿// CustomToolStripTextBox is a wrapper around ToolStripMenuItem that implements user input functionality.
+// There are two main important concepts, the variables Input and Prefix. Input is the text that can be freely modified
+// by the user. Prefix can only be modified by the program. Also, $BufferSize is the maximum size of $Input.
+using System.Windows.Forms;
 using System.Drawing;
 using debugger.Util;
 using static debugger.Forms.FormSettings;
@@ -19,30 +22,49 @@ namespace debugger.Forms
         }
         protected void Ready()
         {
+            // Generate the text out of the prefix and input.
             Text = Prefix + Input;
         }
         private KeysConverter Converter = new KeysConverter();
         public void KeyPressed(object s, PreviewKeyDownEventArgs e)
         {
+            // If the key pressed was a backspace and there is text to delete, do so.
             if (e.KeyCode == Keys.Back && Input.Length > 0)
             {
-                Input = Input.Remove(Input.Length - 1);
+                Input = Input.Substring(0, Input.Length - 1);
             }
-            string Key = Converter.ConvertToString(e.KeyCode).ToLower();
-            if (Input.Length < BufferSize && Key.Length == 1 && "abcdefghijklmnopqrstuvwxyz!\"!£$%^&*()[];'#,./<>?:@~{}1234567890".Contains(Key))
+            else
             {
-                Input += Key;
+                // Convert the keycode into a string.
+                string Key = Converter.ConvertToString(e.KeyCode).ToLower();
+
+                // Check if the buffer size permits more characters. It's not strictly the size of the buffer but acts like so.
+                // Also check the length of $Key. This is because strangely special keys such as End will be converted to "End". 
+                // Finally validate it as an appropriate character. 
+                if (Input.Length < BufferSize && Key.Length == 1 && "abcdefghijklmnopqrstuvwxyz!\"!£$%^&*()[];'#,./<>?:@~{}1234567890".Contains(Key))
+                {
+                    Input += Key;
+                }
             }
+                 
+            // Commit the changes.
             Ready();
         }
         protected override void OnPaint(PaintEventArgs e)
         {
-            Rectangle Bounds = Drawing.GetCenterHeight(e.ClipRectangle);
-            Drawing.DrawShadedRect(e.Graphics, Drawing.ShrinkRectangle(e.ClipRectangle, 0), Layer.Imminent, 3);
+            // Draw a border
+            Drawing.DrawShadedRect(e.Graphics, e.ClipRectangle, Layer.Imminent, 3);
+
+            // Create a new bounds for the text.
+            Rectangle Bounds = Drawing.GetTextCenterHeight(e.ClipRectangle);            
+
+            // Each line is drawn separately such that they can have a different emphasis. This has the following effect, http://prntscr.com/pjpw9a
+            // It makes it much easier for the user to differentiate between their input and the prefix.
             e.Graphics.DrawString(Prefix, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Bounds);
+
+            // Offset the bounds by the width of the previous text.
             Bounds.Offset(Drawing.CorrectedMeasureText(Prefix, BaseUI.BaseFont).Width, 0);
             e.Graphics.DrawString(Input, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis + 1], Bounds);
-
         }
     }
 }

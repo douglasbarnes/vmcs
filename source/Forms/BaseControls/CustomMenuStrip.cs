@@ -1,4 +1,7 @@
-﻿using System.Windows.Forms;
+﻿// CustomMenuStrip applies the FormSettings convention to a MenuStrip. It also handles the drawing of the background for its elements.
+// This ensures they have a consistent background, however if really desired they could draw their own on top. This is done through
+// the ThemeRenderer as required by windows forms.
+using System.Windows.Forms;
 using System.Drawing;
 using debugger.Util;
 namespace debugger.Forms
@@ -16,7 +19,7 @@ namespace debugger.Forms
             }
             protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
             {
-                Drawing.FillShadedRect(e.Graphics, Rectangle.Round(e.Graphics.ClipBounds), Layer.Foreground);
+                Drawing.FillShadedRect(e.Graphics, Rectangle.Round(e.Graphics.ClipBounds), DrawingLayer);
             }
         }
         public Layer DrawingLayer { get; set; }

@@ -1,4 +1,6 @@
-﻿using System.Windows.Forms;
+﻿// CustomLabel applies the convention of FormSettings to labels. It draws text only and relies on its background
+// to be draw by something else e.g the form.
+using System.Windows.Forms;
 using debugger.Util;
 namespace debugger.Forms
 {
@@ -12,6 +14,7 @@ namespace debugger.Forms
         }
         protected override void OnPaint(PaintEventArgs e)
         {
+            // Draw text
             Drawing.DrawFormattedText(Text, e.Graphics, bounds: e.ClipRectangle, defaultEmphasis: TextEmphasis);
         }
     }

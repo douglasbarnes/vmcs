@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿// CustomButton applies FormSettings convention to a button. It also applies a nice and discrete border, http://prntscr.com/pjq1ts.
+using System.Windows.Forms;
 using System.Drawing;
 using debugger.Util;
 using static debugger.Forms.FormSettings;
@@ -16,11 +17,16 @@ namespace debugger.Forms
         }
         protected override void OnPaint(PaintEventArgs e)
         {
+            // Fill the background of the button.
             Rectangle Bounds = e.ClipRectangle;
-            e.Graphics.FillRectangle(LayerBrush, Bounds);
-            e.Graphics.FillRectangle(ElevationBrushes[(int)DrawingLayer], Bounds);
+            Drawing.FillShadedRect(e.Graphics, Bounds, DrawingLayer);
+
+            // Create a new InnerBounds which is the border. It has to be reduced slightly to prevent clipping. The border is effectively one order
+            // of layer higher than its background.
             Rectangle InnerBounds = new Rectangle(Bounds.X + 1, Bounds.Y + 1, Bounds.Width - 3, Bounds.Height - 3);
             e.Graphics.DrawRectangle(new Pen(ElevationBrushes[(int)DrawingLayer]), InnerBounds);
+
+            // Finally draw the text in the centre of the button.
             e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));
         }
     }

@@ -140,12 +140,6 @@ namespace debugger
                     {
                         if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
                         memviewer.Items.Add(new ListViewItem(new string[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
-
-                        if (_currentaddr + 16 < address.Key)
-                        {
-                            memviewer.Items.Add(new ListViewItem(new string[] { $"[+{(address.Key - _currentaddr).ToString("X")}]", "" }));
-                        }
-
                         _currentline = new StringBuilder();
                         _currentaddr = address.Key;
                     }
@@ -240,6 +234,5 @@ namespace debugger
                        
         }
         private void Reset_Click(object sender, EventArgs e) => ReflashVM();
-        private void ExitToolStripMenuItem_Click(object sender, EventArgs e) => Environment.Exit(0);
     }   
 }
