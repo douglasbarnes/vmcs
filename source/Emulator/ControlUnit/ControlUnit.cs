@@ -304,10 +304,7 @@ namespace debugger.Emulator
         public static void SetMemory(ulong address, byte[] data)
         {
             // Set $data.Length bytes after and including $address with the bytes in data[].
-            for (uint Offset = 0; Offset < data.Length; Offset++)
-            {
-                CurrentContext.Memory[address + Offset] = data[Offset];
-            }
+            CurrentContext.Memory.AddRange(address, data);
         }
         public static byte[] Fetch(ulong address, int length = 1)
         {
@@ -345,7 +342,7 @@ namespace debugger.Emulator
             }
         }        
         public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
-        public static List<Register> FetchAll(RegisterCapacity size)
+        public static List<Register> FetchRegisters(RegisterCapacity size)
         {
             // Turn all GP registers into a register struct list, which contains all the information higher layered caller need to know.
             // A list of byte arrays would be unhelpful in disassembling.
