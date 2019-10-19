@@ -20,7 +20,7 @@ namespace debugger.Util
             PrimaryBrush,
             SecondaryBrush,
         };
-        public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis = Emphasis.Medium)
+        public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis=Emphasis.Medium)
         {
             // DrawFormattedText() uses markdown modifiers to add effects to text, e.g change the colour.
             // The behaviour is hard to generalise for any case as it depends on the values of TextBrushes, but in the current implementation,
@@ -97,7 +97,7 @@ namespace debugger.Util
                 else if ((NewModifier = FormatModifiers.IndexOf(Cursor)) != -1)
                 {
                     // If it is the same as the current modifier, pop that off the stack. Otherwise push the new one on.
-                    if (NewModifier == ModifierHistory.Peek())
+                    if (NewModifier == ModifierHistory.Peek() && ModifierHistory.Count > 1)
                     {
                         ModifierHistory.Pop();
                     }
@@ -135,15 +135,36 @@ namespace debugger.Util
                 
             }
 
-            // Draw all of the outputs
+            // Draw all of the outputs with the same modifier that they represent.
             for (int ModifierType = 0; ModifierType < FormatModifiers.Length; ModifierType++)
             {
-                // It is unnecessary to draw an empty string. This would happen a lot as every string in the array is initialised to "".
+                // It is unnecessary to draw an empty string. This would happen often as every string in the array is initialised to "".
                 if (Output[ModifierType].Trim() != "")
                 {
                     graphicsHandler.DrawString(Output[ModifierType], BaseUI.BaseFont, ModifierTypes[ModifierType], bounds);
                 }                           
             }            
+        }
+        public static string InsertAtNonZero(string input, string toInsert, int offset = 0)
+        {
+            // Insert $toInsert at the first non zero string representation of a byte in hex.
+            // This is often used with markdown therefore kept in Drawing
+            // See RegisterPanel and MemoryListView for implementation.
+
+            // Continue in blocks of two($offset+=2) as a byte in hex would be e.g 32, F2, 2E are all two characters.
+            // It takes two characters to find a non-"00".
+            for (; offset < input.Length; offset += 2)
+            {
+                // If the current index and the next are not zeroes, the byte must not be a zero, therefore insert and return.
+                if (input[offset] != '0' || input[offset + 1] != '0')
+                {
+                    input = input.Insert(offset, toInsert);
+                    break;
+                }
+            }
+
+            // If there were only zeroes, the input is returned as is.
+            return input;
         }
         public static string CleanString(string input)
         {

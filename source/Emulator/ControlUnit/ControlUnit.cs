@@ -304,7 +304,7 @@ namespace debugger.Emulator
         public static void SetMemory(ulong address, byte[] data)
         {
             // Set $data.Length bytes after and including $address with the bytes in data[].
-            CurrentContext.Memory.AddRange(address, data);
+            CurrentContext.Memory.SetRange(address, data);
         }
         public static byte[] Fetch(ulong address, int length = 1)
         {

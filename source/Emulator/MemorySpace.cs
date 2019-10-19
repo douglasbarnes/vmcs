@@ -14,6 +14,7 @@ namespace debugger.Emulator
 {
     public class MemorySpace
     {
+        public readonly AddressMap AddressTable = new AddressMap();
         private Dictionary<ulong, byte> AddressDict = new Dictionary<ulong, byte>();
         public Dictionary<string, Segment> SegmentMap = new Dictionary<string, Segment>();
         public ulong EntryPoint;
@@ -25,11 +26,17 @@ namespace debugger.Emulator
             // Segments can also be read from the MemorySpace, for example, the stack pointer is first initialised
             // to SegmentMap[".stack"].
             // For ease of use, segmentation is not strict, meaning that memory can be set outside of any segment.            
-            public ulong StartAddr;
-            public ulong End;
+            public AddressRange Range;
             public byte[] Data = null;
         }
         public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressDict;
+        public void AddSegment(string name, Segment segment)
+        {
+            SegmentMap.Add(name, segment);
+
+            // It is important that the segment also has its addresses added to the address table to keep the table coherent. See AddressMap().
+            AddressTable.AddRange(segment.Range);
+        }
         public MemorySpace(byte[] memory)
         {
             // For simplicity a MemorySpace starts at 0 because there is no kernel implementation.
@@ -40,11 +47,11 @@ namespace debugger.Emulator
             End = (ulong)memory.LongLength;
 
             // ".main" is where the ControlUnit will read the instructions from initially. It contains the data passed in as $memory.
-            SegmentMap.Add(".main", new Segment() { StartAddr = EntryPoint, End = EntryPoint + (ulong)memory.LongLength, Data = memory });
+            AddSegment(".main", new Segment() { Range = new AddressRange(EntryPoint, EntryPoint + (ulong)memory.LongLength), Data = memory });
 
             // ".stack" holds the start address of the stack. There is no defined $End of said stack. A manually crafted stack could be added
             // by setting $Segment.Data 
-            SegmentMap.Add(".stack", new Segment() { StartAddr = 0x800000, End = 0x800001 });
+            AddSegment(".stack", new Segment() { Range = new AddressRange(0x800000, 0x800001) });
 
             // Load all segments into the internal address table.
             foreach (Segment seg in SegmentMap.Values)
@@ -54,13 +61,12 @@ namespace debugger.Emulator
                     // If the segment has data, add all that data until,
                     //  1. There is no more data to add
                     //  2. The defined end of the segment is reached
-                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.End - seg.StartAddr; i++)
+                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.Range.End - seg.Range.Start; i++)
                     {
                         // Save some memory by not storing 0s.
                         if (seg.Data[i] != 0x00)
                         {
-                            AddressDict.Add(i + seg.StartAddr, seg.Data[i]);
-
+                            AddressDict.Add(i + seg.Range.Start, seg.Data[i]);
                         }
                     }                    
                 }
@@ -73,9 +79,12 @@ namespace debugger.Emulator
             // Classes are object orientated, so C# will try to use a reference where ever possible, but this can get in the way.
             AddressDict = toClone.AddressDict.DeepCopy();
             SegmentMap = toClone.SegmentMap.DeepCopy();
+
             // Value types do not need to be deep copied, by default they are not passed by reference.
             EntryPoint = toClone.EntryPoint;
             End = toClone.End;
+
+            AddressTable = toClone.AddressTable.DeepCopy();
         }
         public MemorySpace DeepCopy() => new MemorySpace(this);
         public byte this[ulong address]
@@ -84,27 +93,46 @@ namespace debugger.Emulator
             get => AddressDict.TryGetValue(address, out byte Fetched) ? Fetched : (byte)0x00;
            
             set
-            {
-                // The address map doesn't need to be filled with 0s at initialisation. That would be massive waste of space. So instead, addresses are added to the dictionary as they are given values,
-                // if the address is already in $AddressMap, its value is changed.
-                // By default a 0 byte is returned if the address is not used. This means that an address can be removed if a 0 byte is assigned to it, or never added to the address table at all.
-
-                if (AddressDict.ContainsKey(address))
-                {
-                    if(value == 0x00)
-                    {
-                        AddressDict.Remove(address);
-                    }
-                    else 
-                    {
-                        AddressDict[address] = value;
-                    }
-                }
-                else if(value != 0x00)
-                {
-                    AddressDict.Add(address, value);
-                }
+            {            
+                // Register the new value in the address map
+                AddressTable.TryMerge(address);
+                Set(address, value);               
             }
         }
-    }
+
+        public void SetRange(ulong address, byte[] data)
+        {
+            // To avoid doing a binary search on each $data, adding at one position means that only one has to take place.
+            AddressTable.AddRange(new AddressRange(address, address + (ulong)data.Length));
+
+            for (ulong i = 0; i < (ulong)data.Length; i++)
+            {
+                Set(address + i, data[i]);
+            }
+        }
+
+        private void Set(ulong address, byte value)
+        {
+            // This is private because it does not affect AddressTable. This could be dangerous to an outside class. Use the indexer or SetRange().
+
+            // The address map doesn't need to be filled with 0s at initialisation. That would be massive waste of space. So instead, addresses are added to the dictionary as they are given values,
+            // if the address is already in $AddressMap, its value is changed.
+            // By default a 0 byte is returned if the address is not used. This means that an address can be removed if a 0 byte is assigned to it, or never added to the address table at all.
+            if (AddressDict.ContainsKey(address))
+            {
+                if (value == 0x00)
+                {
+                    AddressDict.Remove(address);
+                }
+                else
+                {
+                    AddressDict[address] = value;
+                }
+            }
+            else if (value != 0x00)
+            {
+                AddressDict.Add(address, value);
+            }
+        }
+    }    
 }

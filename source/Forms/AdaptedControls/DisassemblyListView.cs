@@ -1,8 +1,5 @@
-﻿using System;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using System.Drawing;
-using System.Collections.Generic;
-using debugger.Hypervisor;
 using debugger.Util;
 using static debugger.Forms.FormSettings;
 using static debugger.Hypervisor.Disassembler;

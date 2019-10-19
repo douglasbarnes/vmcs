@@ -48,7 +48,7 @@ namespace debugger.Hypervisor
 
             // Create a new address range to disassemble(the loaded instructions)
             Map = new AddressMap();
-            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End));
+            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].Range.Start, Target.GetMemory().SegmentMap[".main"].Range.End));
 
             // When the target VM calls flash(), the context reference will change, so it is necessary to listen for this and update accordingly.
             target.Flash += UpdateTarget;
@@ -58,11 +58,11 @@ namespace debugger.Hypervisor
             {                
                 // These conditions will only pass if the address is present. It would be perfectly normal for it not to,
                 // for example when all the instructions have been executed, $RIP is out of the disassembly.
-                if (Map.Search(status.InitialRIP).Present)
+                if ((Map.Search(status.InitialRIP).Info | AddressMap.BinarySearchResult.ResultInfo.PRESENT) == Map.Search(status.InitialRIP).Info)
                 {
                     ToggleSetting(status.InitialRIP, AddressInfo.RIP);
                 }
-                if (Map.Search(status.EndRIP).Present)
+                if ((Map.Search(status.EndRIP).Info | AddressMap.BinarySearchResult.ResultInfo.PRESENT) == Map.Search(status.InitialRIP).Info)
                 {
                     ToggleSetting(status.EndRIP, AddressInfo.RIP);
                 }
@@ -78,11 +78,11 @@ namespace debugger.Hypervisor
             // but one will be created if it is out of any existing range.
 
             // Find the address range the address lies in
-            BinarySearchResult index = Map.Search(address);
+            AddressMap.BinarySearchResult index = Map.Search(address);
 
             // If it not present, disassemble it and toggle it. I would imagine the only time for this to happen would be if instructions were
             // unpacked onto the stack then executed there. A rare case but one worth accounting for.
-            if (!index.Present)
+            if ((index.Info | AddressMap.BinarySearchResult.ResultInfo.PRESENT) != index.Info)
             {
                 DisassembleStep(address);
                 ToggleSetting(address, info);
@@ -107,7 +107,7 @@ namespace debugger.Hypervisor
             // for example when new instructions are loaded onto the VM. The disassembler will have to adjust the ranges it disassembled to
             // match new code.
             Map.Clear();
-            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].StartAddr, Target.GetMemory().SegmentMap[".main"].End));
+            Map.AddRange(new AddressRange(Target.GetMemory().SegmentMap[".main"].Range.Start, Target.GetMemory().SegmentMap[".main"].Range.End));
         }
         public void UpdateTarget(Context targetMemory)
         {

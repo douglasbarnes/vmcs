@@ -437,6 +437,7 @@ namespace debugger.Util
             }
             return true;
         }
+        
         public static string[] SeparateString(string inputString, string testFor, bool stopAtFirstDifferent = false) => SeparateString(inputString, new string[] { testFor }, stopAtFirstDifferent);
         public static string[] SeparateString(string inputString, string[] testFor, bool stopAtFirstDifferent = false) // output {inputstring with stuff removed, (strings of separated testFors)
         {

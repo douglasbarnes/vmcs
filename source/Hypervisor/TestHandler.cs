@@ -270,8 +270,8 @@ namespace debugger.Hypervisor
                 {
                     Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
                         {
-                            { XRegCode.SP, testcase.Memory.SegmentMap[".stack"].StartAddr },
-                            { XRegCode.BP, testcase.Memory.SegmentMap[".stack"].StartAddr },
+                            { XRegCode.SP, testcase.Memory.SegmentMap[".stack"].Range.Start },
+                            { XRegCode.BP, testcase.Memory.SegmentMap[".stack"].Range.Start },
                         }),
                     Breakpoints = new ListeningList<ulong>(testcase.Checkpoints.Keys.ToList())
 

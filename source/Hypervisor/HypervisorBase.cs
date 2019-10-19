@@ -38,8 +38,8 @@ namespace debugger.Hypervisor
             {
                 Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
                       {
-                                  { XRegCode.SP, input.SegmentMap[".stack"].StartAddr },
-                                  { XRegCode.BP, input.SegmentMap[".stack"].StartAddr }
+                                  { XRegCode.BP, input.SegmentMap[".stack"].Range.Start },
+                                  { XRegCode.SP, input.SegmentMap[".stack"].Range.Start },
                       }),
                 Flags = new FlagSet(),
             };

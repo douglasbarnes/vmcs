@@ -127,9 +127,6 @@
     <Compile Include="Forms\AdaptedControls\EndToolStripMenuItem.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Forms\AdaptedControls\ThemedToolStripRadioButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Forms\AdaptedControls\ThemedMenuStrip.cs">
       <SubType>Component</SubType>
     </Compile>

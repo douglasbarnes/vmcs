@@ -49,7 +49,7 @@ namespace debugger
             Refresh();
             Update();
         }
-        private async void ReflashVM()
+        private void ReflashVM()
         {
             VMInstance.FlashMemory(ROM);
             RefreshCallback(0);
@@ -129,25 +129,7 @@ namespace debugger
         } 
         private void RefreshMemory()
         {
-            SortedDictionary<ulong, byte> _memory = new SortedDictionary<ulong, byte>((Dictionary<ulong,byte>)VMInstance.GetMemory());
-            ulong _currentaddr = _memory.First().Key;
-            StringBuilder _currentline = new StringBuilder();
-            memviewer.Invoke(new Action(( () => {
-                memviewer.Items.Clear();
-                foreach (var address in _memory)
-                {
-                    if (_currentline.Length >= 48 || _currentaddr + 16 < address.Key)
-                    {
-                        if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
-                        memviewer.Items.Add(new ListViewItem(new string[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
-                        _currentline = new StringBuilder();
-                        _currentaddr = address.Key;
-                    }
-                    _currentline.Append(address.Value.ToString("X").PadLeft(2, '0') + " ");
-                }
-                if (_currentline.Length < 48) { _currentline.Append(string.Join("", Enumerable.Repeat("00 ", (48 - _currentline.Length) / 3))); }
-                memviewer.Items.Add(new ListViewItem(new[] { $"0x{_currentaddr.ToString("X").PadLeft(16, '0')}", _currentline.ToString() }));
-            })));                    
+            memviewer.LoadMemory(VMInstance.GetMemory());
         }
         Disassembler d;
         private async void RefreshCallback(ulong instructionPointer)

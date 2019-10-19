@@ -20,8 +20,8 @@ namespace debugger.Hypervisor
         public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
-                { XRegCode.SP, inputMemory.SegmentMap[".stack"].StartAddr },
-                { XRegCode.BP, inputMemory.SegmentMap[".stack"].StartAddr }
+                { XRegCode.SP, inputMemory.SegmentMap[".stack"].Range.Start },
+                { XRegCode.BP, inputMemory.SegmentMap[".stack"].Range.Start }
             }),
         })
         {
@@ -48,15 +48,16 @@ namespace debugger.Hypervisor
             };
 
             // Use Invoke to make sure the registers from the correct context are fetched.
-            Handle.Invoke(new Action(() => { Registers = ControlUnit.FetchAll(registerSize); } ));
+            Handle.Invoke(new Action(() => { Registers = ControlUnit.FetchRegisters(registerSize); }));
 
             // Extract the wanted data(Register mnemonics and the values stored in them) from Registers into ParsedRegisters
             for (int i = 0; i < Registers.Count; i++)
             {
                 // Always zero extend for consistency throughout the program. The arithmetic value the represented by the registers is not necessarily
                 // of importance at this level, therefore zero extending is more appropiate than sign extending.
-                ParsedRegisters.Add(Registers[i].Mnemonic, BitConverter.ToUInt64(Bitwise.ZeroExtend(Registers[i].Value,8),0));
-            }           
+                ParsedRegisters.Add(Registers[i].Mnemonic, BitConverter.ToUInt64(Bitwise.ZeroExtend(Registers[i].Value, 8), 0));
+            }
+                     
             return ParsedRegisters;
         }
         public void Jump(ulong address)
