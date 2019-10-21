@@ -5,9 +5,9 @@
 // The Disassembler works by listening on events provided by HypervisorBase for the given VM class. When the VM calls FlashMemory(), the
 // disassembler will copy its context, execute it, and store the disassembled results in the ParsedLines class. A listener of the ParsedLines.OnAdd
 // could then parse these lines. 
-using System.Collections.Generic;
 using debugger.Emulator;
 using debugger.Util;
+using System.Collections.Generic;
 using static debugger.Emulator.ControlUnit;
 namespace debugger.Hypervisor
 {
@@ -22,7 +22,7 @@ namespace debugger.Hypervisor
             public AddressInfo Info;
             public ulong Address;
             public int Index;
-            public ParsedLine(DisassembledLine input, AddressInfo toOR=0)
+            public ParsedLine(DisassembledLine input, AddressInfo toOR = 0)
             {
                 DisassembledLine = JoinDisassembled(input.Line);
                 Info = input.Info | toOR;
@@ -30,7 +30,7 @@ namespace debugger.Hypervisor
                 Index = -1;
             }
 
-            public ParsedLine(ParsedLine toChangeTo, AddressInfo toXor=0)
+            public ParsedLine(ParsedLine toChangeTo, AddressInfo toXor = 0)
             {
                 this = toChangeTo;
                 Info ^= toXor;
@@ -40,9 +40,9 @@ namespace debugger.Hypervisor
         public readonly ListeningDict<AddressRange, ListeningList<ParsedLine>> ParsedLines = new ListeningDict<AddressRange, ListeningList<ParsedLine>>();
         private readonly AddressMap Map;
         private HypervisorBase Target;
-        public Disassembler(VM target) 
+        public Disassembler(VM target)
             : base("Disassembler", Handle.GetContextByID(target.HandleID).DeepCopy(), HandleParameters.DISASSEMBLE | HandleParameters.NOJMP | HandleParameters.NOBREAK)
-        {        
+        {
             // Target will hold a reference to the VM
             Target = target;
 
@@ -52,10 +52,10 @@ namespace debugger.Hypervisor
 
             // When the target VM calls flash(), the context reference will change, so it is necessary to listen for this and update accordingly.
             target.Flash += UpdateTarget;
-            
+
             // When the target finishes execution, update the address marked as RIP and the new RIP.
             target.RunComplete += (status) =>
-            {                
+            {
                 // These conditions will only pass if the address is present. It would be perfectly normal for it not to,
                 // for example when all the instructions have been executed, $RIP is out of the disassembly.
                 if ((Map.Search(status.InitialRIP).Info | AddressMap.BinarySearchResult.ResultInfo.PRESENT) == Map.Search(status.InitialRIP).Info)
@@ -69,7 +69,7 @@ namespace debugger.Hypervisor
             };
 
             // Listen for changes to breakpoints on the target VM.
-            target.Breakpoints.OnAdd += (addr, index) => ToggleSetting(addr, AddressInfo.BREAKPOINT); 
+            target.Breakpoints.OnAdd += (addr, index) => ToggleSetting(addr, AddressInfo.BREAKPOINT);
             target.Breakpoints.OnRemove += (addr, index) => ToggleSetting(addr, AddressInfo.BREAKPOINT);
         }
         public void ToggleSetting(ulong address, AddressInfo info)
@@ -153,7 +153,7 @@ namespace debugger.Hypervisor
             Handle.ShallowCopy().InstructionPointer = range.Start;
 
             // Run and parse the instructions then add them to the collection.
-            AddLines(range, ParseLines(Run().Disassembly));            
+            AddLines(range, ParseLines(Run().Disassembly));
         }
         private void AddLines(AddressRange range, List<ParsedLine> lines) => SetLines(range, new ListeningList<ParsedLine>(lines));
         private void SetLines(AddressRange range, ListeningList<ParsedLine> lines)
@@ -179,7 +179,7 @@ namespace debugger.Hypervisor
 
             // Similar to above.
             ulong targetRIP = TargetContext.InstructionPointer;
-            
+
             List<ParsedLine> OutputLines = new List<ParsedLine>();
 
             // Every raw line is iterated as every line is to be parsed.
@@ -202,7 +202,7 @@ namespace debugger.Hypervisor
                 }
 
                 // Add the result to the output. The constructor of ParsedLine will do the rest of the work.
-                OutputLines.Add(new ParsedLine(rawLines[i], Info));                
+                OutputLines.Add(new ParsedLine(rawLines[i], Info));
             }
 
             return OutputLines;
@@ -235,6 +235,6 @@ namespace debugger.Hypervisor
                 }
                 return Output;
             }
-        }        
+        }
     }
 }

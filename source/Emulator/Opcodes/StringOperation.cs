@@ -45,19 +45,19 @@
 // prefixes, as information must be updated with each execution, such that each execution is treat as a new instruction, but
 // without having to re-instance the class. Execute() in the base class will make sure that rep prefies are compatible, calling
 // the derived OnInitialise(), then OnExecute() when ready.
+using debugger.Util;
 using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
     public enum StringOpSettings
     {
-        NONE=0,
-        BYTEMODE=1,
-        COMPARE=2,
+        NONE = 0,
+        BYTEMODE = 1,
+        COMPARE = 2,
     }
     public abstract class StringOperation : IMyOpcode
-    {      
+    {
         private string Mnemonic;
 
         // A pointer that holds the final value that $SI and $DI will be set to. This avoids having to set
@@ -66,10 +66,10 @@ namespace debugger.Emulator.Opcodes
         protected ulong DestPtr;
 
         // This needs to be stored in the rare event that the register carries out.
-        private RegisterCapacity PtrSize; 
+        private RegisterCapacity PtrSize;
 
         // The length of data that will be set at the pointer
-        protected RegisterCapacity Capacity; 
+        protected RegisterCapacity Capacity;
 
         // Additional settings
         protected StringOpSettings Settings;
@@ -82,7 +82,7 @@ namespace debugger.Emulator.Opcodes
         // Store the value of the A register if present, otherwise the SI register. See constructor
         private readonly byte[] ValueOperand;
         public StringOperation(string mnemonic, XRegCode destination, XRegCode source, StringOpSettings settings)
-        {           
+        {
             Settings = settings;
 
             // Determine capacity as well as an informal mnemonic convention. I haven't seen it defined anywhere, but
@@ -119,18 +119,18 @@ namespace debugger.Emulator.Opcodes
                 mnemonic += 'D';
             }
 
-            Mnemonic = mnemonic;                      
+            Mnemonic = mnemonic;
 
             // Determine and store the pointer size(There will always be at least one). E.g [RSI] or [ESI].
             PtrSize = ControlUnit.LPrefixBuffer.Contains(PrefixByte.ADDROVR) ? RegisterCapacity.DWORD : RegisterCapacity.QWORD;
-            
+
             // Create a handle to the destination. If the destination is DI, treat it as a pointer, as DI is always a pointer in a
             // string operation. destination == XRegCode.DI will also be checked later to mimic the same behaviour.
             Destination = new ControlUnit.RegisterHandle(destination, RegisterTable.GP, (destination == XRegCode.DI) ? PtrSize : Capacity);
 
             // Same as the above 
             Source = new ControlUnit.RegisterHandle(source, RegisterTable.GP, (source == XRegCode.SI) ? PtrSize : Capacity);
-                        
+
             // Convert the two operands into pointers. These will only be used if their XRegCode is SI or DI, but stored regardless.
             // Saving these to a variable means that the registers themselves do not have to be operated on until the execution of
             // the opcode has finished.
@@ -154,7 +154,7 @@ namespace debugger.Emulator.Opcodes
             }
             else
             {
-                DestPtr += (byte)Capacity;             
+                DestPtr += (byte)Capacity;
             }
         }
         public void AdjustSI()
@@ -166,21 +166,21 @@ namespace debugger.Emulator.Opcodes
             }
             else
             {
-                SrcPtr += (byte)Capacity;         
+                SrcPtr += (byte)Capacity;
             }
         }
         public virtual List<string> Disassemble()
-        {            
+        {
             // Begin with the mnemonic
-            List<string> Output = new List<string>(3) { Mnemonic };            
+            List<string> Output = new List<string>(3) { Mnemonic };
 
             // If there is a repeat prefix, insert it before the mncmonic.
             if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ))
             {
                 // The REP prefix becomes REPZ in a comparison operation because they
                 // have the same byte value.
-                            
-                if((Settings | StringOpSettings.COMPARE) == Settings)
+
+                if ((Settings | StringOpSettings.COMPARE) == Settings)
                 {
                     Output[0] = Mnemonic.Insert(0, "REPZ ");
                 }
@@ -192,7 +192,7 @@ namespace debugger.Emulator.Opcodes
 
             // See summary 
             if ((Settings | StringOpSettings.COMPARE) == Settings)
-            {                
+            {
                 if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ))
                 {
                     Output[0] = Mnemonic.Insert(0, "REPZ ");
@@ -200,7 +200,7 @@ namespace debugger.Emulator.Opcodes
                 else if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ))
                 {
                     Output[0] = Mnemonic.Insert(0, "REPNZ ");
-                }                    
+                }
             }
 
             // If not a comparison operation, both REPNZ and REPZ are parsed as REP. REPZ should always be used in this case
@@ -208,7 +208,7 @@ namespace debugger.Emulator.Opcodes
             // to ignore it nor accept it.
             else if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) || ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ))
             {
-                Output[0] = Mnemonic.Insert(0, "REP ");                
+                Output[0] = Mnemonic.Insert(0, "REP ");
             }
 
             // Add the operands onto the disassembly.
@@ -231,7 +231,7 @@ namespace debugger.Emulator.Opcodes
         {
             // Handle a REP prefix.  If the handle has NOJMP set, this is ignored.
             // See summary before reading.
-            if(ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) || ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && (ControlUnit.CurrentHandle.HandleSettings | HandleParameters.NOJMP) != ControlUnit.CurrentHandle.HandleSettings)
+            if (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) || ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && (ControlUnit.CurrentHandle.HandleSettings | HandleParameters.NOJMP) != ControlUnit.CurrentHandle.HandleSettings)
             {
                 // Create a handle to ECX
                 ControlUnit.RegisterHandle CountHandle = new ControlUnit.RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.DWORD);
@@ -239,7 +239,7 @@ namespace debugger.Emulator.Opcodes
                 // Initialise $Count to $ECX.               
                 uint Count = BitConverter.ToUInt32(CountHandle.FetchOnce(), 0);
                 for (; Count > 0; Count--)
-                {                    
+                {
                     OnExecute();
                     OnInitialise();
 
@@ -250,10 +250,10 @@ namespace debugger.Emulator.Opcodes
                     // If (REPNZ && ZF != 0) break;
                     if ((Settings | StringOpSettings.COMPARE) == Settings
                         && ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero != FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas=
-                           || (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && ControlUnit.Flags.Zero != FlagState.OFF))) 
+                           || (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && ControlUnit.Flags.Zero != FlagState.OFF)))
                     {
                         break;
-                    }           
+                    }
                 }
 
                 // Set $ECX to the new count. Once the instruction is completely exected(all REPs handled), $ECX will either be
@@ -263,7 +263,7 @@ namespace debugger.Emulator.Opcodes
 
             // If no REP prefix, the instruction can be executed as normal.
             else
-            {                
+            {
                 OnExecute();
             }
 
@@ -275,7 +275,7 @@ namespace debugger.Emulator.Opcodes
             if (Source.Code == XRegCode.SI)
             {
                 Source.Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? SrcPtr : (uint)SrcPtr));
-            }                     
+            }
         }
         protected abstract void OnInitialise();
         protected abstract void OnExecute();
@@ -285,9 +285,9 @@ namespace debugger.Emulator.Opcodes
             List<byte[]> Output = new List<byte[]>(2);
 
             // If the destination is DI, use it as an effective address.
-            if(Destination.Code == XRegCode.DI)
+            if (Destination.Code == XRegCode.DI)
             {
-                Output.Add(ControlUnit.Fetch(DestPtr, (int)Capacity));                
+                Output.Add(ControlUnit.Fetch(DestPtr, (int)Capacity));
             }
 
             // Otherwise add its value.
@@ -317,7 +317,7 @@ namespace debugger.Emulator.Opcodes
             // If the destination handle is to DI, it would be a pointer not the actual value of DI            
             if (Destination.Code == XRegCode.DI)
             {
-                ControlUnit.SetMemory(DestPtr, data);                
+                ControlUnit.SetMemory(DestPtr, data);
             }
 
             // Otherwise set the value of the register
@@ -325,6 +325,6 @@ namespace debugger.Emulator.Opcodes
             {
                 Destination.Set(data);
             }
-        } 
+        }
     }
 }

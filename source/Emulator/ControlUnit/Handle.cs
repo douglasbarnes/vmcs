@@ -18,40 +18,40 @@ namespace debugger.Emulator
         // An enum for defining the behaviour of a handle.
 
         // Run everything as on paper.
-        NONE=0,
+        NONE = 0,
 
         // Opcodes are not executed rather disassembled.
-        DISASSEMBLE=1,
+        DISASSEMBLE = 1,
 
         // JMP opcodes are ignored. More precisely, the instruction pointer can only be changed by the ControlUnit itself.
         // Used in conjunction with DISASSEMBLEMODE, but there may be a time when both behaviours need to be separated.
-        NOJMP=2,
+        NOJMP = 2,
 
         // The handle will ignore breakpoints set for the Context. Not very useful at the minute as the disassembler(which it is intended for) runs before any breakpoints are set,
         // however in the future a custom IO file format for loading contexts with breakpoints saved in them may find this useful. It will still return at the end of memory.
-        NOBREAK=4,
+        NOBREAK = 4,
     }
     public static partial class ControlUnit
-    {        
+    {
         public static bool IsBusy
         {
             // A thread safe property for knowing whether the ControlUnit is in use by another handle.
             // This is achieved through locking and therefore returning the thread constant value of $_busy.
             // This prevents other hypervisors from accidently taking over the control unit whilst another
             // hypervisor is using it.
-            get 
-            { 
-                lock (ControlUnitLock) 
-                { 
-                    return _busy; 
-                } 
+            get
+            {
+                lock (ControlUnitLock)
+                {
+                    return _busy;
+                }
             }
 
             private set
             {
-                lock(ControlUnitLock)
+                lock (ControlUnitLock)
                 {
-                     _busy = value;
+                    _busy = value;
                 }
             }
         }
@@ -74,18 +74,18 @@ namespace debugger.Emulator
             private static Dictionary<Handle, Context> StoredContexts = new Dictionary<Handle, Context>();
 
             private static int NextHandleID = 0;
-            private static int GetNextHandleID 
-            { 
+            private static int GetNextHandleID
+            {
                 // A private property for accessing $NextHandleID such that it is incremented every time to avoid Handle ID collisions.
-                get 
-                { 
-                    NextHandleID++; 
-                    return NextHandleID; 
-                } 
-                set 
-                { 
-                    NextHandleID = value; 
-                } 
+                get
+                {
+                    NextHandleID++;
+                    return NextHandleID;
+                }
+                set
+                {
+                    NextHandleID = value;
+                }
             }
             // Readonly variables that allow other classes to identify a handle and its behaviour.
             public readonly string HandleName;
@@ -119,9 +119,9 @@ namespace debugger.Emulator
             public static Context GetContextByID(int id)
             {
                 // Iterate through contexts searching for a particular id. Return null if not found.               
-                foreach(var KeyPair in StoredContexts)
+                foreach (var KeyPair in StoredContexts)
                 {
-                    if(KeyPair.Key.HandleID == id)
+                    if (KeyPair.Key.HandleID == id)
                     {
                         return KeyPair.Value;
                     }
@@ -157,5 +157,5 @@ namespace debugger.Emulator
             }
         }
     }
-   
+
 }

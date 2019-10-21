@@ -2,7 +2,7 @@
 // have large gaps in addresses. For example, by keeping the address map coherent with a collection, instead of having to search the whole collection
 // for a value, an address range can narrow that down immensively if used correctly. A collection can be coherent by keeping its ranges synchronised
 // with AddressRange using the AddRange() method. A simple example is with a dictionary. Assume a dictionary with AddressRange as the key type and ints
-// as the value. If I set the range 0x100<x<0x200 to a series of 0xAAs, instead of having to store 0xFF bytes of 0xAAs, it could just be the range 0x100<x<0x200
+// as the value. If I set the range 0x100<=x<0x200 to a series of 0xAAs, instead of having to store 0xFF bytes of 0xAAs, it could just be the range 0x100<x<0x200
 // and the value 0xAA. When using the binary search to access 0x120, the Index field of the output would say which index of the internal list to access to get 
 // its range(outside of the class it would be $AddressMap[$AddressRange]). Then the dictionary could be accessed with this range to get the corresponding byte.
 // As this struct was imported from another program of my own, it has a been adapted to fit a slightly different use case which is explained in Disassembler
@@ -11,9 +11,9 @@ using System;
 using System.Collections.Generic;
 
 namespace debugger.Emulator
-{      
+{
     public struct AddressRange
-    {        
+    {
         public readonly ulong Start;
         public readonly ulong End;
         public AddressRange(ulong start, ulong end)
@@ -39,7 +39,7 @@ namespace debugger.Emulator
                 ADJ_ABOVE = 1,
                 ADJ_BENEATH = 2,
                 OUT_OF_BOUNDS = 4,
-                PRESENT=8,
+                PRESENT = 8,
             }
 
             // The index of the result in the internal list
@@ -62,7 +62,7 @@ namespace debugger.Emulator
         public void AddRange(AddressRange range)
         {
             // If there are no existing ranges it is obvious where $range will go.
-            if(AddressRanges.Count == 0)
+            if (AddressRanges.Count == 0)
             {
                 AddressRanges.Add(range);
                 return;
@@ -70,7 +70,7 @@ namespace debugger.Emulator
 
             // Method to preserve the order of the address ranges, such that every value in AddressRange[x] is greater than AddressRange[x-1].
             // lower >= x < upper
-            BinarySearchResult Result = Search(range.Start);           
+            BinarySearchResult Result = Search(range.Start);
 
             // If the intersection of AddressRanges[index] and $range has a cardinality greater than 0, create a new range which is the union of AddressRanges[index] and $range.
             // This is because the two overlap, and so should be stored as one range rather than two.
@@ -148,7 +148,7 @@ namespace debugger.Emulator
             // $Present would indicate that $address is in no existing range, however if not in the above
             // category, would give the index where $address lies between, [lowerRange].End < $address < [upperRange].Start
             // If $Present is false, the index represents index that $address lies between.
-            
+
             // Exit early if possible.
             if (AddressRanges.Count == 0)
             {
@@ -156,7 +156,7 @@ namespace debugger.Emulator
             }
 
             // Start at the middle index(-1 because indexes start at 0)
-            int index = (AddressRanges.Count-1) / 2;
+            int index = (AddressRanges.Count - 1) / 2;
 
             // It is certain that this will not loop ad infinitum. This is because the condition element of this while was just moved inside the loop
             // Normally I would hate this kind of design, but it actually makes it really clear what its doing(see ahead).
@@ -217,7 +217,7 @@ namespace debugger.Emulator
 
                     return new BinarySearchResult(index, info);
                 }
-            }            
+            }
         }
         private BinarySearchResult.ResultInfo DetermineAdjacency(ulong address, int index)
         {
@@ -225,13 +225,13 @@ namespace debugger.Emulator
             BinarySearchResult.ResultInfo Output = 0;
 
             // If the address +1 is the start of the next, it is adjacent to the above.
-            if(index < AddressRanges.Count && address + 1 == AddressRanges[index].Start)
+            if (index < AddressRanges.Count && address + 1 == AddressRanges[index].Start)
             {
                 Output |= BinarySearchResult.ResultInfo.ADJ_ABOVE;
             }
 
             // If the address is the end of the range beneath, it is adjacent to it(as .End is exclusive).
-            if(index > 0 && address == AddressRanges[index - 1].End)
+            if (index > 0 && address == AddressRanges[index - 1].End)
             {
                 Output |= BinarySearchResult.ResultInfo.ADJ_BENEATH;
             }

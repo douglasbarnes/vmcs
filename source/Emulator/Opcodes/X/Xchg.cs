@@ -10,7 +10,7 @@ namespace debugger.Emulator.Opcodes
         {
             DestSource = Fetch();
             Input = input;
-        } 
+        }
         public override void Execute()
         {
             Set(DestSource[1]);

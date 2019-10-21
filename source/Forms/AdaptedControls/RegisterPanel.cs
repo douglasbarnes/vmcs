@@ -17,12 +17,12 @@
 //    $RAX would not need to be seen. The user would be able to interpret the value of this number as it is easy to get confused when looking at
 //    a screen full of numbers. (This is better explained through the upcoming demonstration)
 // Here are some annotated examples, http://prntscr.com/pk8trk http://prntscr.com/pk94n3
-using System;
-using System.Drawing;
-using System.Windows.Forms;
-using System.Collections.Generic;
 using debugger.Emulator;
 using debugger.Util;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Windows.Forms;
 namespace debugger.Forms
 {
     public class RegisterPanel : BorderedPanel
@@ -54,7 +54,7 @@ namespace debugger.Forms
             new RegisterLabel(),
             new RegisterLabel()
         };
-        
+
         // $RegSize dictates the size of register to be displayed
         public int RegSize { get; private set; } = 8;
         public delegate void RegSizeChangedDelegate(int newSize);
@@ -75,9 +75,9 @@ namespace debugger.Forms
 
                 // Add this event to all registers. This is because the on click events for the panel will not be called if the click was on a child control.
                 // The intention is to have any double click in the area of the panel to call NextRegSize().
-                RegisterLabels[i].MouseDoubleClick += (s,a) => NextRegSize();
+                RegisterLabels[i].MouseDoubleClick += (s, a) => NextRegSize();
             }
-        }        
+        }
         public void UpdateRegisters(Dictionary<string, ulong> inputRegs)
         {
             // A necessary precondition of the input is that the keys were added in order of register, RIP being the first.
@@ -87,24 +87,25 @@ namespace debugger.Forms
             int RegLabelIndex = 0;
 
             foreach (var Register in inputRegs)
-            {                
+            {
                 // A string that will hold the value to set the register's text to.
                 string FormattedValue;
 
                 // If the register is an upper byte register it must be handled differently
-                if(RegSize == 1 && RegisterLabels[RegLabelIndex].ShowUpper)
+                if (RegSize == 1 && RegisterLabels[RegLabelIndex].ShowUpper)
                 {
                     // Fetch the value of the upper byte register it corresponds to by subtracting one(because of RIP). This value is fetched by disassembling the new register handle, 
                     // disassembling it and finding its index in the input dictionary then taking that value.
-                    byte TargetValue = 
-                        (byte)(inputRegs[new ControlUnit.RegisterHandle((XRegCode)RegLabelIndex-1, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_REX).DisassembleOnce()]);
+                    byte TargetValue =
+                        (byte)(inputRegs[new ControlUnit.RegisterHandle((XRegCode)RegLabelIndex - 1, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_REX).DisassembleOnce()]);
 
                     // Add the 00 at the end to make it look like the upper bytes(even though $TargetValue only being a byte).
                     FormattedValue = $"0x{TargetValue.ToString("X").PadLeft(14, '0')}00";
 
                     // Less emphasis if the value is zero.
-                    if (TargetValue > 0) { 
-                        FormattedValue = FormattedValue.Insert(16, "%").Insert(14, "%").Insert(0, "%"); 
+                    if (TargetValue > 0)
+                    {
+                        FormattedValue = FormattedValue.Insert(16, "%").Insert(14, "%").Insert(0, "%");
                     }
                     else
                     {
@@ -140,7 +141,7 @@ namespace debugger.Forms
                             // Start at offset 2 to ignore the "0x"
                             FormattedValue = Drawing.InsertAtNonZero(FormattedValue, "$%", 2).Insert(2 + 16 - (RegSize * 2), "$").Insert(0, "%");
                         }
-                    }                    
+                    }
                 }
 
                 // Pad the mnemonic such that all registers are visually in line with each other.
@@ -150,7 +151,7 @@ namespace debugger.Forms
                 RegLabelIndex++;
             }
         }
-        
+
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             NextRegSize();

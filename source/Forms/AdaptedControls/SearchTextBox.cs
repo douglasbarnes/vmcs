@@ -31,7 +31,7 @@ namespace debugger.Forms
         {
             // This will redraw the searchbox with the new text.
             base.OnTextChanged(e);
-            
+
             // Only display results when the input length is greater than one to narrow the search.
             if (Input.Length > 1)
             {
@@ -55,7 +55,7 @@ namespace debugger.Forms
                                 // If you cannot open the video, all that happens is the search results appear in the top left corner of the screen. Yes, the screen
                                 // not even the window. 
                                 if (DropDown.Items.Count == ResultCount)
-                                {                                    
+                                {
                                     // Create a new menu item to be placed
                                     var ToAdd = new ThemedToolStripMenuItem() { Text = ToSearch[i] };
 
@@ -69,7 +69,7 @@ namespace debugger.Forms
                                     // Change the text to the new search result.
                                     DropDown.Items[ResultCount].Text = ToSearch[i];
                                 }
-                                
+
                             }
                         }
                     }

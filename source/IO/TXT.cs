@@ -8,8 +8,8 @@
 //  -Other byte representations can be used, for example C style hex bytes, \x00\xC0\x90
 //  -The scope of invalid bytes poisoning the valid data is low, as only 0-9 and A-F will be considered valid.
 // Exact details of what happens in the case of invalid input can be found in Core.TryParseHex()
-using System.IO;
 using debugger.Logging;
+using System.IO;
 namespace debugger.IO
 {
     public class TXT : IMyExecutable
@@ -18,13 +18,13 @@ namespace debugger.IO
         public static TXT Parse(FileStream reader)
         {
             // Read all of the file into FileBytes.
-            reader.Seek(0, SeekOrigin.Begin);                      
+            reader.Seek(0, SeekOrigin.Begin);
 
             // Make sure FileBytes[] has an even length, but not necessarily $reader.Length aswell. Essentially this rounds $FileBytes.Length
             // up to the nearest multiple of two.
             byte[] FileBytes = new byte[reader.Length / 2 + reader.Length % 2];
             reader.Read(FileBytes, 0, (int)reader.Length);
-            return Parse(FileBytes);  
+            return Parse(FileBytes);
         }
 
         public static TXT Parse(byte[] encoded_bytes)

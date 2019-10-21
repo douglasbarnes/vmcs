@@ -4,20 +4,20 @@
 // must be reset. By using these routines it is certain that there will be no problems with the order of executed. There are
 // also necessary tasks that must be performed after the VM finishes execution. To allow this to work asynchrously, events and
 // callbacks are used to handle the completion of another thread.
+using debugger.Emulator;
+using debugger.Forms;
+using debugger.Hypervisor;
+using debugger.IO;
+using debugger.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
-using System.Diagnostics;
-using debugger.IO;
-using debugger.Hypervisor;
-using debugger.Emulator;
-using debugger.Forms;
-using debugger.Logging;
 namespace debugger
-{  
+{
     public partial class MainForm : Form
     {
         private VM VMInstance;
@@ -25,7 +25,7 @@ namespace debugger
         private Disassembler DisassemblerInstance;
 
         public MainForm()
-        {            
+        {
             // Beware removing this line. Very odd things will happen to the layout.
             Font = FormSettings.BaseUI.BaseFont;
 
@@ -53,7 +53,7 @@ namespace debugger
             ForeColor = FormSettings.BaseUI.SurfaceColour;
             BackColor = FormSettings.BaseUI.BackgroundColour;
         }
-        
+
         private void Form1_Load(object sender, EventArgs e)
         {
             // When the VM finishes running, refresh.
@@ -74,15 +74,15 @@ namespace debugger
             FileParser parser;
             try
             {
-                parser = new FileParser(new FileInfo(path));                
+                parser = new FileParser(new FileInfo(path));
             }
             catch (ArgumentException)
             {
                 Logger.Log(LogCode.IO_INVALIDFILE, "Bad path");
                 return;
             }
-                        
-            
+
+
             byte[] Instructions;
 
             // Opening a file will by default use auto parse mode.
@@ -92,13 +92,13 @@ namespace debugger
                 //  1. Parse it as a BIN file
                 //  2. Parse it as a TXT file.
                 //  3. Cancel
-                switch(MessageBox.Show("Press yes to parse as a BIN file, no to parse as a TXT file, or cancel to go back to the program.", "File type cannot be inferred", MessageBoxButtons.YesNoCancel))
+                switch (MessageBox.Show("Press yes to parse as a BIN file, no to parse as a TXT file, or cancel to go back to the program.", "File type cannot be inferred", MessageBoxButtons.YesNoCancel))
                 {
                     case DialogResult.Yes:
                         parser.Parse(ParseMode.BIN, out Instructions);
                         break;
                     case DialogResult.No:
-                        if(parser.Parse(ParseMode.TXT, out Instructions) != ParseResult.SUCCESS)
+                        if (parser.Parse(ParseMode.TXT, out Instructions) != ParseResult.SUCCESS)
                         {
                             // This is already handled in the TXT class, but don't commit the changes to the VM if it was unsuccessful.
                             return;
@@ -131,8 +131,8 @@ namespace debugger
             if (VMInstance.Ready)
             {
                 // Check the text of the sender to see if it Step and tell continue to step if so.
-                VMContinue(((Control)sender).Text == "Step"); 
-            }            
+                VMContinue(((Control)sender).Text == "Step");
+            }
         }
         private void VMContinue(bool Step)
         {
@@ -146,16 +146,16 @@ namespace debugger
             PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(VMInstance.GetRegisters((RegisterCapacity)size))));
         }
         private void RefreshFlags()
-        {            
+        {
             // Fetch flags from the VM and apply them to PanelFlags.
-            PanelFlags.Invoke(new Action(() => PanelFlags.UpdateFlags(VMInstance.GetFlags())));          
-        } 
+            PanelFlags.Invoke(new Action(() => PanelFlags.UpdateFlags(VMInstance.GetFlags())));
+        }
         private void RefreshMemory()
         {
             // Load the memory into the memory list view.
             MemoryViewer.LoadMemory(VMInstance.GetMemory());
         }
-        
+
         private void RefreshCallback()
         {
             // All the necessary tasks that need to be done in order to update the user interface with updated information
@@ -170,7 +170,7 @@ namespace debugger
 
             // Start all the tasks concurrently.
             RefreshTasks.ForEach(x => x.Start());
-        }  
+        }
         private const string ResultOutputPath = "Results\\";
         private void OnTestcaseSelected(string name)
         {
@@ -199,11 +199,12 @@ namespace debugger
                     // (The value of result will be Passed or Failed).
                     MessageBox.Show("Results written to " + ResultOutputPath + "AllTestcases.xml", Result.Attribute("result").Value);
                 });
-            } else
+            }
+            else
             {
                 // See above
                 Task.Run(async () =>
-                {                    
+                {
                     // Execute the testcase by the given name.
                     Result = await TestHandler.ExecuteTestcase(name);
 
@@ -218,8 +219,8 @@ namespace debugger
                     }
                 });
             }
-                       
+
         }
         private void Reset_Click(object sender, EventArgs e) => ReflashVM();
-    }   
+    }
 }

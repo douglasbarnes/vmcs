@@ -1,13 +1,12 @@
-﻿using System.Collections.Generic;
-using debugger.Emulator.DecodedTypes;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 namespace debugger.Emulator.Opcodes
 {
     public class Cmps : StringOperation
     {
         private FlagSet Result;
         public Cmps(StringOpSettings settings = StringOpSettings.NONE)
-            : base("CMPS", XRegCode.DI, XRegCode.SI, settings | StringOpSettings.COMPARE) {  }
+            : base("CMPS", XRegCode.DI, XRegCode.SI, settings | StringOpSettings.COMPARE) { }
         protected override void OnInitialise()
         {
             List<byte[]> DestSource = Fetch();

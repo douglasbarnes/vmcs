@@ -2,9 +2,9 @@
 // there was always a problem somewhere down the line because of it. Now that they are thoroughly tested, they can be forgotten about as they serve their intended purpose.
 // Internally it is just a cleverly handled jagged array, which is referenced using the numerical values of RegisterTable and XRegCode enum entries. RegisterCapacity is only
 // used to be strict on the setting of registers. 
+using debugger.Util;
 using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator
 {
     public enum XRegCode
@@ -34,14 +34,14 @@ namespace debugger.Emulator
         // Each table holds 16 different registers, or 0x10 in hex. This is why the each table has a
         // value increasing by 16 each time, so a register internally can be accessed just by
         // $RegisterTable + $XRegCode
-        GP=0,
-        MMX=0x10,
-        SSE=0x20,
+        GP = 0,
+        MMX = 0x10,
+        SSE = 0x20,
     }
     public enum RegisterCapacity
     {
         // This enum defines all accepted register capacities in the program. 
-        
+
         // NONE is used to indicate an error.
         NONE = 0,
         // AL, CL etc
@@ -58,7 +58,7 @@ namespace debugger.Emulator
         M256 = 32,
     }
     public class RegisterGroup
-    {        
+    {
         private readonly byte[][] Registers = new byte[][] {
             //   A           C           D           B          SP          BP          SI          DI
             //  R8          R9          R10         R11         R12         R13         R14         R15 
@@ -67,13 +67,13 @@ namespace debugger.Emulator
             //  YMM0        YMM1        YMM2        YMM3        YMM4        YMM5        YMM6        YMM6 <-- XMM registers are the lower half of these
 
             new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],
-            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], 
-            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8], 
-            null,       null,       null,       null,       null,       null,       null,       null,        
-            new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32], 
+            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],
+            new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],new byte[8],
+            null,       null,       null,       null,       null,       null,       null,       null,
+            new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],
             new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],new byte[32],
         };
-        private void InitialiseMMX() 
+        private void InitialiseMMX()
         {
             // Point all registers in the MMX table above 8(MM7) to $i-8
             for (int i = 0; i < 8; i++)
@@ -98,9 +98,9 @@ namespace debugger.Emulator
                 // Without $i < $Register.Value.Length, there would be an error if the value did not have atleast 8 bytes, because $Register.Value[i] would try to access that index.
                 // Without $i < 8, there would be an error if the value had more than 8 bytes, because $Registers[(int)Register.Key)[i] only has 8 bytes.
                 for (int i = 0; i < 8 && i < Register.Value.Length; i++)
-                {                       
+                {
                     Registers[(int)Register.Key][i] = Register.Value[i];
-                }                
+                }
             }
         }
         public RegisterGroup(Dictionary<XRegCode, ulong> registers)
@@ -135,7 +135,7 @@ namespace debugger.Emulator
             for (int i = 0; i < toClone.Registers.Length; i++)
             {
                 Registers[i] = toClone.Registers[i].DeepCopy();
-            }            
+            }
         }
         public RegisterGroup DeepCopy() => new RegisterGroup(this);
         public byte[] this[RegisterTable table, RegisterCapacity cap, XRegCode register]
@@ -143,25 +143,26 @@ namespace debugger.Emulator
             // An easy way to fetch a register given its information.
             // Returns a byte[] of length $cap consisting of the bottom $cap bytes of $Registers[$table+$register]
             // Access to upper byte registers such as AH can be done artifically by fetching AX then using $AX[1] as the upper byte.
-            get {
+            get
+            {
                 byte[] Output = new byte[(int)cap];
                 for (int i = 0; i < Output.Length; i++)
                 {
-                   Output[i] = Registers[(int)register+(int)table][i];
+                    Output[i] = Registers[(int)register + (int)table][i];
                 }
                 return Output;
             }
             set
             {
                 // If the length of the input byte array is greater than the capacity, data would be lost. Something wrong here would most likely be on my part.
-                if(value.Length > ((int)cap))
-                {                   
+                if (value.Length > ((int)cap))
+                {
                     throw new Exception("RegisterGroup.cs Attempt to overflow register in base class");
                 }
                 // Overwrite the bytes in $Registers[] with $value[]
                 for (int i = 0; i < value.Length; i++)
                 {
-                    Registers[(int)register+(int)table][i] = value[i];
+                    Registers[(int)register + (int)table][i] = value[i];
                 }
             }
         }

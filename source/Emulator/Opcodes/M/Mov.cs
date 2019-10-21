@@ -8,8 +8,8 @@ namespace debugger.Emulator.Opcodes
         public Mov(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("MOV", input, settings)
         {
             List<byte[]> Operands = Fetch();
-            SourceBytes = Operands[Operands.Count-1];
-        } 
+            SourceBytes = Operands[Operands.Count - 1];
+        }
         public override void Execute()
         {
             Set(SourceBytes);

@@ -23,18 +23,17 @@
 // the extended table contains the extra opcode information in the following ModRM byte, but the two byte table requires a 0x0F byte to be read before the opcode to tell the processor that the
 // other table should be used. Because of this, less common opcodes are pushed to the two byte table. Extended opcodes forfeit the source(reg bits) of their ModRM byte to allow one byte to
 // represent up to 8 different opcodes(although all 8 are rarely used)
-using System.Collections.Generic;
-using debugger.Emulator.Opcodes;
 using debugger.Emulator.DecodedTypes;
-
+using debugger.Emulator.Opcodes;
+using System.Collections.Generic;
 using static debugger.Emulator.Opcodes.OpcodeSettings;
 namespace debugger.Emulator
 {
     public static partial class ControlUnit
-    {        
+    {
         private enum AlternativeTable
         {
-            EXTENDED=1,
+            EXTENDED = 1,
         }
         private delegate IMyOpcode OpcodeCaller();
         private delegate IMyOpcode AlternateTableCaller(byte input);
@@ -114,7 +113,7 @@ namespace debugger.Emulator
                   { 0x5E, () => new Pop (new RegisterHandle(XRegCode.SI, RegisterTable.GP)) },
                   { 0x5F, () => new Pop (new RegisterHandle(XRegCode.DI, RegisterTable.GP)) },
                   { 0x63, () => new Movx(new ModRM(FetchNext(), ModRMSettings.SWAP), "MOVSXD", signExtend:true, RegisterCapacity.DWORD) },
-                  { 0x68, () => new Push(new Immediate()) }, 
+                  { 0x68, () => new Push(new Immediate()) },
                   { 0x69, () => new  Mul(new ModRM(FetchNext(), ModRMSettings.SWAP), SIGNED) },
                   { 0x6A, () => new Push(new Immediate(ImmediateSettings.SXTBYTE)) },
                   { 0x6B, () => new  Mul(new DecodedCompound(new ModRM(FetchNext(), ModRMSettings.SWAP), new Immediate(ImmediateSettings.SXTBYTE)), SIGNED) },
@@ -195,11 +194,11 @@ namespace debugger.Emulator
                   { 0xC1, () => AlternateTableMap[AlternativeTable.EXTENDED](0xC1) },
                   { 0xC2, () => new Ret(new Immediate()) },
                   { 0xC3, () => new Ret(new NoOperands()) },
-                  
+
                   { 0xC6, () => new Mov(new DecodedCompound(new ModRM(FetchNext(), ModRMSettings.EXTENDED), new Immediate()), BYTEMODE)},
                   { 0xC7, () => new Movx(new DecodedCompound(new ModRM(FetchNext(), ModRMSettings.EXTENDED), new Immediate()), "MOV", true, RegisterCapacity.QWORD)},
 
-                  
+
 
                   { 0xD0, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD0) },
                   { 0xD1, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD1) },
@@ -207,7 +206,7 @@ namespace debugger.Emulator
                   { 0xD3, () => AlternateTableMap[AlternativeTable.EXTENDED](0xD3) },
 
                   { 0xE3, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE | ImmediateSettings.SXTBYTE), Condition.RCXZ) },
-                  
+
                   { 0xE8, () => new Call(new Immediate(ImmediateSettings.RELATIVE)) },
                   { 0xE9, () => new Jmp(new Immediate(ImmediateSettings.RELATIVE), dwordOnly:true) },
 
@@ -281,7 +280,7 @@ namespace debugger.Emulator
                 { 3, (InputModRM) => new Sub(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE, UseBorrow: true) },
                 { 4, (InputModRM) => new And(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE)},
                 { 5, (InputModRM) => new Sub(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE, UseBorrow: false) } ,
-                { 6, (InputModRM) => new Xor(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE) }, 
+                { 6, (InputModRM) => new Xor(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE) },
                 { 7, (InputModRM) => new Cmp(new DecodedCompound(InputModRM, new Immediate()), BYTEMODE) },
             }
             },
@@ -364,7 +363,7 @@ namespace debugger.Emulator
                 { 3, (InputModRM) => new Rxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), useCarry:true, BYTEMODE) },
                 { 4, (InputModRM) => new Shl(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), BYTEMODE) },
                 { 5, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:false, BYTEMODE) },
-                                                                            
+
                 { 7, (InputModRM) => new Sxr(new DecodedCompound(InputModRM, new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_INIT)), arithmetic:true, BYTEMODE) },
             }
             },
@@ -414,8 +413,8 @@ namespace debugger.Emulator
                 { 4, (InputModRM) => new Jmp(InputModRM) },
                 { 6, (InputModRM) => new Push(InputModRM) }
             }
-            }            
-            
+            }
+
         };
         //byte = opcode, Dict<byte = displacement(increment doesnt matter), action = thing to do>
         // opcodes with one operand e.g inc eax (increment eax) don't use the REG bits in modRM, so the regbits can be used to make extra instructions instead
@@ -433,7 +432,7 @@ namespace debugger.Emulator
             else
             {
                 return ExtendedOpcodeTable[opcode][(int)InputModRM.Source.Code](InputModRM);
-            }            
+            }
         }
     }
 }

@@ -14,10 +14,10 @@
 //  gcc file.o -o file.out -static 
 // then jump over any calls.
 // If you notice instructions that use absolute addressing changing when viewed in the program, use the gcc command with "-no-pie" to prevent them being changed to RIP rel when linked.
-using System;
-using System.IO;
 using debugger.Logging;
 using debugger.Util;
+using System;
+using System.IO;
 namespace debugger.IO
 {
     public class ELF : IMyExecutable
@@ -31,7 +31,7 @@ namespace debugger.IO
         private ushort SHStrIndex;
         public byte[] Instructions { get; private set; }
         public static ELF Parse(FileStream reader)
-        {                        
+        {
             ELF ParsedElf;
 
             // Check if the length is less than the minimum acceptable.
@@ -46,7 +46,7 @@ namespace debugger.IO
             reader.Seek(4, SeekOrigin.Begin);
             byte[] Elf_class = new byte[1];
             reader.Read(Elf_class, 0, 1);
-          
+
             // Read and parse the rest of the header.
             // All bytes are offset slightly because 5 bytes(magic bytes + class) have already been parsed.
             // The offsets differ between elf32 and elf64 because addresses in elf64 must be 8 bytes; 4 bytes in elf32.
@@ -59,7 +59,7 @@ namespace debugger.IO
                     ParsedElf = new ELF()
                     {
                         Class = 32,
-                        
+
                         // The address of the section header table.
                         SHOffset = BitConverter.ToUInt32(FileHeader, 0x20 - 0x05),
 
@@ -71,19 +71,19 @@ namespace debugger.IO
 
                         // The index of the section header containing the string names of all other sections in the section header table.
                         SHStrIndex = BitConverter.ToUInt16(FileHeader, 0x32 - 0x05)
-                    }; 
+                    };
                     break;
                 case 0x02:
                     FileHeader = new byte[0x40 - 0x05];
                     reader.Read(FileHeader, 0, FileHeader.Length);
                     ParsedElf = new ELF()
                     {
-                        Class = 64,                        
+                        Class = 64,
                         SHOffset = BitConverter.ToUInt64(FileHeader, 0x28 - 0x05),
                         SHLength = BitConverter.ToUInt16(FileHeader, 0x3A - 0x05),
                         SHCount = BitConverter.ToUInt16(FileHeader, 0x3C - 0x05),
                         SHStrIndex = BitConverter.ToUInt16(FileHeader, 0x3E - 0x05)
-                    };                    
+                    };
                     break;
                 default:
                     Logger.Log(LogCode.IO_INVALIDFILE, "Invalid class byte in ELF header");
@@ -91,7 +91,7 @@ namespace debugger.IO
             };
 
             // Make sure ELF uses x86-x
-            if(FileHeader[0xD] != 0x03 && FileHeader[0xD] != 0x3E)
+            if (FileHeader[0xD] != 0x03 && FileHeader[0xD] != 0x3E)
             {
                 Logger.Log(LogCode.IO_INVALIDFILE, "Input elf does not use the x86 instruction set");
                 return null;
@@ -106,7 +106,7 @@ namespace debugger.IO
             // Read the entire SH table into $SHTable.
             reader.Read(SHTable, 0, ParsedElf.SHLength * ParsedElf.SHCount);
 
-         
+
             // Use cut and subarray to cut out the shstrtab(section header string table; section that points to text names) from the SH table.
             // Subarray cuts out the preceeding tables. The length of which is the number of tables before shstrtab(which happens to be the index of shstrtab) multiplied by
             // the length of each table.
@@ -125,10 +125,10 @@ namespace debugger.IO
                 StrtabSize = BitConverter.ToInt32(SHstrtab, 0x20);
                 reader.Seek(BitConverter.ToUInt32(SHstrtab, 0x18), SeekOrigin.Begin);
             }
-            
-            
+
+
             byte[] strtab = new byte[StrtabSize];
-            
+
             reader.Read(strtab, 0, StrtabSize);
             // Read sh_name from every section in shtab and check if the offset($shstrtab + $offset = target) is the string ".text".
             // .text is holds the user code and therefore is the only section this program cares about.
@@ -137,7 +137,7 @@ namespace debugger.IO
             {
                 if (ReadString(strtab, BitConverter.ToUInt32(SHTable, i * ParsedElf.SHLength)) == ".text")
                 {
-                    if(ParsedElf.Class == 32)
+                    if (ParsedElf.Class == 32)
                     {
                         // Store the EntryPoint(in the file not when in memory) and TextLength(length of the
                         // code in bytes) in the elf object.
@@ -151,7 +151,7 @@ namespace debugger.IO
                     }
                     break;
                 }
-                else if(i + 1 == ParsedElf.SHCount)
+                else if (i + 1 == ParsedElf.SHCount)
                 {
                     Logger.Log(LogCode.IO_INVALIDFILE, "ELF File had no .text section");
                     return null;
@@ -171,7 +171,7 @@ namespace debugger.IO
             for (uint i = offset; i < strtab.Length; i++)
             {
                 // Check if the current byte is a null(the end of a string) and break if it is
-                if(strtab[i] == 0x00)
+                if (strtab[i] == 0x00)
                 {
                     break;
                 }

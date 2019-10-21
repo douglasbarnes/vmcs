@@ -10,8 +10,8 @@ namespace debugger.Forms
         private void RefreshPosition()
         {
             // Calculate the sum of widths of all items on the menu bar.
-            int WidthSum = 0;            
-            for (int i = 0; i <= Parent.Items.Count-1; i++)
+            int WidthSum = 0;
+            for (int i = 0; i <= Parent.Items.Count - 1; i++)
             {
                 WidthSum += Parent.Items[i].Width;
             }
@@ -20,7 +20,7 @@ namespace debugger.Forms
             Margin = new Padding(Parent.Width - WidthSum - 4, 0, Parent.Width - WidthSum, 0);
         }
         protected override void OnParentChanged(ToolStrip oldParent, ToolStrip newParent)
-        {            
+        {
             base.OnParentChanged(oldParent, newParent);
 
             // Refresh position when added to a new menu. Strange behaviour when closing the application
@@ -29,7 +29,7 @@ namespace debugger.Forms
             {
                 RefreshPosition();
             }
-            
+
         }
 
     }

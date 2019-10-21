@@ -3,8 +3,8 @@
     public class Stc : Opcode
     {
         public Stc(DecodedTypes.NoOperands input, OpcodeSettings settings = OpcodeSettings.NONE) : base("STC", input, settings)
-        {            
-        } 
+        {
+        }
         public override void Execute()
         {
             ControlUnit.SetFlags(new FlagSet() { Carry = FlagState.ON });
@@ -28,7 +28,7 @@
         }
         public override void Execute()
         {
-            ControlUnit.SetFlags(new FlagSet() { Carry = (ControlUnit.Flags.Carry == FlagState.ON) ? FlagState.OFF: FlagState.ON });
+            ControlUnit.SetFlags(new FlagSet() { Carry = (ControlUnit.Flags.Carry == FlagState.ON) ? FlagState.OFF : FlagState.ON });
         }
     }
 }

@@ -13,9 +13,9 @@
 // the concept I previously explained. Any other method of doing this turns into a hacky and inefficient mess. If you want to see that, look at commits from
 // before October 9th 2019. So long as these concepts are followed and understood, this class is simple to work with and understand. The dependency between
 // this class and Disassembler is probably the greatest seen throughout the program, but as will be demonstrated it definitely carries its own weight.
-using System.Windows.Forms;
-using System.Drawing;
 using debugger.Util;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Hypervisor.Disassembler;
 namespace debugger.Forms
 {
@@ -27,7 +27,7 @@ namespace debugger.Forms
         // Delegate and event for when an address is clicked. In the current MainForm, this sets a breakpoint.
         public delegate void OnAddressClickedDelegate(ulong address);
         public event OnAddressClickedDelegate OnAddressClicked = (a) => { };
-        public DisassemblyListView(ListeningDict<Emulator.AddressRange, ListeningList<ParsedLine>> parsedLines, Size size) 
+        public DisassemblyListView(ListeningDict<Emulator.AddressRange, ListeningList<ParsedLine>> parsedLines, Size size)
             : base(Layer.Imminent, Emphasis.High, Emphasis.Medium)
         {
             SelectedIndexChanged += (s, a) =>
@@ -58,7 +58,7 @@ namespace debugger.Forms
             // This is a kind of best-effort thing. Sometimes it will allow multiple selection regardless. All is out of my control, but OnAddressClicked can be
             // used to work around it.
             MultiSelect = false;
-            
+
             Size = size;
 
             // Setting the column size to the width of the control and shortening it slightly prevents the border from being cropped. 
@@ -70,21 +70,21 @@ namespace debugger.Forms
             ParsedLines.OnClear += () => Items.Clear();
         }
         private void AddNewLines(ListeningList<ParsedLine> lines)
-        {           
+        {
             // Format each struct in the input and set its index to where it is in the items of this control. This makes
             // life easier later.
             for (int i = 0; i < lines.Count; i++)
             {
-                lines[i] = new ParsedLine(lines[i]) { Index = Items.Count };                
+                lines[i] = new ParsedLine(lines[i]) { Index = Items.Count };
                 FormatAndApply(lines[i]);
             }
 
             // Update the lines automatically later.
-            lines.OnSet += (line,index) => FormatAndApply(line);
-            lines.OnAdd += (line,index) => FormatAndApply(line);
+            lines.OnSet += (line, index) => FormatAndApply(line);
+            lines.OnAdd += (line, index) => FormatAndApply(line);
         }
         private void FormatAndApply(ParsedLine line)
-        {            
+        {
             // Parse the address as hex.
             string FormattedAddress = line.Address.ToString("X").PadLeft(16, '0');
 
@@ -98,7 +98,7 @@ namespace debugger.Forms
                 // Use Drawing.InsertAt..() to remove emphasis from insignificant zeroes. This is done by starting
                 // with a low emphasis, "$" then inserting the normal emphasis, "£" at the significant digits.
                 FormattedAddress = $"%0x%${Drawing.InsertAtNonZero(FormattedAddress, "£")}\"";
-            }            
+            }
 
             // Add some spacing between the address and disassembled line.
             FormattedAddress = $"{FormattedAddress}                  {line.DisassembledLine}";

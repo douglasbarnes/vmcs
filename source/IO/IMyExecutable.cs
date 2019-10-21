@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace debugger.IO
+﻿namespace debugger.IO
 {
     public interface IMyExecutable
     {

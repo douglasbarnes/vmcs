@@ -1,14 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// ControlUnit is the core of the lower layers of the program. It essentially provides the interface for memory, registers, and flags to
+// communicate with opcodes. It also innately provdes disassembly for each instruction, see Handle. It also applies standard x86-64
+// convention to read instructions, and parses them as a real processor would itself. This behaviour has been tested rigorously and passes
+// a series of testcases that prove its functionality matches that of a target processor(a processor that uses the May 2019 specification for
+// x86-64 processors). 
 using debugger.Emulator.Opcodes;
+using System;
+using System.Collections.Generic;
 namespace debugger.Emulator
 {
     public enum AddressInfo
     {
-        NONE=0,
-        RIP=1,
-        BREAKPOINT=2,
-        BAD=4,
+        NONE = 0,
+        RIP = 1,
+        BREAKPOINT = 2,
+        BAD = 4,
     }
     public struct DisassembledLine
     {
@@ -42,18 +47,18 @@ namespace debugger.Emulator
         ADDROVR = 0x67,
         SIZEOVR = 0x66,
         LOCK = 0xF0,
-        REPNZ =0xF2,
-        REPZ =0XF3,
+        REPNZ = 0xF2,
+        REPZ = 0XF3,
     }
     [Flags]
     public enum REX
     {
-        NONE=0,
-        EMPTY=1,
-        B=2,
-        X=4,
-        R=8,
-        W=16
+        NONE = 0,
+        EMPTY = 1,
+        B = 2,
+        X = 4,
+        R = 8,
+        W = 16
     }
     public struct Register
     {
@@ -75,7 +80,7 @@ namespace debugger.Emulator
             // be present when certain ones are.
             private static readonly PrefixByte[] Prefixes = new PrefixByte[4];
             private static int DetermineIndex(PrefixByte input)
-            {                
+            {
                 if (input == PrefixByte.ADDROVR)       //
                 {                                      //
                     return 3;                          // ADDROVR and SIZEOVR are completely independent of any other prefix
@@ -93,7 +98,7 @@ namespace debugger.Emulator
                     return 0;
                 }
             }
-            public static PrefixByte GetGroup(int group) => Prefixes[group-1];            
+            public static PrefixByte GetGroup(int group) => Prefixes[group - 1];
             public static void Add(PrefixByte input)
             {
                 Prefixes[DetermineIndex(input)] = input; // Take the most recent definition for that prefix index, be it the first or hundreth.
@@ -111,12 +116,14 @@ namespace debugger.Emulator
                                                        input == (byte)PrefixByte.LOCK ||
                                                        input == (byte)PrefixByte.REPNZ ||
                                                        input == (byte)PrefixByte.REPZ;
-            public static byte Count { get
+            public static byte Count
+            {
+                get
                 {
                     byte count = 0;
                     for (int i = 0; i < Prefixes.Length; i++)
                     {
-                        if(Prefixes[i] != 0)
+                        if (Prefixes[i] != 0)
                         {
                             count++;
                         }
@@ -146,13 +153,13 @@ namespace debugger.Emulator
             List<DisassembledLine> DisassemblyBuffer = new List<DisassembledLine>(); ;
 
             while (CurrentContext.InstructionPointer < CurrentContext.Memory.End)
-            {              
+            {
 
                 // Fetch next instruction.
                 byte Fetched = FetchNext();
 
                 // Check if what was fetched is a prefix
-                if (LPrefixBuffer.IsPrefix(Fetched)) 
+                if (LPrefixBuffer.IsPrefix(Fetched))
                 {
                     LPrefixBuffer.Add((PrefixByte)Fetched);
                 }
@@ -231,21 +238,21 @@ namespace debugger.Emulator
                     //         49 B8 00                 mov r8, rax // Rex.WB [1001](Rex.W promotes all operands)
                     //         46 89 04 00              mov [r8*1+rax], r8d // Rex.RX [0110] 
                     //         4F 89 04 00              mov [r8*1+r8],  r8 // Rex.WRXB [1111]                 
-                    if (Fetched >= 0x40 && Fetched < 0x50) 
+                    if (Fetched >= 0x40 && Fetched < 0x50)
                     {
                         // This assignment does two things,
                         //  1. Mask out the upper values representing the 0x40 because I've already identified it's a REX byte, I don't need them any more
                         //  2. Shift the masked byte left once. This allows the enum to differentiate between an empty rex and no rex at all. An empty rex
                         //     being a rex with no extra characteristics(W,R,X,B).
                         // Then after this, fetch again because otherwise the REX byte would be used as an opcode.
-                        RexByte = (REX)((Fetched << 1) & 0b00011110); 
-                        Fetched = FetchNext();                        
-                    }                                                                           
+                        RexByte = (REX)((Fetched << 1) & 0b00011110);
+                        Fetched = FetchNext();
+                    }
                     if (Fetched == 0x0F)
                     {
                         // 0x0F is a prefix of sort to declare that the two-byte opcode map will be used for the next instruction. There are a lot of instructions in assembly and can
                         // definitely not be covered in a single byte, so less common operations are pushed onto this second opcode map where a completely different opcode will be used.
-                        OpcodeWidth = 2;                                          
+                        OpcodeWidth = 2;
                         Fetched = FetchNext();
                     }
 
@@ -253,16 +260,16 @@ namespace debugger.Emulator
                     OpcodeCaller CurrentCaller;
                     IMyOpcode CurrentOpcode;
                     if (OpcodeTable[OpcodeWidth].TryGetValue(Fetched, out CurrentCaller) && (CurrentOpcode = CurrentCaller()) != null)
-                    {                       
+                    {
                         // If disassembling, whether the instruction is executed or not is not of importance(so long as the opcode class is written along with convention),
                         // Conversely, if executing, whether the instruction is disassembled or not doesn't matter. Together, this check speeds up the program a lot.
                         if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
                         {
                             DisassemblyBuffer.Add(
-                                new DisassembledLine(CurrentOpcode.Disassemble(), 
+                                new DisassembledLine(CurrentOpcode.Disassemble(),
                                                      CurrentContext.Breakpoints.Contains(InstructionPointer) ? AddressInfo.BREAKPOINT : AddressInfo.NONE
                                                      , Start_RIP
-                                                     , InstructionPointer-Start_RIP));
+                                                     , InstructionPointer - Start_RIP));
                         }
                         else
                         {
@@ -280,25 +287,25 @@ namespace debugger.Emulator
                         }
 
                         // Only tell the user that there was a UD once per step/run. This stops them getting spammed with message boxes.
-                        else if(!HasUDed)
+                        else if (!HasUDed)
                         {
                             HasUDed = true;
                             RaiseException(Logging.LogCode.INVALID_OPCODE);
                         }
                     }
-                    
+
                     // Reset variables after opcode is executed
                     OpcodeWidth = 1;
                     LPrefixBuffer.Clear();
                     RexByte = REX.NONE;
-                                    
+
                     // If stepping or hit a breakpoint(and honouring breakpoints), stop executing.
                     if (step || ((CurrentHandle.HandleSettings | HandleParameters.NOBREAK) != CurrentHandle.HandleSettings && CurrentContext.Breakpoints.Contains(CurrentContext.InstructionPointer)))
                     {
                         break;
-                    }                    
+                    }
                 }
-            }            
+            }
             return new Status { Disassembly = DisassemblyBuffer, EndRIP = InstructionPointer, InitialRIP = InitialIP };
         }
         public static void SetMemory(ulong address, byte[] data)
@@ -340,8 +347,8 @@ namespace debugger.Emulator
             {
                 CurrentContext.InstructionPointer = address;
             }
-        }        
-        public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);       
+        }
+        public static void SetFlags(FlagSet input) => Flags = Flags.Overlap(input);
         public static List<Register> FetchRegisters(RegisterCapacity size)
         {
             // Turn all GP registers into a register struct list, which contains all the information higher layered caller need to know.
@@ -357,7 +364,7 @@ namespace debugger.Emulator
         public static void RaiseException(Logging.LogCode exception)
         {
             // It is expected that divide instructions will throw this error when disassembling. This is because 
-            if((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
+            if ((CurrentHandle.HandleSettings | HandleParameters.DISASSEMBLE) == CurrentHandle.HandleSettings)
             {
                 return;
             }

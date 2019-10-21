@@ -2,9 +2,9 @@
 // The text displayed(in the example is "Flags") is the value stored in the Tag variable(Inherited from Control).
 // It is important to keep the contents of the panel fully inside of it. Sometimes the border will be clipped over otherwise.
 // This is a problem with windows forms and can only be worked around internally.
-using System.Windows.Forms;
-using System.Drawing;
 using debugger.Util;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {
@@ -36,7 +36,7 @@ namespace debugger.Forms
 
             // Now a line has to be drawn on top of the previous outline where the text will be plus a small bit of padding to look neat.
             // This prevents strikethough of text. Constants here are very exact obtained through trial and error just to make it as aesthetic as possible.
-            
+
             // Measure the length of the text.
             int TextLength = TextRenderer.MeasureText(Tag.ToString(), BaseUI.BaseFont).Width;
 
@@ -49,7 +49,7 @@ namespace debugger.Forms
             Bounds.Y -= 7;
 
             // Finally draw the text.
-            Drawing.DrawShadedText(e.Graphics, Bounds, DrawingLayer+1, Tag.ToString());
+            Drawing.DrawShadedText(e.Graphics, Bounds, DrawingLayer + 1, Tag.ToString());
         }
     }
 }

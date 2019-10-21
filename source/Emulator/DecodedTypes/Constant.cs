@@ -15,24 +15,24 @@ namespace debugger.Emulator.DecodedTypes
             Buffer = BitConverter.GetBytes(value);
         }
 
-        public List<string> Disassemble() 
+        public List<string> Disassemble()
         {
             // Return a hex representation of the buffer
             return new List<string>() { $"0x{Util.Core.Itoa(Buffer)}" };
         }
 
-        public List<byte[]> Fetch() 
-        {   
+        public List<byte[]> Fetch()
+        {
             // Return a List<byte[] containing the buffer. This is necessary as it is part of the interface.
             return new List<byte[]>() { Buffer };
         }
 
-        public void Initialise(RegisterCapacity size) 
-        { 
+        public void Initialise(RegisterCapacity size)
+        {
             // Constants always stay the same size.
         }
 
-        public void Set(byte[] data) 
+        public void Set(byte[] data)
         {
             // The most likely cause of this would be that the constant class had been put as the first element of a DecodedCompound. Or bad coding.
             throw new Exception("Attempt to set value of constant");

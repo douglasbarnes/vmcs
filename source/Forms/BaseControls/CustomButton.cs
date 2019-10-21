@@ -1,7 +1,7 @@
 ﻿// CustomButton applies FormSettings convention to a button. It also applies a nice and discrete border, http://prntscr.com/pjq1ts.
-using System.Windows.Forms;
-using System.Drawing;
 using debugger.Util;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {

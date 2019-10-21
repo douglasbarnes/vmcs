@@ -3,11 +3,11 @@ namespace debugger.Emulator.Opcodes
 {
     public class Call : Opcode
     {
-        public Call(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
+        public Call(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE)
             : base("CALL", input, settings,
-                  input is DecodedTypes.Immediate ? RegisterCapacity.DWORD : RegisterCapacity.QWORD )
+                  input is DecodedTypes.Immediate ? RegisterCapacity.DWORD : RegisterCapacity.QWORD)
         {
-        } 
+        }
         public override void Execute()
         {
             StackPush(BitConverter.GetBytes(ControlUnit.InstructionPointer));

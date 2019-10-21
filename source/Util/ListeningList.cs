@@ -9,7 +9,7 @@ namespace debugger.Util
         private readonly List<T> InternalList;
         public delegate void ListEvent();
         public delegate void OnItemAction(T item, int index);
-        public event OnItemAction OnGet = (item, index) => { };        
+        public event OnItemAction OnGet = (item, index) => { };
         public event OnItemAction OnSet = (item, index) => { };
         public event OnItemAction OnAdd = (item, index) => { };
         public event OnItemAction OnRemove = (item, index) => { };
@@ -18,7 +18,8 @@ namespace debugger.Util
         public T this[int index]
         {
             get { OnGet.Invoke(InternalList[index], index); return InternalList[index]; }
-            set { OnSet.Invoke(value, index);  InternalList[index] = value; } }
+            set { OnSet.Invoke(value, index); InternalList[index] = value; }
+        }
 
         public int Count { get => InternalList.Count; }
         public bool IsReadOnly { get => false; }
@@ -38,7 +39,7 @@ namespace debugger.Util
         public void Add(T item)
         {
             InternalList.Add(item);
-            OnAdd.Invoke(item, InternalList.Count-1);
+            OnAdd.Invoke(item, InternalList.Count - 1);
         }
         public void AddRange(IList<T> items)
         {
@@ -71,7 +72,7 @@ namespace debugger.Util
         public bool Remove(T item)
         {
             int index = InternalList.IndexOf(item);
-            if(index > -1)
+            if (index > -1)
             {
                 InternalList.RemoveAt(index);
                 return true;

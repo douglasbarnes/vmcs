@@ -360,7 +360,7 @@ namespace debugger.Util
             return Output;
         }
         public static List<T> DeepCopy<T>(this List<T> toClone) => toClone.ToArray().ToList();
-        public static T[] DeepCopy<T>(this T[] toClone) 
+        public static T[] DeepCopy<T>(this T[] toClone)
         {
             // This is one of the fastest implementations of a deep copy. Internally, Array.Copy calls native C++ code using P/Invoke. There is no reason why
             // this couldn't be as fast as if it was written in C. 
@@ -382,20 +382,20 @@ namespace debugger.Util
             // 0: The arrays were equal.
             // 1: The left side was greater than the right.
             // 3: The right side was greater than the left.
-            
+
             // PadEqual sign/zero extends(depending on $signed) the smallest operand to the greatest length of the two input arrays
             // If they are both equal in length, nothing happens.
             Bitwise.PadEqual(ref leftSide, ref rightSide, signed);
-            
+
             // The main algorithm will not work on inputs with different signs because it doesn't consider the weight of the MSB in twos compliment.
-            if(signed)
+            if (signed)
             {
                 // Get the signs of the inputs
                 bool LeftSign = leftSide.IsNegative();
                 bool RightSign = rightSide.IsNegative();
 
                 // The following statement will evaluate as true if exactly one of the signs are on. In this case it is immediately clear which is greater. 
-                if((LeftSign ^ RightSign) == true)
+                if ((LeftSign ^ RightSign) == true)
                 {
                     // If the left side is negative, return -1, because the right side must have been positive for the XOR to work.
                     return LeftSign ? -1 : 1;
@@ -415,7 +415,7 @@ namespace debugger.Util
             for (int i = leftSide.Length - 1; i > 0; i--)
             {
                 // If the two indexes are not the same value, the two inputs cannot be equal, the result can be determined here.
-                if (leftSide[i] != rightSide[i]) 
+                if (leftSide[i] != rightSide[i])
                 {
                     // Return 1 if the most significant column difference of leftSide is greater than that of rightSide, -1 if it is not.
                     return leftSide[i] > rightSide[i] ? 1 : -1;
@@ -423,7 +423,7 @@ namespace debugger.Util
             }
 
             // If the method hasn't returned already, the two inputs must be equal
-            return 0; 
+            return 0;
         }
         public static bool ListsEqual(List<string> input1, List<string> input2)
         {
@@ -446,7 +446,7 @@ namespace debugger.Util
                 }
             }
             return true;
-        }        
+        }
         public static string[] SeparateString(string inputString, string testFor, bool stopAtFirstDifferent = false) => SeparateString(inputString, new string[] { testFor }, stopAtFirstDifferent);
         public static string[] SeparateString(string inputString, string[] testFor, bool stopAtFirstDifferent = false) // output {inputstring with stuff removed, (strings of separated testFors)
         {
@@ -486,7 +486,7 @@ namespace debugger.Util
             string[] Output = new string[testFor.Length + 1];
 
             // Start with the base the same as $inputString.
-            Output[0] = inputString; 
+            Output[0] = inputString;
 
             // Iterate through the strings to be tested for.
             for (int i = 0; i < testFor.Length; i++)
@@ -504,7 +504,7 @@ namespace debugger.Util
 
                     // Use PadRight() to make up for any spaces that should be added to have the replaced string have the same position in the output as it did the base,
                     // then add $substring on the end of that.
-                    Output[i + 1] = Output[i + 1].PadRight(InsertIndex - Output[i + 1].Length) + testFor[i]; 
+                    Output[i + 1] = Output[i + 1].PadRight(InsertIndex - Output[i + 1].Length) + testFor[i];
 
                     // If $stopAtFirstDifferent and the next index of a string is not equal to the last index + the length of $substring, 
                     // there must be a gap between the two and therefore are not consecutive and that search is over. The next $substring
@@ -532,8 +532,8 @@ namespace debugger.Util
             }
             return Output;
         }
-        public static string Itoa(byte[] toConvert, bool addSpaces=false)
-        {            
+        public static string Itoa(byte[] toConvert, bool addSpaces = false)
+        {
             // Convert a byte array into a string representation of bytes in big endian and hex format.
             // Similar nature to posix Itoa() but obviously different inputs/outputs. Maybe there is 
             // a similar function called Htoi() in C that does this.
@@ -556,7 +556,7 @@ namespace debugger.Util
                 // The current byte in the array.
                 byte Cursor = toConvert[toConvert.Length - i - 1];
 
-                if(Significant || Cursor != 0)
+                if (Significant || Cursor != 0)
                 {
                     // Every byte after the first non zero must be significant.
                     Significant = true;
@@ -579,13 +579,13 @@ namespace debugger.Util
                     {
                         Output += " ";
                     }
-                }                
+                }
             }
 
             // Return 0 if every byte in the array was insignificant(all zeroes). Althought mathematically
             // zero and no value could be seen as the same, it would be odd to have values missing from
             // disassembly for example.
-            if(Output.Length == 0)
+            if (Output.Length == 0)
             {
                 Output = "0";
             }
@@ -596,14 +596,14 @@ namespace debugger.Util
         {
             // If the input is between 0 and 9 on the char map, subtract the value of '0' from it.
             // This would work on any character set that has numbers adjacent in ascending order, e.g 0123456789
-            if(hexChar >= '0' && hexChar <= '9')
+            if (hexChar >= '0' && hexChar <= '9')
             {
                 output = (byte)(hexChar - '0');
                 return true;
             }
-            
+
             // If the char is a letter, 0xA must be added because 0xA is 10d.
-            else if(hexChar >= 'A' && hexChar <= 'F')
+            else if (hexChar >= 'A' && hexChar <= 'F')
             {
                 output = (byte)(hexChar - 'A' + 0xA);
                 return true;
@@ -622,7 +622,7 @@ namespace debugger.Util
         {
             for (int i = 0; i < input.Length; i++)
             {
-                if (Convert.ToUInt64(input[input.Length-i-1]) != 0 || i == input.Length - 1)
+                if (Convert.ToUInt64(input[input.Length - i - 1]) != 0 || i == input.Length - 1)
                 {
                     Array.Copy(input, i, input, 0, input.Length - i);
                     Array.Resize(ref input, input.Length - i);// cut after first non zero                                      
@@ -697,8 +697,8 @@ namespace debugger.Util
 
                 // Whether the byte could be parsed or not, the next character is next to be parsed.
                 Caret++;
-            }            
-           
+            }
+
             if (NibblesParsed > 0)
             {
                 // Resize the array to the number of bytes parsed, as the worst case scenario was assumed earlier. Otherwise a whole host of "add    byte ptr [rax], al" would be added to the
@@ -711,7 +711,7 @@ namespace debugger.Util
                 // The file must be invalid if nothing at all could be parsed.
                 return false;
             }
-        }   
+        }
 
         public static string ReverseEndian(string input)
         {
@@ -719,7 +719,7 @@ namespace debugger.Util
 
             // If the length of the input is uneven, add a 0 to the start. This will not affect the value but is a necessary precondition
             // for the algorithm.
-            if(input.Length % 2 == 1)
+            if (input.Length % 2 == 1)
             {
                 input = input.Insert(0, "0");
             }
@@ -739,10 +739,10 @@ namespace debugger.Util
             // If the string was reversed, B4 would become 4B. By incrementing $i by 2 after each iteration and accounting for so by acting on two
             // characters in each iteration, the order of the characters in each byte is preserved.
             // This is where without the "evening" of the length earlier, there would be an ArrayOutOfBoundsException for any odd length array.
-            for (int i = 0; i < input.Length; i+=2)
+            for (int i = 0; i < input.Length; i += 2)
             {
                 Reversed[i] = input[input.Length - i - 2];
-                Reversed[i+1] = input[input.Length - i - 1];
+                Reversed[i + 1] = input[input.Length - i - 1];
             }
             return new string(Reversed);
         }

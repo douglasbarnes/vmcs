@@ -1,7 +1,7 @@
 ﻿// CustomLabel applies the convention of FormSettings to labels. It draws text only and relies on its background
 // to be draw by something else e.g the form.
-using System.Windows.Forms;
 using debugger.Util;
+using System.Windows.Forms;
 namespace debugger.Forms
 {
     public abstract class CustomLabel : Label, IMyCustomControl

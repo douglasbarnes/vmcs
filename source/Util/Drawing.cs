@@ -1,9 +1,9 @@
 ﻿// Drawing is a useful library for drawing forms. There are many times where this code would be repeated, or has need to be generalised.
-using System.Collections.Generic;
-using System.Linq;
-using System.Drawing;
-using System.Windows.Forms;
 using debugger.Forms;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Util
 {
@@ -20,7 +20,7 @@ namespace debugger.Util
             PrimaryBrush,
             SecondaryBrush,
         };
-        public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis=Emphasis.Medium)
+        public static void DrawFormattedText(string input, Graphics graphicsHandler, Rectangle bounds, Emphasis defaultEmphasis = Emphasis.Medium)
         {
             // DrawFormattedText() uses markdown modifiers to add effects to text, e.g change the colour.
             // The behaviour is hard to generalise for any case as it depends on the values of TextBrushes, but in the current implementation,
@@ -81,7 +81,7 @@ namespace debugger.Util
                 {
                     // Check whether the escape was actually escaping something or just a backslash in text.
                     if (!FormatModifiers.Contains(Cursor))
-                    { 
+                    {
                         // Append the escape back on(It wasn't added previously)
                         Output[ModifierHistory.Peek()] += "\\";
                     }
@@ -105,7 +105,7 @@ namespace debugger.Util
                     {
                         ModifierHistory.Push(NewModifier);
                     }
-                    
+
                     // Prevent the modifier being added onto the output.
                     continue;
                 }
@@ -117,7 +117,7 @@ namespace debugger.Util
                     Escaped = true;
 
                     // Don't add the escape on. This will be done next iteration. 
-                    continue; 
+                    continue;
                 }
 
                 // Iterate over every string in the array and append a space if its index is not the index of the current modifier, otherwise the current character.
@@ -132,7 +132,7 @@ namespace debugger.Util
                         Output[Modifier] += " ";
                     }
                 }
-                
+
             }
 
             // Draw all of the outputs with the same modifier that they represent.
@@ -142,8 +142,8 @@ namespace debugger.Util
                 if (Output[ModifierType].Trim() != "")
                 {
                     graphicsHandler.DrawString(Output[ModifierType], BaseUI.BaseFont, ModifierTypes[ModifierType], bounds);
-                }                           
-            }            
+                }
+            }
         }
         public static string InsertAtNonZero(string input, string toInsert, int offset = 0)
         {
@@ -173,7 +173,7 @@ namespace debugger.Util
             for (int i = 0; i < input.Length; i++)
             {
                 // Append only if not a format modifier.
-                if(!FormatModifiers.Contains(input[i]))
+                if (!FormatModifiers.Contains(input[i]))
                 {
                     Output += input[i];
                 }

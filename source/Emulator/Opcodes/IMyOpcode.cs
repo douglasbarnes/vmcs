@@ -3,7 +3,7 @@
 // these methods are provided, an opcode will work fine with ControlUnit, given that the code is functional.
 using System.Collections.Generic;
 namespace debugger.Emulator.Opcodes
-{ 
+{
     public interface IMyOpcode
     {
         public void Execute();

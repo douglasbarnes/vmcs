@@ -1,11 +1,11 @@
 ﻿// MainFormDrawing sets up all of the custom controls in the form. This is kept in a different file because it is very spacious, however
 // is the same class as MainForm due to the partial keyword.
+using debugger.Forms;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using static debugger.Util.Drawing;
-using debugger.Forms;
 using static debugger.Forms.FormSettings;
+using static debugger.Util.Drawing;
 namespace debugger
 {
     public partial class MainForm
@@ -19,7 +19,7 @@ namespace debugger
         internal SearchTextBox SearchDebugMenu;
         internal MemoryListView MemoryViewer;
         internal BorderedPanel PanelMemory;
-        internal RegisterPanel PanelRegisters;     
+        internal RegisterPanel PanelRegisters;
         internal ControlButton ButtonStep;
         internal ControlButton ButtonRun;
         internal ControlButton ButtonReset;
@@ -74,9 +74,9 @@ namespace debugger
             DisassemblyPadding = new Panel()
             {
                 // Slightly smaller and offset from the listview to prevent overlapping the border.
-                Location = new Point(ListViewDisassembly.Location.X+15, ListViewDisassembly.Location.Y+15),
-                Size = new Size(583, 382) 
-            };            
+                Location = new Point(ListViewDisassembly.Location.X + 15, ListViewDisassembly.Location.Y + 15),
+                Size = new Size(583, 382)
+            };
 
             // Create a nice border around the control.
             DisassemblyBorder = new BorderedPanel()
@@ -86,7 +86,7 @@ namespace debugger
                 Size = new Size(600, 400),
                 Tag = "Disassembly"
             };
-            
+
             // Add the controls to the form. To ensure the controls are visible, the list view has to be a member
             // of the padding panel otherwise the panel with overlap it.
             DisassemblyPadding.Controls.Add(ListViewDisassembly);
@@ -100,22 +100,22 @@ namespace debugger
             // This is because DisassemblyListView ends at around 600 px.
             ButtonStep = new ControlButton()
             {
-                Location = new Point(600 + 80 * 1, 450),           
+                Location = new Point(600 + 80 * 1, 450),
                 Text = "Step",
-                
-            };            
+
+            };
             ButtonRun = new ControlButton()
             {
                 Location = new Point(600 + 80 * 2, 450),
                 Text = "Run",
 
-            };            
+            };
             ButtonReset = new ControlButton()
             {
                 Location = new Point(600 + 80 * 3, 450),
                 Text = "Reset"
             };
-            
+
             // Register the correct events to the buttons.
             ButtonRun.Click += new EventHandler(VMContinue_ButtonEvent);
             ButtonStep.Click += new EventHandler(VMContinue_ButtonEvent);
@@ -157,7 +157,7 @@ namespace debugger
 
                 // For an unknown reason, the panel will resize slightly more than this value. It seems to become the size of the child control
                 // plus an extra constant. This happens regardless of $AutoSize.
-                Size = new Size(0x1a0, 383), 
+                Size = new Size(0x1a0, 383),
                 Tag = "Memory"
             };
             MemoryViewer = new MemoryListView(new Size(0x1d8, 383))
@@ -177,17 +177,17 @@ namespace debugger
             {
                 Location = new Point(0, 0),
                 Name = "TopMenuStrip",
-                Size = new Size(Width, 24),   
-                
+                Size = new Size(Width, 24),
+
             };
-            
+
 
             // The order of these methods is not important, however they do have to be called before AddRange().
             CreateMenuFile();
             CreateMenuDebug();
             CreateMenuExit();
             TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { FileMenu, DebugMenu });
-            
+
             // This being separated from the above is super imporant. See EndToolStripMenuItem            
             TopMenuStrip.Items.Add(ExitMenu);
 
@@ -208,7 +208,7 @@ namespace debugger
             };
 
             // Exit once clicked.
-            ExitMenu.Click += (s,a) => Environment.Exit(0);
+            ExitMenu.Click += (s, a) => Environment.Exit(0);
         }
         private void CreateMenuFile()
         {
@@ -224,22 +224,22 @@ namespace debugger
             ThemedToolStripMenuItem OpenMenu = new ThemedToolStripMenuItem()
             {
                 Text = "Open"
-            };            
-            OpenMenu.Click += (s, a) => 
+            };
+            OpenMenu.Click += (s, a) =>
             {
                 OpenFileDialog OpenFile = new OpenFileDialog();
-                
+
                 // This will set OpenFile.FileName to the chosen path.
                 OpenFile.ShowDialog();
 
                 // "" is returned when the user closes the DialogBox with alt f4 or the X icon. It was annoying when
                 // the error message showed up after doing this.
-                if(OpenFile.FileName != "")
+                if (OpenFile.FileName != "")
                 {
                     // This should not really be handled here, rather in the main class file.
                     FlashFromFile(OpenFile.FileName);
                 }
-                
+
             };
             ThemedToolStripMenuItem OpenClipboardMenu = new ThemedToolStripMenuItem()
             {
@@ -256,7 +256,7 @@ namespace debugger
                 {
                     // This should not really be handled here, rather in the main class file.
                     FlashProcedure(ParsedClipboard.Instructions);
-                }               
+                }
             };
 
             // It is important this is called after both of these are initialised.
@@ -281,7 +281,7 @@ namespace debugger
             SelectDebugMenu = new ThemedToolStripMenuItem()
             {
                 Size = ItemSize,
-                Text = "Select"                
+                Text = "Select"
             };
 
             // Create a new menu item for each testcase available and add them as subitems to the dropdown of the Select menu.
@@ -296,7 +296,7 @@ namespace debugger
                 };
 
                 // When the button is clicked, call the testcase it corresponds to.
-                ToAdd.Click += (s,a) => OnTestcaseSelected(ToAdd.Text);
+                ToAdd.Click += (s, a) => OnTestcaseSelected(ToAdd.Text);
 
                 SelectDebugMenu.DropDownItems.Add(ToAdd);
             }
@@ -310,7 +310,7 @@ namespace debugger
             // See SearchTextBox for information on this constructor.
             SearchDebugMenu = new SearchTextBox(
                 () => Hypervisor.TestHandler.GetTestcases(),
-                Layer.Background, 
+                Layer.Background,
                 Emphasis.Medium)
             {
                 Size = ItemSize
@@ -332,7 +332,7 @@ namespace debugger
             DebugMenu.DropDown.PreviewKeyDown += SearchDebugMenu.KeyPressed;
 
             // This must be called after all controls have finished initialising.
-            DebugMenu.DropDownItems.AddRange(new ToolStripItem[]{ FillerDebugItemAll, FillerDebugItemSelect, AllDebugMenu, SelectDebugMenu, SearchDebugMenu });
+            DebugMenu.DropDownItems.AddRange(new ToolStripItem[] { FillerDebugItemAll, FillerDebugItemSelect, AllDebugMenu, SelectDebugMenu, SearchDebugMenu });
         }
     }
 }

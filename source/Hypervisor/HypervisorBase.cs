@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using debugger.Emulator;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using debugger.Emulator;
-
 using static debugger.Emulator.ControlUnit;
 namespace debugger.Hypervisor
 {

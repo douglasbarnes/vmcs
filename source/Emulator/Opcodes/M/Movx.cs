@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 
 namespace debugger.Emulator.Opcodes
 {
@@ -9,15 +9,15 @@ namespace debugger.Emulator.Opcodes
         readonly DecodedTypes.IMyDecoded Input;
         readonly RegisterCapacity DestSize;
         readonly RegisterCapacity SourceSize;
-        public Movx(DecodedTypes.IMyDecoded input, string mnemonic, bool signExtend, RegisterCapacity desiredSourceSize, OpcodeSettings settings=OpcodeSettings.NONE) : base(mnemonic, input, settings)
+        public Movx(DecodedTypes.IMyDecoded input, string mnemonic, bool signExtend, RegisterCapacity desiredSourceSize, OpcodeSettings settings = OpcodeSettings.NONE) : base(mnemonic, input, settings)
         {
             Input = input;
             SourceSize = desiredSourceSize;
             DestSize = Capacity;
-            Capacity = desiredSourceSize; 
+            Capacity = desiredSourceSize;
             byte[] SourceBytes = Fetch()[1];
             Capacity = DestSize;
-            Result = (signExtend) ? Bitwise.SignExtend(SourceBytes, (byte)Capacity) : Bitwise.ZeroExtend(SourceBytes, (byte)Capacity);           
+            Result = (signExtend) ? Bitwise.SignExtend(SourceBytes, (byte)Capacity) : Bitwise.ZeroExtend(SourceBytes, (byte)Capacity);
         }
         public override void Execute()
         {
@@ -25,11 +25,11 @@ namespace debugger.Emulator.Opcodes
         }
         public override List<string> Disassemble()
         {
-            if(Input is DecodedTypes.ModRM modrm)
+            if (Input is DecodedTypes.ModRM modrm)
             {
                 modrm.Initialise(SourceSize);
                 modrm.Source.Size = (DestSize);
-            }            
+            }
             return base.Disassemble();
         }
     }

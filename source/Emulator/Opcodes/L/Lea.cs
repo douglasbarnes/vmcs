@@ -1,6 +1,6 @@
-﻿using System;
+﻿using debugger.Util;
+using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
     public class Lea : Opcode
@@ -9,7 +9,7 @@ namespace debugger.Emulator.Opcodes
         public Lea(DecodedTypes.ModRM input, OpcodeSettings settings = OpcodeSettings.NONE) : base("LEA", input, settings)
         {
             SourceAddress = Bitwise.Cut(BitConverter.GetBytes(input.EffectiveAddress), (int)Capacity);
-        } 
+        }
         public override void Execute()
         {
             Set(SourceAddress);

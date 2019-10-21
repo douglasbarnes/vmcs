@@ -3,7 +3,7 @@
     public class Movs : StringOperation
     {
         byte[] SourceBytes;
-        public Movs(StringOpSettings settings = StringOpSettings.NONE) 
+        public Movs(StringOpSettings settings = StringOpSettings.NONE)
             : base("MOVS", XRegCode.DI, XRegCode.SI, settings) { }
         protected override void OnInitialise()
         {

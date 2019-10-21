@@ -1,6 +1,6 @@
 ﻿// CustomToolStripMenuItem applies FormSettings convention to ToolStripMenuItems. 
-using System.Windows.Forms;
 using debugger.Util;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {

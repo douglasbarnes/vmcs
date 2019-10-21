@@ -1,8 +1,8 @@
 ﻿// CustomToolStripButton applies the same ideas as a CustomToolStripItem to a ToolStripButton. The only differences are that it inherits from
 // ToolStripButton and handles painting on its own.
-using System.Windows.Forms;
-using System.Drawing;
 using debugger.Util;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 
 namespace debugger.Forms
@@ -27,7 +27,7 @@ namespace debugger.Forms
             e.Graphics.DrawRectangle(new Pen(ElevationBrushes[(int)DrawingLayer]), InnerBounds);
 
             // Draw the text
-            e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));         
+            e.Graphics.DrawString(Text, BaseUI.BaseFont, TextBrushes[(int)TextEmphasis], Drawing.GetCenter(Bounds, Text, BaseUI.BaseFont));
         }
     }
 }

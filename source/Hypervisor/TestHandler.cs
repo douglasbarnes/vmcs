@@ -72,15 +72,15 @@
 // checks this has been ommited. It is surprisingly easy to miss a square bracket in an xml file. Flags also follow a very simple format that is similar to that of GDB. String representations of flags are defined in FlagSet, but currently
 // follow the system of concatenation. Each flag is put in "short form" where it is only two letters and added to a string, e.g "OFAF" would indicate the overflow and auxiliary flag were set. Only tested flags are shown in this string.
 // These factors combined make the output very easy to interpret. It is easier to see the differences in a short string than a long one. 
+using debugger.Emulator;
+using debugger.Logging;
+using debugger.Util;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.IO;
 using System.Xml.Linq;
-using debugger.Emulator;
-using debugger.Util;
-using debugger.Logging;
 namespace debugger.Hypervisor
 {
     static class TestHandler
@@ -103,7 +103,7 @@ namespace debugger.Hypervisor
             public string Found;
         }
         protected class TestcaseResult
-        {          
+        {
             public bool Passed = true;
             public Dictionary<Checkpoint, List<CheckpointSubresult>> CheckpointOutputs = new Dictionary<Checkpoint, List<CheckpointSubresult>>();
             public XElement ToXML(string name)
@@ -125,8 +125,8 @@ namespace debugger.Hypervisor
                     {
                         CheckpointResult.Add(
                             new XElement("SubCheckpointResult", new XAttribute("result", SubCheckpointOutput.Passed ? "Passed" : "Failed")
-                                ,new XElement("Expected", SubCheckpointOutput.Expected)
-                                ,new XElement("Found", SubCheckpointOutput.Found)));
+                                , new XElement("Expected", SubCheckpointOutput.Expected)
+                                , new XElement("Found", SubCheckpointOutput.Found)));
                     }
 
                     // Add each CheckpointResult as sub element of Output.
@@ -153,7 +153,7 @@ namespace debugger.Hypervisor
             public ControlUnit.RegisterHandle Register;
             public ulong ExpectedValue;
             public bool TryParse(XElement testCriteria)
-            {       
+            {
                 // This method attempts to parse a given XElement into a TestRegister. If there is an error it returns false. This allows for some simpler
                 // error handling than if it was a constructor as the caller can decide the best course of action.
                 // Here some checks are greatly compacted into a try catch block.
@@ -183,12 +183,12 @@ namespace debugger.Hypervisor
                     }
 
                     // Convert the value from hex to ulong.
-                    ExpectedValue = Convert.ToUInt64(testCriteria.Value, 16);                    
+                    ExpectedValue = Convert.ToUInt64(testCriteria.Value, 16);
                     return true;
                 }
                 catch
                 {
-                    return false;                    
+                    return false;
                 }
             }
         }
@@ -231,7 +231,7 @@ namespace debugger.Hypervisor
                     // As explained in the summary, the value in offset is parsed as big endian. Core.ReverseEndian is very
                     // robust, it does not check any validity of the input and only does its job. Other functionality such as
                     // Core.TryParseHex() is left to do this.
-                    byte[] OffsetBytes;                                      
+                    byte[] OffsetBytes;
                     if (!Core.TryParseHex(Core.ReverseEndian(input.Attribute("offset").Value), out OffsetBytes))
                     {
                         ErrorInfo = (LogCode.TESTCASE_PARSEFAIL, "Invalid hex bytes in memory offset attribute");
@@ -265,7 +265,7 @@ namespace debugger.Hypervisor
         private class TestingEmulator : HypervisorBase
         {
             readonly TestcaseObject CurrentTestcase;
-            public TestingEmulator(TestcaseObject testcase) : 
+            public TestingEmulator(TestcaseObject testcase) :
                 base("TestingEmulator", new Context(testcase.Memory)
                 {
                     Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>
@@ -275,24 +275,24 @@ namespace debugger.Hypervisor
                         }),
                     Breakpoints = new ListeningList<ulong>(testcase.Checkpoints.Keys.ToList())
 
-                // Its actually super crazy that a deep copy has to be used here. The testcases in the dictionary are objects too, so when one is run, the same problems are faced.
-                // For example, references, shallow copies, the whole nine yards. An interesting logic error would occur when this was not deep copied, as each time the testcase ran,
-                // the memory would be persist across each run such that it would appear like every opcode was doing twice the operation it should. E.g when the testcase ran the first time,
-                // the results would stay in the MemorySpace, then the next time it was ran it would add on top of that memory rather than have a clean memory.
-                }.DeepCopy()) 
+                    // Its actually super crazy that a deep copy has to be used here. The testcases in the dictionary are objects too, so when one is run, the same problems are faced.
+                    // For example, references, shallow copies, the whole nine yards. An interesting logic error would occur when this was not deep copied, as each time the testcase ran,
+                    // the memory would be persist across each run such that it would appear like every opcode was doing twice the operation it should. E.g when the testcase ran the first time,
+                    // the results would stay in the MemorySpace, then the next time it was ran it would add on top of that memory rather than have a clean memory.
+                }.DeepCopy())
             {
                 CurrentTestcase = testcase;
             }
             public async Task<TestcaseResult> RunTestcase()
             {
                 TestcaseResult Result = new TestcaseResult();
-                
+
                 // Run every checkpoint. As they are ordered(this is automatically done due to the nature of how they are parsed), you will get half baked results if
                 // one checkpoint is out of the code address range or in the middle of an instruction. This is not something that can be fixed from this end because my
                 // code nor myself know what to expect as the results of your code if there is an error in the way that I execute your code. That is why I highly recommend
                 // properly testing on a real machine and basing your testcase of that.
                 for (int CheckpointNum = 0; CheckpointNum < CurrentTestcase.Checkpoints.Count; CheckpointNum++)
-                { 
+                {
                     // Run until the checkpoint
                     Run();
 
@@ -307,9 +307,9 @@ namespace debugger.Hypervisor
                         Logger.Log(LogCode.TESTCASE_RUNTIME, "");
                         break;
                     }
-                    
+
                     // Iterate over every type of test present and handle them slightly differently.
-                    List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();                    
+                    List<CheckpointSubresult> CurrentSubresults = new List<CheckpointSubresult>();
                     foreach (TestRegister testReg in CurrentCheckpoint.ExpectedRegisters)
                     {
                         // Disassemble the mnemonic, provided by RegisterHandle. This will be different to how it was input as the full mnemonic that is representative of the size is given rather than a shorthand.
@@ -329,7 +329,7 @@ namespace debugger.Hypervisor
                             {
                                 Passed = RegistersEqual,
                                 Expected = $"${Mnemonic}=0x{testReg.ExpectedValue.ToString("X")}",
-                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(testReg.Register.FetchOnce(),8),0).ToString("X")}"
+                                Found = $"${Mnemonic}=0x{BitConverter.ToUInt64(Bitwise.ZeroExtend(testReg.Register.FetchOnce(), 8), 0).ToString("X")}"
                             });
                     }
                     foreach (TestMemoryAddress testMem in CurrentCheckpoint.ExpectedMemory)
@@ -348,7 +348,7 @@ namespace debugger.Hypervisor
 
                             // This nested condition is unavoidable as there are certain things that need to happen if there is an offset register as well
                             // as an offset, and things that need to happen both ways if there is an offset at all.
-                            if(testMem.Offset != 0)
+                            if (testMem.Offset != 0)
                             {
                                 // Append a +/- based on the offset as the absolute value is taken later. Just for quality of life really, It's alot easier than
                                 // having to work out the magnitude of a twos compliment value in your head, even if its just subtraction it still leaves unnecessary
@@ -386,8 +386,8 @@ namespace debugger.Hypervisor
                             {
                                 // If there is one or more bytes different, it must be false. A break cannot be added here
                                 // because FoundBytes is still being filled up.
-                                MemoryEqual = false;                                
-                            }                            
+                                MemoryEqual = false;
+                            }
                         }
 
                         // Same as with register.
@@ -401,7 +401,7 @@ namespace debugger.Hypervisor
                                 Found = $"[{Mnemonic}]={{{ParseBytes(FoundBytes)}}}"
                             });
                     }
-                    if(CurrentCheckpoint.TestFlags)
+                    if (CurrentCheckpoint.TestFlags)
                     {
                         // A lot of the heavy work here is done by FlagSet.
 
@@ -419,11 +419,11 @@ namespace debugger.Hypervisor
                             // This produces a string representation of all the flags that are not FlagState.UNDEFINED in $Snapshot.Flags and $ExpectedFlags.
                             Found = Snapshot.Flags.And(CurrentCheckpoint.ExpectedFlags).ToString()
                         });
-                    }         
+                    }
                     Result.CheckpointOutputs.Add(CurrentCheckpoint, CurrentSubresults);
                 }
                 return Result;
-            } 
+            }
         }
         static TestHandler()
         {
@@ -432,7 +432,7 @@ namespace debugger.Hypervisor
         private static void ReadTestcases()
         {
             // Iterate every testcase file in the Testcases/ directory
-            foreach (string FilePath in Directory.GetFiles("Testcases")) 
+            foreach (string FilePath in Directory.GetFiles("Testcases"))
             {
                 // Put a simple filter to avoid parsing files that do not have the xml file extension.
                 if (FilePath.Substring(FilePath.Length - 4) == ".xml")
@@ -445,7 +445,7 @@ namespace debugger.Hypervisor
                     {
                         TestcaseFile = XDocument.Load(FilePath);
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         Logger.Log(LogCode.TESTCASE_IOERROR, new string[] { FilePath, e.Message });
                         continue;
@@ -468,7 +468,7 @@ namespace debugger.Hypervisor
                         Logger.Log(LogCode.TESTCASE_DUPLICATE, TestcaseName);
                         continue;
                     }
-                    
+
                     TestcaseObject ParsedTestcase = new TestcaseObject();
 
                     // The testcase must have a hex element
@@ -479,10 +479,10 @@ namespace debugger.Hypervisor
                     }
 
                     // If there is one, try to parse it
-                    else if(Core.TryParseHex(InputTestcase.Element("Hex").Value, out byte[] TestcaseMemory))
+                    else if (Core.TryParseHex(InputTestcase.Element("Hex").Value, out byte[] TestcaseMemory))
                     {
                         // Create the memory from the value of the hex element.
-                        ParsedTestcase.Memory = new MemorySpace(TestcaseMemory); 
+                        ParsedTestcase.Memory = new MemorySpace(TestcaseMemory);
                     }
 
                     // If there is nothing to parse, throw an error.
@@ -504,11 +504,11 @@ namespace debugger.Hypervisor
 
                         // An exception could be caught for many reasons, e.g the value is too large, its not hex, its not present etc. No matter what it is assumed evil.
                         catch
-                        {                            
+                        {
                             Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Invalid value for position_hex." });
                             continue;
-                        }                           
-                        
+                        }
+
                         // If there is no tag, call the testcase "Unnamed" as a last resort. 
                         Checkpoint ParsedCheckpoint = new Checkpoint()
                         {
@@ -518,20 +518,21 @@ namespace debugger.Hypervisor
                         // Parse each subcheckpoint check.
                         foreach (XElement TestCriteria in InputCheckpoint.Elements())
                         {
-                            if (TestCriteria.Name == "Register") 
+                            if (TestCriteria.Name == "Register")
                             {
                                 // The TestRegister struct does a lot of the heavy lifting here.
                                 TestRegister Reg = new TestRegister();
-                                if(Reg.TryParse(TestCriteria))
+                                if (Reg.TryParse(TestCriteria))
                                 {
                                     ParsedCheckpoint.ExpectedRegisters.Add(Reg);
-                                } else
+                                }
+                                else
                                 {
                                     Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Invalid syntax of register element" });
-                                }                                        
+                                }
                             }
-                            else if (TestCriteria.Name == "Memory") 
-                            {                                
+                            else if (TestCriteria.Name == "Memory")
+                            {
                                 TestMemoryAddress Mem = new TestMemoryAddress();
 
                                 // TestMemoryAddress will return some useful information if there is an error in the out parameter. 
@@ -550,10 +551,11 @@ namespace debugger.Hypervisor
                                 {
                                     Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Missing flag name attribute" });
                                 }
-                                else if(!FlagSet.ValidateString(TestCriteria.Attribute("name").Value))
+                                else if (!FlagSet.ValidateString(TestCriteria.Attribute("name").Value))
                                 {
                                     Logger.Log(LogCode.TESTCASE_BADCHECKPOINT, new string[] { TestcaseName, "Flag name attribute invalid" });
-                                } else
+                                }
+                                else
                                 {
                                     // A boolean determines whether flags will be checked at all. This needs to be done as they are all concatenated into one. This is all combined
                                     // into a single FlagSet.
@@ -565,8 +567,8 @@ namespace debugger.Hypervisor
                             }
                         }
                         ParsedTestcase.Checkpoints.Add(BreakpointAddr, ParsedCheckpoint);
-                    }                                                       
-                    Testcases.Add(TestcaseName, ParsedTestcase);                                                  
+                    }
+                    Testcases.Add(TestcaseName, ParsedTestcase);
                 }
             }
         }
@@ -587,7 +589,7 @@ namespace debugger.Hypervisor
             // This is also a lot more efficient than using a string as strings are immutable, the string would have to be reallocated
             // on the stack every time something is concatenated(in theory, some compiler optimisation may recognise this). 
             return string.Join(", ", Output);
-        }    
+        }
         public static async Task<XElement> ExecuteTestcase(string name)
         {
             // An asynchrous method for executing testcases. This is useful especially when executing all the testcases at once which could
@@ -599,13 +601,13 @@ namespace debugger.Hypervisor
             // Firstly always deal with lowercase for simplicity.
             name = name.ToLower();
             XElement Output;
-            
+
             // Check if a testcase with that name has been loaded(the possiblity of duplicates was already handled).
-            if(Testcases.ContainsKey(name))
+            if (Testcases.ContainsKey(name))
             {
                 // Create a new emulator instance with the corresponding testcase.
                 TestingEmulator Emulator = new TestingEmulator(Testcases[name]);
-                
+
                 // Run it and parse the result.
                 TestcaseResult Result = await Emulator.RunTestcase();
                 Output = Result.ToXML(name);
@@ -616,7 +618,7 @@ namespace debugger.Hypervisor
                 Output = new XElement(name, new XAttribute("result", "error: testcase not found"));
             }
             return Output;
-        }   
+        }
         public static async Task<XElement> ExecuteAll()
         {
             // ExecuteAll() will do some very useful things for the user. All the output is under one root level element, "all" and has its
@@ -639,6 +641,6 @@ namespace debugger.Hypervisor
             return RootElement;
         }
         public static string[] GetTestcases() => Testcases.Keys.ToArray();
-        
-    }    
+
+    }
 }

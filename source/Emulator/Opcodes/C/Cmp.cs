@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 namespace debugger.Emulator.Opcodes
 {
     public class Cmp : Opcode
     {
         readonly FlagSet Result;
-        public Cmp(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) 
+        public Cmp(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE)
             : base("CMP", input, settings)
         {
             List<byte[]> DestSource = Fetch();

@@ -7,13 +7,13 @@
 //  - Synchronisation of input and opcode capacities(See Capacity).
 //  - Settings that can be assigned to each opcode to define implied behaviour(See SetRegCap()).
 //  - Simple and consistent stack management methods(See StackPush(), StackPop()).
-using System;
-using System.Collections.Generic;
 using debugger.Emulator.DecodedTypes;
 using debugger.Util;
+using System;
+using System.Collections.Generic;
 using static debugger.Emulator.ControlUnit;
 namespace debugger.Emulator.Opcodes
-{ 
+{
     public enum Condition // See Util.Disassembly
     {
         NONE,
@@ -50,7 +50,8 @@ namespace debugger.Emulator.Opcodes
     public abstract class Opcode : IMyOpcode
     {
         private RegisterCapacity _capacity;
-        protected RegisterCapacity Capacity {
+        protected RegisterCapacity Capacity
+        {
             get => _capacity;
             set
             {
@@ -63,7 +64,7 @@ namespace debugger.Emulator.Opcodes
         public readonly OpcodeSettings Settings;
         private readonly string Mnemonic;
         private readonly IMyDecoded Input;
-        public Opcode(string opcodeMnemonic, IMyDecoded input,  OpcodeSettings settings=OpcodeSettings.NONE, RegisterCapacity opcodeCapacity = RegisterCapacity.NONE)
+        public Opcode(string opcodeMnemonic, IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE, RegisterCapacity opcodeCapacity = RegisterCapacity.NONE)
         {
             Mnemonic = opcodeMnemonic;
             Input = input;
@@ -139,14 +140,14 @@ namespace debugger.Emulator.Opcodes
             }
 
             // Default to DWORD.
-            return RegisterCapacity.DWORD;            
+            return RegisterCapacity.DWORD;
         }
 
         // Some static register handles to prevent reinstancing them often.
         private static readonly RegisterHandle ECX = new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.DWORD);
         private static readonly RegisterHandle RCX = new RegisterHandle(XRegCode.C, RegisterTable.GP, RegisterCapacity.QWORD);
         private static readonly RegisterHandle StackPointer = new RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);
-        protected bool TestCondition(Condition condition) 
+        protected bool TestCondition(Condition condition)
             => condition switch
             {
                 // It takes some intuition to understand why these predicates work with flags like this.
@@ -190,7 +191,7 @@ namespace debugger.Emulator.Opcodes
 
                 // Zero or equal. (X - Y == 0) => (X==Y)
                 Condition.Z => Flags.Zero == FlagState.ON,
-                
+
                 // Not zero/ not equal. (X - Y != 0) => (X != Y)
                 Condition.NZ => Flags.Zero == FlagState.OFF,
 
@@ -230,7 +231,7 @@ namespace debugger.Emulator.Opcodes
                 Condition.P => Flags.Parity == FlagState.ON,
                 Condition.NP => Flags.Parity == FlagState.OFF,
                 _ => true, //Condition.None
-            };              
+            };
         protected void StackPush(byte[] data)
         {
             // A byte to hold the new decremented stack pointer.
@@ -248,7 +249,7 @@ namespace debugger.Emulator.Opcodes
             SetMemory(BitConverter.ToUInt64(StackPointer.FetchOnce(), 0), data);
         }
         protected byte[] StackPop(RegisterCapacity size)
-        {           
+        {
             // Fetch $size bytes from the stack using the address of the stack pointer.
             byte[] StackBytes = ControlUnit.Fetch(BitConverter.ToUInt64(StackPointer.FetchOnce(), 0), (int)size);
 

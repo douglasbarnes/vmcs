@@ -2,10 +2,10 @@
 
 namespace debugger.Emulator.Opcodes
 {
-    public class Set : Opcode 
+    public class Set : Opcode
     {
         byte Result;
-        public Set(DecodedTypes.IMyDecoded input, Condition setCondition, OpcodeSettings settings = OpcodeSettings.NONE) 
+        public Set(DecodedTypes.IMyDecoded input, Condition setCondition, OpcodeSettings settings = OpcodeSettings.NONE)
             : base("SET" + Disassembly.DisassembleCondition(setCondition), input, settings | OpcodeSettings.BYTEMODE)
         {
             Result = (byte)(TestCondition(setCondition) ? 1 : 0);

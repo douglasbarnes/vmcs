@@ -149,9 +149,9 @@ namespace debugger.Emulator.DecodedTypes
             // ------------------------------
             // This mask will only return bit 7 and 6 [11000000]
             public readonly Mod Mod { get => (Mod)((Internal_ModRM & 0xC0) >> 6); }
-            
+
             // This mask will only return bits 5, 4, and 3. The value is increased by 8 if ExtendReg.
-            public byte Reg { get => (byte)(((Internal_ModRM & 0x38) >> 3) | (ExtendReg ? 8 : 0)); } 
+            public byte Reg { get => (byte)(((Internal_ModRM & 0x38) >> 3) | (ExtendReg ? 8 : 0)); }
 
             // Finally, this mask will return bits 2, 1, and 0. The value is increased by 8 if ExtendMem.
             public byte Mem { get => (byte)((Internal_ModRM & 0x7) | (ExtendMem ? 8 : 0)); }
@@ -169,7 +169,7 @@ namespace debugger.Emulator.DecodedTypes
         public void Initialise(RegisterCapacity size)
         {
             Size = size;
-            
+
             // The source is always a register, so its instance can be stored in a variable.
             Source.Initialise(size);
         }
@@ -217,8 +217,8 @@ namespace debugger.Emulator.DecodedTypes
                 {
                     // Fetch the next 4 bytes, convert them to an unsigned integer. Remember that FetchNext(),
                     // will automatically increment the InstructionPointer, so it is important to do this first.
-                    Offset = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0); 
-                    
+                    Offset = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
+
                     // Then since the offset is a RIP relative displacement, set the destination to the instruction pointer.
                     Destination = ControlUnit.InstructionPointer;
                 }
@@ -233,7 +233,7 @@ namespace debugger.Emulator.DecodedTypes
                     Offset = DecodedSIB.Value.OffsetValue;
                     Destination = DecodedSIB.Value.Destination;
                 }
-                
+
                 // In any other case, the mem bits represent a pointer. These mem bits represent the same registers as an XRegCode
                 else
                 {
@@ -257,7 +257,7 @@ namespace debugger.Emulator.DecodedTypes
             // See Construct()
             // Create a new instance of the DissassembledPointer class to make disassembly easier.
             Disassembly.DeconstructedPointer DestPtr = new Disassembly.DeconstructedPointer() { IndexReg = new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size).Disassemble()[0] };
-           
+
             // RIP relative offset
             if (Fields.Mem == 5 && Fields.Mod == 0)
             {
@@ -272,7 +272,7 @@ namespace debugger.Emulator.DecodedTypes
 
 
             DestPtr.Offset = Offset;
-            
+
             // Finalise the disassembly of the destination, 
             string Dest = Disassembly.DisassemblePointer(DestPtr);
 
@@ -314,7 +314,7 @@ namespace debugger.Emulator.DecodedTypes
         {
             List<byte[]> Output = new List<byte[]>();
             byte[] DestBytes;
-            
+
             // If the mod indicates that the destination is a register, fetch that register. Otherwise, fetch the address at $Destination + $Offset.           
             if (Fields.Mod == Mod.Register)
             {

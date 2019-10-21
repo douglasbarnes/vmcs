@@ -1,9 +1,9 @@
 ﻿// CustomToolStripTextBox is a wrapper around ToolStripMenuItem that implements user input functionality.
 // There are two main important concepts, the variables Input and Prefix. Input is the text that can be freely modified
 // by the user. Prefix can only be modified by the program. Also, $BufferSize is the maximum size of $Input.
-using System.Windows.Forms;
-using System.Drawing;
 using debugger.Util;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {
@@ -46,7 +46,7 @@ namespace debugger.Forms
                     Input += Key;
                 }
             }
-                 
+
             // Commit the changes.
             Ready();
         }
@@ -56,7 +56,7 @@ namespace debugger.Forms
             Drawing.DrawShadedRect(e.Graphics, e.ClipRectangle, Layer.Imminent, 3);
 
             // Create a new bounds for the text.
-            Rectangle Bounds = Drawing.GetTextCenterHeight(e.ClipRectangle);            
+            Rectangle Bounds = Drawing.GetTextCenterHeight(e.ClipRectangle);
 
             // Each line is drawn separately such that they can have a different emphasis. This has the following effect, http://prntscr.com/pjpw9a
             // It makes it much easier for the user to differentiate between their input and the prefix.

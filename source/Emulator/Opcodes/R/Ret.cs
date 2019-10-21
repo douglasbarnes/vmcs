@@ -1,9 +1,9 @@
-﻿using System;
+﻿using debugger.Util;
+using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
-    public class Ret : Opcode 
+    public class Ret : Opcode
     {
         List<byte[]> Operands;
         public Ret(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("RET", input, settings, RegisterCapacity.WORD)
@@ -13,7 +13,7 @@ namespace debugger.Emulator.Opcodes
         public override void Execute()
         {
             ControlUnit.Jump(BitConverter.ToUInt64(StackPop(RegisterCapacity.QWORD), 0));
-            if(Operands.Count > 0)
+            if (Operands.Count > 0)
             {
                 byte[] NewSP;
                 ControlUnit.RegisterHandle StackPointer = new ControlUnit.RegisterHandle(XRegCode.SP, RegisterTable.GP, RegisterCapacity.QWORD);

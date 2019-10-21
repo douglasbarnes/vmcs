@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 
 namespace debugger.Emulator.Opcodes
 {
-    public class Sub : Opcode 
+    public class Sub : Opcode
     {
         byte[] Result;
         FlagSet ResultFlags;

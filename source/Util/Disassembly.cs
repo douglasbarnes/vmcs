@@ -36,9 +36,9 @@
 // Nasm and gcc accept all of the above. Since the mnemonic it was assembled with cannot be inferred from the machine code, it is a subjective
 // decision. If any user modules require condition disassembly, I would definitely recommend using the provided DisassembleCondition() to keep
 // it consistent throughout the program.
-using System.Collections.Generic;
 using debugger.Emulator;
 using debugger.Emulator.Opcodes;
+using System.Collections.Generic;
 namespace debugger.Util
 {
     public static class Disassembly
@@ -55,7 +55,7 @@ namespace debugger.Util
             { Condition.A, "A" },
             { Condition.NA, "NA" },
             { Condition.C, "C" },
-            { Condition.NC, "NC" },            
+            { Condition.NC, "NC" },
             { Condition.RCXZ, "RCXZ" },
             { Condition.Z, "Z" },
             { Condition.NZ, "NZ" },
@@ -101,7 +101,7 @@ namespace debugger.Util
             // If this index register is not null, disassemble it. This would be the scaled index in a SIB byte,
             // or could just be a normal register pointer. It depends on what the caller put in the struct it doesn't matter
             // for pointers with no scale coefficient, however if it is a SIB the scaled index must go in $IndexReg.
-            if(inputPointer.IndexReg != null)
+            if (inputPointer.IndexReg != null)
             {
                 Output += inputPointer.IndexReg;
 
@@ -113,11 +113,11 @@ namespace debugger.Util
 
                 // If there is another register, an add shows that this is added on. If there is
                 // an offset, that will handle this itself.
-                if(inputPointer.AdditionalReg != null)
+                if (inputPointer.AdditionalReg != null)
                 {
                     Output += '+';
                 }
-            }   
+            }
 
             // If there is an additional reg, add it on to the end.
             if (inputPointer.AdditionalReg != null)
@@ -140,8 +140,8 @@ namespace debugger.Util
                     // Otherwise it must have been an absolute pointer that could not be negative so add it normally.
                     Output = $"0x{inputPointer.Offset.ToString("X")}";
                 }
-            }     
-            
+            }
+
             return Output;
         }
         public static string DisassembleSize(RegisterCapacity size) => SizeMnemonics[size];

@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 
 namespace debugger.Emulator.Opcodes
 {
@@ -8,7 +8,7 @@ namespace debugger.Emulator.Opcodes
         readonly FlagSet ResultFlags;
         public Test(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("TEST", input, settings)
         {
-            List<byte[]> DestSource = Fetch();          
+            List<byte[]> DestSource = Fetch();
             ResultFlags = Bitwise.And(DestSource[0], DestSource[1], out _);
         }
         public override void Execute()

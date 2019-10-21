@@ -36,10 +36,10 @@
 
 // Note that throughout the explanations I deal almost exclusively with single bytes unless specified otherwise.  Comments may not
 // exactly 1:1 apply to other word lengths, but saves me writing 0x7FFFFFFFFF.... all the time etc.
-using System;
 using debugger.Emulator;
+using System;
 namespace debugger.Util
-{    
+{
     public static class Bitwise
     {
         public static bool IsNegative(this byte[] input)
@@ -80,15 +80,15 @@ namespace debugger.Util
             Array.Reverse(input);
 
             return input;
-        }        
-        public static byte[] Cut(byte[] input, int count) 
+        }
+        public static byte[] Cut(byte[] input, int count)
         {
             // Time difference between this and linq.take is huge, http://prntscr.com/od20o4 
             // linq: http://prntscr.com/od20vw  
             // my way: http://prntscr.com/od21br
 
             // A performant way to cut any excess bytes off whilst at the same time ensuring the desired size
-            Array.Resize(ref input, count); 
+            Array.Resize(ref input, count);
             return input;
         }
         public static byte[] Subarray(byte[] input, int offset)
@@ -97,7 +97,7 @@ namespace debugger.Util
             byte[] Buffer = new byte[input.Length - offset];
 
             // Copy every byte starting at index $offset from input into the buffer(like substring)
-            Array.Copy(input, offset, Buffer, 0, input.Length - offset); 
+            Array.Copy(input, offset, Buffer, 0, input.Length - offset);
             return Buffer;
         }
         public static void PadEqual(ref byte[] input1, ref byte[] input2, bool signed)
@@ -112,10 +112,10 @@ namespace debugger.Util
                 else
                 {
                     input2 = ZeroExtend(input2, (byte)input1.Length);
-                }                
+                }
             }
             //Otherwise do the opposite(or nothing if they are equal)
-            else if (input2.Length > input1.Length) 
+            else if (input2.Length > input1.Length)
             {
                 if (signed)
                 {
@@ -144,10 +144,10 @@ namespace debugger.Util
 
             // Perform a series of logical ANDs on every byte in $input1[] and $input2[], store the result in $Result
             for (int ByteCursor = 0; ByteCursor < input1.Length; ByteCursor++)
-            {                
+            {
                 Result[ByteCursor] = (byte)(input1[ByteCursor] | input2[ByteCursor]);
             }
-            return new FlagSet(Result) 
+            return new FlagSet(Result)
             {
                 // Carry and overflow are always cleared in bitwise boolean operations
                 Carry = FlagState.OFF,
@@ -163,7 +163,7 @@ namespace debugger.Util
             {
                 Result[ByteCursor] = (byte)(input1[ByteCursor] & input2[ByteCursor]);
             }
-            return new FlagSet(Result) 
+            return new FlagSet(Result)
             {
                 // Carry and overflow are always cleared in bitwise boolean operations
                 Carry = FlagState.OFF,
@@ -190,12 +190,12 @@ namespace debugger.Util
         {
             // First ensure both operands are both the intended size so they can iterated in parallel later
             input1 = SignExtend(input1, (byte)size);
-            input2 = SignExtend(input2, (byte)size); 
+            input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
 
             // Instead of using built-in methods, I use my own algorithms compatible with byte arrays increased performance 
             // on critical operations that are frequently used. http://prntscr.com/ojwfs2
-            for (int i = 0; i < size; i++)                                     
+            for (int i = 0; i < size; i++)
             {
                 // Declare a sum integer, which must be an integer because I anticipate values > 0xFF, which are handled using carries shortly.
                 // If there was a carry on the previous byte in the array(or operation even, if the CF was set), add that to the sum.
@@ -243,13 +243,13 @@ namespace debugger.Util
                 // To check if the auxiliary flag is set, I mask the first byte of both inputs to get the lower 3 bits. If the sum of
                 // these bits its greater than 0b111, or 7, it is clear that there was an overflow into the 4th bit.
                 Auxiliary = ((input1[0] & 0b111) + (input2[0] & 0b111)) > 0b111 ? FlagState.ON : FlagState.OFF
-            };  
+            };
         }
         public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
         {
             // First ensure both operands are both the intended size so they can be iterated in parallel later
             input1 = SignExtend(input1, (byte)size);
-            input2 = SignExtend(input2, (byte)size); 
+            input2 = SignExtend(input2, (byte)size);
             Result = new byte[size];
             for (int i = 0; i < size; i++)
             {
@@ -267,21 +267,21 @@ namespace debugger.Util
                 //  -----
                 //  0 9 9
                 // as you can see, I needed to borrow twice to get the 1 
-                int sum = input1[i] - input2[i] - (borrow ? 1 : 0); 
-                if (sum < 0)                                        
-                {                                                   
-                                                                    
+                int sum = input1[i] - input2[i] - (borrow ? 1 : 0);
+                if (sum < 0)
+                {
+
                     Result[i] = (byte)(sum + 256);
-                    borrow = true;                                  
-                }                                                   
-                else                                                
+                    borrow = true;
+                }
+                else
                 {
                     //No extra calculation was needed, input1[i] was greater than input2[i]              
                     Result[i] = (byte)sum;
-                    borrow = false;       
-                }                         
-            }                             
-            return new FlagSet(Result) 
+                    borrow = false;
+                }
+            }
+            return new FlagSet(Result)
             {
                 // Was there a borrow left over from the last loop? Then our subtraction isn't complete.
                 // Now its up to the developer to handle the rest, e.g use SBB on the upper bytes.
@@ -293,9 +293,9 @@ namespace debugger.Util
                 // A little harder to deduce than add, but if bit 4 was on in either input1 or input2, in a BCD operation, I need to know
                 // if this state was preserved in the result. If the expression evaluates false, that means there was initially bit 4 set
                 // in one of the operands, which was then lost in the result, or vice versa.
-                Auxiliary = ((input1[0] & 0b1000) | (input2[0] & 0b1000)) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON 
+                Auxiliary = ((input1[0] & 0b1000) | (input2[0] & 0b1000)) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
-        }                   
+        }
         public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
         {
             // Unfortunately my divide implementation is almost completely impractical. On a latest-gen £2000 computer, it took around
@@ -309,13 +309,13 @@ namespace debugger.Util
             // doesn't have control of registers). The next option would of course be another algorithm, which honestly I cannot think of, I'm sure there
             // is but I want to keep my source as my own creation, anything else becomes a jungle to maintain. This is open source software, if you want it added,
             // add it.
-            
+
             Quotient = new byte[size / 2];
             Modulo = new byte[size / 2];
 
             // Dividing by zero would be bad, so throw a divide error.
             if (divisor.IsZero())
-            {                
+            {
                 ControlUnit.RaiseException(Logging.LogCode.DIVIDE_BY_ZERO);
                 return;
             }
@@ -333,8 +333,8 @@ namespace debugger.Util
             // I can understand and maintain easier. At any rate, for now I will just negate any negatives to get their absolute value
             // This way I can stick to the rule of "If the dividend becomes negative, I subtracted too much and need to go back
             // , and leave the rest as a remainder". Then can later determine the sign of the result based on the signs of the inputs.
-            if (NegativeDividend) 
-            {       
+            if (NegativeDividend)
+            {
                 Negate(dividend, out dividend);
 
                 // This is a little extra hack that I will explain later, but an unsigned number does have cause to be percieved as a negative signed,
@@ -350,7 +350,7 @@ namespace debugger.Util
 
             // When I reach the end of the loop iteration, I dont know whether I can subtract again, I need to do the subtraction first then
             // see if its less than zero or not, if it is then break. This is the simplest way to do so, unfortunately leaving an infamous while true loop.
-            while (true) 
+            while (true)
             {
                 // Create a temporary buffer where I store the result of the subtraction.
                 byte[] Buffer;
@@ -359,7 +359,7 @@ namespace debugger.Util
                 // Is the buffer negative? 
                 bool NewSign = Buffer.IsNegative();
                 // If these had two different signs, i.e dividend - divisor < 0, there is a good chance we are finished dividing.
-                if (LastSign == NewSign || LastSign) 
+                if (LastSign == NewSign || LastSign)
                 {
                     LastSign = NewSign;
 
@@ -386,16 +386,16 @@ namespace debugger.Util
                     // Any unsigned number that cannot be interpreted as a signed negative will only go through phases 2 and 3. 
                     // This three phase process ensures I always always always know when to stop subtracting. 
                     // (Technically since I never check for equality of the dividend and 0, the loop will always be ran once more than necessary, this is negligible and doesn't affect the result)
-                    
+
                     // Could this method be applied to other arithmetic operators? Absolutely. Consider 10 + -1000, I could write this as -(1000-10). Fortunately because of twos compliment,
                     // this isn't necessary, I can rely on overflows to do the job for me. However if the numbers were encoded in one compliment or sign magnitude, this method would be needed
                     // on all signed arith operations.
                 }
-                else 
+                else
                 {
                     // This else indicates the number turned negative, or in context NewSign != LastSign and LastSign == false,
                     // therefore the temporary dividend stored in the buffer was subtracted below zero, which means it's time to stop subtracting now because the quotient was found. 
-                    break;                
+                    break;
                 }
             }
 
@@ -418,13 +418,13 @@ namespace debugger.Util
             // An XOR of the signs could be concluded from statement one, but statement 2 and 3 really make that clear.
             // So, to match statement 1(which statement two proves would be the same for x/-y) if there is exactly one negative input,
             // the result has to be negated, or if there are two negates, as statement three shows, do nothing.
-            if (signed && (NegativeDividend ^ NegativeDivisor)) 
-            {                                     
+            if (signed && (NegativeDividend ^ NegativeDivisor))
+            {
                 Negate(Quotient, out dividend);
             }
 
             //Size variable is the size of twice the result.      
-            Array.Copy(dividend, Modulo, size / 2); 
+            Array.Copy(dividend, Modulo, size / 2);
         }
         public static FlagSet Multiply(byte[] input1, byte[] input2, bool signed, int size, out byte[] Result)
         {
@@ -445,11 +445,11 @@ namespace debugger.Util
             // Bear this process in mind when reading the code ahead, how this process takes place on paper.
 
             // Iterate over every number on the bottom row. Think of the digits 4 and 5 in the example
-            for (int ColumnPos = 0; ColumnPos < size * 2; ColumnPos++) 
+            for (int ColumnPos = 0; ColumnPos < size * 2; ColumnPos++)
             {
                 // Take said digits then iterate over every digit in the top row.
-                for (int BytePos = 0; BytePos < size * 2; BytePos++) 
-                { 
+                for (int BytePos = 0; BytePos < size * 2; BytePos++)
+                {
                     // Times the bottom row digit at "ColumnPos" by the top row digit at "BytePos". 
                     int mul = (input1[ColumnPos] * input2[BytePos]) + Result[BytePos + ColumnPos];
 
@@ -471,7 +471,7 @@ namespace debugger.Util
                     Result[BytePos + ColumnPos] = (byte)(mul % 0x100);
 
                     //If the result was in fact greater than a single byte 
-                    if (mul > 0xFF) 
+                    if (mul > 0xFF)
                     {
                         // This carry needs to be added to the result like a large number. Let Add() handle all the subcarries(carries within Result+Carry).
                         byte[] carry = new byte[size * 4];
@@ -482,7 +482,7 @@ namespace debugger.Util
 
                         // Finally add the MSB here,(a carry). For example, A12B % 0x100 = 2B, A12B / 0x100 = A1(where / is integer division)
                         // 2B goes in the current byte position, A1 goes into the next.                                                     
-                        Add(Result, carry, size * 4, out Result);                                                                 
+                        Add(Result, carry, size * 4, out Result);
                     }
                 }
             }
@@ -491,7 +491,7 @@ namespace debugger.Util
             // then put multiple "digits" in one column. It really is no different aside from the few corners I cut as mentioned before.
 
             // Resize back the array that I dont want(it was only used as extra space for carries as the inputs were resized initially)
-            Array.Resize(ref Result, size * 2); 
+            Array.Resize(ref Result, size * 2);
             byte[] UpperComparison = new byte[size * 2];
 
             // Copy the bottom bytes of result to upper comparison to guarentee both have the bottom half equal
@@ -536,7 +536,7 @@ namespace debugger.Util
 
                 // If signed multiplication, get the sign of the truncated lower bytes in the lower half of the result
                 //Sign = signed ? (Result[size - 1] > 0x7F ? FlagState.ON : FlagState.OFF) : FlagState.UNDEFINED 
-            };                                                                                                   
+            };
         }
         public static FlagSet Increment(byte[] input, int size, out byte[] Result)
         {
@@ -582,10 +582,10 @@ namespace debugger.Util
             // But what if the input value is an array filled with 0xFF? Read ahead.
             for (int i = 0; i < Result.Length; i++)
             {
-                Result[i]++;                 
-                if (Result[i] != 0x00)       
-                {                            
-                    break;                                            
+                Result[i]++;
+                if (Result[i] != 0x00)
+                {
+                    break;
                 }
             }
             return new FlagSet(Result)
@@ -628,9 +628,9 @@ namespace debugger.Util
             // needs to be borrowed from the next column so it can be decremented.
             for (int i = 0; i < Result.Length; i++)
             {
-                Result[i]--;               
-                if (Result[i] != 0xFF)     
-                {          
+                Result[i]--;
+                if (Result[i] != 0xFF)
+                {
                     break;
                 }
             }
@@ -658,8 +658,8 @@ namespace debugger.Util
                 // make use of it!
                 Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,
                 // Identical method to Subtract() here, unfortunately I cant think of any nice shortcut.                                                                 
-                Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON 
-            };                                                                                              
+                Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
+            };
         }
         public static FlagSet ShiftLeft(byte[] input, byte count, int size, out byte[] Result)
         {
@@ -683,7 +683,8 @@ namespace debugger.Util
             Array.Resize(ref Result, size);
 
             // Don't bother shifting by 0, just return now without changing the flags(as said by Intel)
-            if (count == 0) { 
+            if (count == 0)
+            {
                 return new FlagSet();
             }
 
@@ -749,18 +750,18 @@ namespace debugger.Util
             // that without brackets, 1 will be ORed by PullMask, which would always be 1)
             for (; count > 0; count--)
             {
-                Pull = false;                                                                                                
-                for (int i = 0; i < Result.Length; i++)                   
-                {                                                         
-                    int PullMask = Pull ? 0b1 : 0;                        
-                    Pull = (MSB(Result[i]) == 1);                         
-                    Result[i] = (byte)(((Result[i]) << 1) | PullMask);    
-                }                                                        
+                Pull = false;
+                for (int i = 0; i < Result.Length; i++)
+                {
+                    int PullMask = Pull ? 0b1 : 0;
+                    Pull = (MSB(Result[i]) == 1);
+                    Result[i] = (byte)(((Result[i]) << 1) | PullMask);
+                }
             }
 
             // Create some flags, use the constructor for a generic arithmetic flag set, e.g set SF, ZF, and PF as per usual.
-            FlagSet OutputFlags = new FlagSet(Result); 
-            if(StartCount == 1)
+            FlagSet OutputFlags = new FlagSet(Result);
+            if (StartCount == 1)
             {
                 // The overflow flag is actually defined to be set as the MSB ^ CF but since the carry flag is
                 // equal to Pull, I just substituted for ease. Think of it as the CF.
@@ -771,19 +772,19 @@ namespace debugger.Util
                 // Then the CF just shows the value of the last bit to be pushed out of the result.
                 // This could still have some use on shifts greater than 1, but I imagine the most
                 // common use is to check for a sign bit that got pushed out.
-                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF; 
-            }                                                                                                                                                            
-            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;                                                                                                                              
+                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF;
+            }
+            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
             return OutputFlags;
         }
-        public static FlagSet ShiftRight(byte[] input, byte count, int size,  out byte[] Result, bool arithmetic)
+        public static FlagSet ShiftRight(byte[] input, byte count, int size, out byte[] Result, bool arithmetic)
         {
             // See ShiftfLeft()
-            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111); 
-            int StartCount = count;                                 
-            Result = new byte[size];                                
-            Array.Copy(input, Result, input.Length);                
-            if (StartCount == 0)                                    
+            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111);
+            int StartCount = count;
+            Result = new byte[size];
+            Array.Copy(input, Result, input.Length);
+            if (StartCount == 0)
             {
                 return new FlagSet();
             }
@@ -809,19 +810,19 @@ namespace debugger.Util
             // is set, the result of the shift gets masked by 128(which sets the MSB)
             // Read ShiftLeft() if unsure about any of this. They are two very similar
             // operations but I don't want to repeat myself.
-            for (; count > 0; count--)                                  
-            {                                                           
-                bool Push = false;                                      
-                for (int i = Result.Length - 1; i >= 0; i--)            
-                {                                                       
-                    int PushMask = Push ? 0b10000000 : 0;               
-                    Push = ((Result[i] & 1) == 1);                      
-                    Result[i] = (byte)((Result[i] >> 1) | PushMask);    
-                }                                                       
-                                                                        
+            for (; count > 0; count--)
+            {
+                bool Push = false;
+                for (int i = Result.Length - 1; i >= 0; i--)
+                {
+                    int PushMask = Push ? 0b10000000 : 0;
+                    Push = ((Result[i] & 1) == 1);
+                    Result[i] = (byte)((Result[i] >> 1) | PushMask);
+                }
+
             }
             // This(if not earlier) is where things go tragic if you lied in the size argument.                                                           
-            int InputMSB =  MSB(input);
+            int InputMSB = MSB(input);
 
             // If I was shifting a value for part of an arithmetic operation, but I had a signed negative, what would happen? I would
             // lose that sign bit for every shift greater than 0. That means any negative shifted would be useless in arithmetic, and
@@ -844,11 +845,11 @@ namespace debugger.Util
             //     to shift it by 8. Since we know what shifting does, it is clear that I'm making sure it takes up the 8th bit not the first, 
             //     because MSB() just tells us whether the sign bit is on or off, it doesn't actually give me the value of the sign bit(intentionally so).
             if (arithmetic)
-            {                      
+            {
                 Result[Result.Length - 1] |= (byte)(InputMSB << 8);
             }
             FlagSet OutputFlags = new FlagSet(Result);
-            if(StartCount == 1)
+            if (StartCount == 1)
             {
                 if (arithmetic)
                 {
@@ -861,8 +862,8 @@ namespace debugger.Util
                     // don't set it for them. It's done by setting the overflow flag to what
                     // we would have set the MSB to in SAR, it's just in a SAR instruction, 
                     // we save the developer the time of masking the result themself.
-                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF; 
-                }                                                                                                                                              
+                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF;
+                }
             }
             return OutputFlags;
         }
@@ -902,7 +903,7 @@ namespace debugger.Util
             //  128 ROL 2 =    [00000010]
             //  128 RCL 2 = [0][00000001]
             // This effectively gives us a 65-bit number to work with.
-            if (useCarry)            
+            if (useCarry)
             {
                 // Like with shifting, we can save a lot of time by masking the bitRotates
                 // input to eliminate any uneccesary operations. Let's say I want to ROL
@@ -916,11 +917,11 @@ namespace debugger.Util
                 // save a tonne of time right? 
                 StartCount = size switch
                 {
-                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9), 
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
                     RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
                     RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
                     RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
-                    _ => throw new Exception(),                                                                                      
+                    _ => throw new Exception(),
                 };
                 // Now you may have noticed, I moduloed by 9 not 8. It even took myself a minute
                 // to realise that this reduction is only done in RCL not ROL! Honestly, this is
@@ -938,8 +939,8 @@ namespace debugger.Util
             {
                 // Unlike before, we only optimise by masking not using modulo. There is a possibility that on a hardware level, to modulo
                 // by 8 is simply not worth the performance tradeoff.
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));                                                                      
-            }            
+                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
+            }
             Result = new byte[(int)size];
             if (StartCount == 0) { return new FlagSet(); }
             Array.Copy(input, Result, input.Length);
@@ -953,15 +954,15 @@ namespace debugger.Util
 
             // Each iteration of $RotateCount rotates the result by one, so do that as many times  
             // as I want to rotate in total.
-            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)                                            
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
             {
                 // Iterate over each byte--bits can be handle at a bigger scale.
-                for (int i = 0; i < (int)size; i++) 
+                for (int i = 0; i < (int)size; i++)
                 {
-                    byte Mask = (byte)(Pull ? 0b1 : 0);         
-                    Pull = MSB(Result[i]) == 1;                 
+                    byte Mask = (byte)(Pull ? 0b1 : 0);
+                    Pull = MSB(Result[i]) == 1;
                     Result[i] = (byte)((Result[i] << 1) | Mask);
-                    
+
                 }
 
                 // Since I'm rotating a byte, I care about every bit in said byte, so I need to handle the pull before the damage is done.
@@ -976,19 +977,19 @@ namespace debugger.Util
                 // The algorithm isn't interdependent on iterations--you could take the result out of any $RotateCount
                 // iteration and get a result equal to the input array rotated $RotateCount times. Compare this to division
                 // and the difference becomes obvious.
-                if (useCarry)                                
-                {                                            
-                    Result[0] |= (byte)(Carry ? 1 : 0);      
-                    Carry = Pull;                            
-                }                                            
-                else                                         
-                {                                            
-                    Result[0] |= (byte)(Pull ? 0b1 : 0);     
-                }                                            
-                Pull = false;                                
-            }                                                
+                if (useCarry)
+                {
+                    Result[0] |= (byte)(Carry ? 1 : 0);
+                    Carry = Pull;
+                }
+                else
+                {
+                    Result[0] |= (byte)(Pull ? 0b1 : 0);
+                }
+                Pull = false;
+            }
             FlagSet ResultFlags = new FlagSet();
-            if(useCarry)
+            if (useCarry)
             {
                 // This is where the carry flag is set in the output. I don't have to worry about setting it each
                 // time in the loop, I can get away with using a boolean. This is because my program performs what is called atomic operation. 
@@ -1030,23 +1031,23 @@ namespace debugger.Util
                 // Most importantly, when I'm debugging assembly code, I don't care about speed. Its never going to take any amount of considerable
                 // time to execute a single instruction. Performance is only really important to the end-user. Also, you have to think about why you
                 // are learning assembly. If I didn't care about how I can take full advantage of the processor, I wouldn't be writing my code in assembly.  
-                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF; 
-            }                                                             
-            else                                                          
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
+            }
+            else
             {
                 // If the carry flag wasn't used in rotation because ROL was used, set it to the LSB of the result. As to why, I don't know. I can't
                 // think of a scenario where I would use this, but Intel writes it as "For ROL and ROR instrucrtions, the original value of the CF
                 // is not part of the result, but the CF flag recieves a copy of the bit that was shifted from one end to the other".
-                ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF; 
-            }                                                                       
-                                                                                    
-            if(StartCount == 1)
+                ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
+            }
+
+            if (StartCount == 1)
             {
                 // As with in ShiftLeft(), I don't know when this would be used. I assume compatibility.  
                 // The Intel manuals are very cookie-cutter, they don't explain much, they just state what happens.
-                ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON; 
-            }                                                                                                                           
-            return ResultFlags;                                                                                                         
+                ResultFlags.Overflow = (MSB(Result) ^ (ResultFlags.Carry == FlagState.ON ? 1 : 0)) == 0 ? FlagState.OFF : FlagState.ON;
+            }
+            return ResultFlags;
         }
         public static FlagSet RotateRight(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
         {
@@ -1056,11 +1057,11 @@ namespace debugger.Util
             {
                 StartCount = size switch
                 {
-                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9), 
+                    RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
                     RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
-                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),      
-                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),      
-                    _ => throw new Exception(),                               
+                    RegisterCapacity.DWORD => (byte)(bitRotates & 0x1F),
+                    RegisterCapacity.QWORD => (byte)(bitRotates & 0x3F),
+                    _ => throw new Exception(),
                 };
             }
             else
@@ -1076,15 +1077,15 @@ namespace debugger.Util
             bool Push = carryPresent && useCarry;
 
             // Like ShiftRight(), work backwards.
-            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++) 
+            for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
             {
-                for (int i = (int)size-1; i >= 0; i--) 
+                for (int i = (int)size - 1; i >= 0; i--)
                 {
                     // Instead of setting the LSB, I want to set the MSB of the byte in the array,
                     // due to the direction of bit movement. To think of it simply, every bit in
                     // the input is being shifted one place right, then the LSB from before(preserved
                     // in $Push used to OR the MSB.
-                    byte Mask = (byte)(Push ? 0b10000000 : 0); 
+                    byte Mask = (byte)(Push ? 0b10000000 : 0);
                     Push = LSB(Result[i]) == 1;
                     Result[i] = (byte)((Result[i] >> 1) | Mask);
                 }
@@ -1093,22 +1094,22 @@ namespace debugger.Util
                 // right, so the CF represents the initial LSB. If the CF was set already,
                 // that means the MSB will be set. Read RotateLeft() and ShiftRight(), both 
                 // algorithms are almost identical.
-                if (useCarry)                                                  
-                {                                                              
-                    Result[Result.Length-1] |= (byte)(Carry ? 0b10000000 : 0); 
-                    Carry = Push;                                              
-                }                                                               
-                else if(Push)                                                   
-                {                                                               
-                    Result[Result.Length-1] |= 0b10000000;                      
-                }                                                               
+                if (useCarry)
+                {
+                    Result[Result.Length - 1] |= (byte)(Carry ? 0b10000000 : 0);
+                    Carry = Push;
+                }
+                else if (Push)
+                {
+                    Result[Result.Length - 1] |= 0b10000000;
+                }
                 Push = false;
             }
             FlagSet ResultFlags = new FlagSet();
             if (useCarry)
             {
                 // Set the real CF afterwards as part of the result(not just the boolean).
-                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;   
+                ResultFlags.Carry = Carry ? FlagState.ON : FlagState.OFF;
             }
             else
             {
@@ -1118,8 +1119,8 @@ namespace debugger.Util
             if (StartCount == 1)
             {
                 // XOR of the sign bit and the second-to-last bit of the result. I don't know when this would be useful, but it's there.
-                ResultFlags.Overflow = (MSB(Result) ^ GetBit(Result, Result.Length*8-1)) == 0 ? FlagState.OFF : FlagState.ON;  
-            }                                                                                                                 
+                ResultFlags.Overflow = (MSB(Result) ^ GetBit(Result, Result.Length * 8 - 1)) == 0 ? FlagState.OFF : FlagState.ON;
+            }
             return ResultFlags;
         }
 
@@ -1148,8 +1149,8 @@ namespace debugger.Util
             // the array is, but in a qword I would refer to the MSB as the 64th bit and the LSB as the 1st)
             return ((byte)(bit / 8), (byte)(1 << ((bit - 1) % 8)));
         }
-                                                                                                                                                                                                            
-        public static byte GetBit(byte[] input, int bit) 
+
+        public static byte GetBit(byte[] input, int bit)
         {
             // An example implementation of GetBitMask()
             (byte Index, byte Mask) = GetBitMask(bit);
@@ -1159,7 +1160,7 @@ namespace debugger.Util
             // Another way of turning the WeightedBit into a 1 or 0 is to use integer division. A number divided by itself is always 1(save zero, but I know that the value
             // of $Mask will be nonzero because I'm left shifting 1 by a value less than 8, which means it could not be shifted out of the byte.) So if the WeightedBit is
             // set, dividing it by itself will give one. If it isn't, I would be dividing 0 by the mask, which would give 0.
-            return (byte)(WeightedBit / Mask);                               
+            return (byte)(WeightedBit / Mask);
         }
         public static byte MSB(byte input)
         {
@@ -1187,34 +1188,34 @@ namespace debugger.Util
             bool Even = true;
             for (int i = 0; i < 8; i++)
             {
-                if((input & (1 << i)) > 0)
+                if ((input & (1 << i)) > 0)
                 {
                     Even ^= true;
                 }
             }
             return Even;
-        }                                                                                            
-        public static byte[] GetBytes(string bitString) 
+        }
+        public static byte[] GetBytes(string bitString)
         {
             // Convert a string representation of a byte array back into bytes. This is only going to work properly 
             // on byte arrays that I parsed. I cannot attest to any other methods.
 
             // Divide a multiple of 8 by 8 to get the number of bytes. This is where using different sources of code together can go sour. Ensure that yours pads bytes properly.
-            byte[] Output = new byte[bitString.Length / 8]; 
+            byte[] Output = new byte[bitString.Length / 8];
             for (int i = 0; i < Output.Length; i++)
             {
                 // Select the bytes I want by multiplying the iterator by the number of bits in a x86-64 byte, 8. This selects the next group of 8 each time.
-                Output[i] = Convert.ToByte(bitString.Substring(8 * i, 8), 2); 
+                Output[i] = Convert.ToByte(bitString.Substring(8 * i, 8), 2);
             }
             return Output;
         }
-        public static byte[] SignExtend(byte[] input, byte newLength) 
+        public static byte[] SignExtend(byte[] input, byte newLength)
         {
             // Resize an array using sign extension.
 
             // If the input is a longer than the newLength, something has probably gone horribly wrong. However, there is a good chance they're even. In which case, just return now.
             // because nothing needs to be done
-            if (input.Length < newLength) 
+            if (input.Length < newLength)
             {
                 // I don't want to overwrite the whole array, so start at the current length(this gives the index after the last byte in the array)
                 int startIndex = input.Length;
@@ -1249,19 +1250,19 @@ namespace debugger.Util
                 //     resize the array and return.
 
                 //  This could also be done with a bit mask, but there is no significant difference.
-                if (input[startIndex-1] > 0x7F)
+                if (input[startIndex - 1] > 0x7F)
                 {
                     // If it was a negative, every value after and including the startIndex needs
                     // to be set to 0xFF. This is probably the best way of doing so.                          
-                    for (int i = startIndex; i < newLength; i++) 
-                    {                                            
+                    for (int i = startIndex; i < newLength; i++)
+                    {
                         input[i] = 0xFF;
                     }
                 }
-            }            
+            }
             return input;
         }
-        public static string SignExtend(string bits, int newLength) 
+        public static string SignExtend(string bits, int newLength)
         {
             // Sign extension can also be applied to string representations of byte arrays.
             string Output = "";
@@ -1270,7 +1271,7 @@ namespace debugger.Util
             char SignBit = (bits[0] == '1') ? '1' : '0';
 
             // $newLength will be the length of the string not the length of bytes.
-            for (int i = bits.Length; i < newLength; i++) 
+            for (int i = bits.Length; i < newLength; i++)
             {
                 // Append the sign bit ($newLength-$bits.Length) times
                 Output += SignBit;
@@ -1282,7 +1283,7 @@ namespace debugger.Util
             // A performance test shows this is as fast as zero extension in C# can get http://prntscr.com/ofb1dy
             // Unfortunately, this does not hold a candle to zero extension in assembly.
             // See SignExtension() for a full explanation of why this works.
-            Array.Resize(ref input, length); 
+            Array.Resize(ref input, length);
             return input;
         }
     }

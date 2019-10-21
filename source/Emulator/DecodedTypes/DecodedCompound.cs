@@ -45,7 +45,7 @@ namespace debugger.Emulator.DecodedTypes
         }
         public List<string> Disassemble()
         {
-            List<string> Output = new List<string>();            
+            List<string> Output = new List<string>();
             for (int i = 0; i < InternalArray.Length; i++)
             {
                 Output.AddRange(InternalArray[i].Disassemble());
@@ -82,32 +82,32 @@ namespace debugger.Emulator.DecodedTypes
         {
             for (int i = 0; i < InternalArray.Length; i++)
             {
-                if(InternalArray[i] is IMyMultiDecoded Cursor)
+                if (InternalArray[i] is IMyMultiDecoded Cursor)
                 {
-                    if(i+1 == index)
+                    if (i + 1 == index)
                     {
                         Cursor.SetSource(data);
                         return;
                     }
                     i++;
                 }
-                if(i == index)
+                if (i == index)
                 {
                     InternalArray[index].Set(data);
                 }
-            }            
+            }
         }
         public void SetIndiscriminative(byte[] data, int index) => InternalArray[index].Set(data);
         public void SetSource(byte[] data)
         {
-            if(InternalArray[0] is IMyMultiDecoded Cursor)
+            if (InternalArray[0] is IMyMultiDecoded Cursor)
             {
                 Cursor.SetSource(data);
             }
             else
             {
                 InternalArray[1].Set(data);
-            }            
+            }
         }
     }
 }

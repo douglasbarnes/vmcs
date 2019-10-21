@@ -4,12 +4,12 @@ using System.Collections;
 using System.Collections.Generic;
 namespace debugger.Util
 {
-    public class ListeningDict<T1,T2> : IDictionary<T1,T2>
+    public class ListeningDict<T1, T2> : IDictionary<T1, T2>
     {
-        private readonly Dictionary<T1,T2> InternalDict;
+        private readonly Dictionary<T1, T2> InternalDict;
         public delegate void ListEvent();
         public delegate void OnItemAction(T1 key, T2 value);
-        public event OnItemAction OnGet = (item, index) => { };        
+        public event OnItemAction OnGet = (item, index) => { };
         public event OnItemAction OnSet = (item, index) => { };
         public event OnItemAction OnAdd = (item, index) => { };
         public event OnItemAction OnRemove = (item, index) => { };
@@ -30,7 +30,7 @@ namespace debugger.Util
 
         public ListeningDict()
         {
-            InternalDict = new Dictionary<T1,T2>();
+            InternalDict = new Dictionary<T1, T2>();
         }
 
         public bool ContainsKey(T1 key)

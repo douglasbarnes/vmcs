@@ -32,14 +32,14 @@
 // SplitRegisterHandle only supports two different registers. If bytes were to be split across two halves of the same
 // register, a RegisterHandle of twice the size with a NO_INIT bit set would do the job.
 // The size used to initialise the SplitRegisterHandle should be the size of each register NOT the two registers combined.
-using System.Collections.Generic;
 using debugger.Util;
+using System.Collections.Generic;
 namespace debugger.Emulator.DecodedTypes
 {
     public enum SplitRegisterHandleSettings
     {
-        NONE=0,
-        FETCH_UPPER=1,
+        NONE = 0,
+        FETCH_UPPER = 1,
     }
     public class SplitRegisterHandle : IMyDecoded
     {
@@ -58,18 +58,18 @@ namespace debugger.Emulator.DecodedTypes
         {
             Size = size;
             Upper.Initialise(size);
-            Lower.Initialise(size);                    
+            Lower.Initialise(size);
         }
         public List<string> Disassemble()
             => new List<string>() { $"{Upper.Disassemble()[0]}:{Lower.Disassemble()[0]}" };
 
         public List<byte[]> Fetch()
         {
-            if((Settings | SplitRegisterHandleSettings.FETCH_UPPER) == Settings)
+            if ((Settings | SplitRegisterHandleSettings.FETCH_UPPER) == Settings)
             {
                 // Create an output buffer of twice the size(because $upper and $lower have the same size)
                 byte[] Output = new byte[(int)Size * 2];
-                
+
                 // Copy the contents of $lower into the lower half of the output.
                 System.Array.Copy(Lower.FetchOnce(), Output, (int)Size);
 
@@ -83,14 +83,14 @@ namespace debugger.Emulator.DecodedTypes
                 return new List<byte[]> { Lower.FetchOnce() };
             }
         }
-             
+
         public void Set(byte[] data)
         {
             // The input data must be the size of $size * 2. Otherwise there would be no need for a SplitRegisterHandle.
 
             // Set $upper to the upper bytes of $data (Take $size bytes from the end of $data)
             Upper.Set(Bitwise.Subarray(data, (int)Size));
-            
+
             // Set $lower to the lower $size bytes of $data.
             Lower.Set(Bitwise.Cut(data, (int)Size));
         }

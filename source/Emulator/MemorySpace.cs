@@ -7,8 +7,8 @@
 // same time, the processor does not have to store the address of a byte along with it. Being as efficient as a low level technology is what
 // this program encourages, not implements. Given what is at my disposal, it makes very good use of its resources. See the index accessor
 // for specific implementation.
-using System.Collections.Generic;
 using debugger.Util;
+using System.Collections.Generic;
 
 namespace debugger.Emulator
 {
@@ -56,7 +56,7 @@ namespace debugger.Emulator
             // Load all segments into the internal address table.
             foreach (Segment seg in SegmentMap.Values)
             {
-                if(seg.Data != null)
+                if (seg.Data != null)
                 {
                     // If the segment has data, add all that data until,
                     //  1. There is no more data to add
@@ -68,10 +68,10 @@ namespace debugger.Emulator
                         {
                             AddressDict.Add(i + seg.Range.Start, seg.Data[i]);
                         }
-                    }                    
+                    }
                 }
             }
-                
+
         }
         private MemorySpace(MemorySpace toClone)
         {
@@ -91,12 +91,12 @@ namespace debugger.Emulator
         {
             // A memory space can use an index accessor which will return AddressMap[$address] if it exists, otherwise a 0. This is where a seg fault would occur if segmentation was strict.
             get => AddressDict.TryGetValue(address, out byte Fetched) ? Fetched : (byte)0x00;
-           
+
             set
-            {            
+            {
                 // Register the new value in the address map
                 AddressTable.TryMerge(address);
-                Set(address, value);               
+                Set(address, value);
             }
         }
 
@@ -134,5 +134,5 @@ namespace debugger.Emulator
                 AddressDict.Add(address, value);
             }
         }
-    }    
+    }
 }

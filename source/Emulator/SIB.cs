@@ -6,9 +6,9 @@
 //  1. It is a struct an cannot inherit
 //  2. It requires a ModRM before it, there would be no purpose for it otherwise. 
 //  3. SIBs only store information for one operand, be that the destination or the source.
-using System;
-using debugger.Util;
 using debugger.Emulator.DecodedTypes;
+using debugger.Util;
+using System;
 using static debugger.Util.Disassembly;
 namespace debugger.Emulator
 {
@@ -17,7 +17,7 @@ namespace debugger.Emulator
         public RegisterCapacity PointerSize;
         public readonly DeconstructedPointer Disassemble;
         public ulong Destination;
-        public long OffsetValue; 
+        public long OffsetValue;
         private readonly ModRM.Mod Mod;
         private readonly ControlUnit.RegisterHandle BaseHandle;
         private readonly ControlUnit.RegisterHandle IndexHandle;
@@ -58,7 +58,7 @@ namespace debugger.Emulator
         }
         public SIB(byte inputSIB, ModRM.Mod mod)
         {
-            DeconstructedSIB Fields = new DeconstructedSIB(inputSIB); 
+            DeconstructedSIB Fields = new DeconstructedSIB(inputSIB);
             // To save complication, the SIB is disassembled as it is decoded. Otherwise, more variables would have to be stored.
             Disassemble = new DeconstructedPointer();
             OffsetValue = 0;
@@ -85,8 +85,8 @@ namespace debugger.Emulator
                 //  Scale bits == 3
                 //  2^^3 = 8
                 //  Index *= 8
-                IndexValue = (byte)Math.Pow(2,Fields.Scale) * BitConverter.ToUInt64(Bitwise.SignExtend(IndexHandle.FetchOnce(), 8), 0);
-                
+                IndexValue = (byte)Math.Pow(2, Fields.Scale) * BitConverter.ToUInt64(Bitwise.SignExtend(IndexHandle.FetchOnce(), 8), 0);
+
                 // The scale coefficient still needs to be shown in the disassembly.
                 Disassemble.IndexScale = Fields.Scale;
                 Disassemble.IndexReg = IndexHandle.DisassembleOnce();
@@ -96,12 +96,12 @@ namespace debugger.Emulator
                 // If the index bits were equal to 4, there is no Index register, but this is a struct and therefore still needs to be assigned.
                 IndexHandle = null;
             }
-            
+
             // Note that any additional immediate displacement are dealt with in the ModRM class
             // The base bits being 5 denotes that there is an immediate pointer following the SIB byte, this is the only way of hard coding a pointer to a specific location as of now. An immediate displacement in the ModRM and a SIB absolute address pointer are not mutually exclusive.
 
             // If the base isn't 5, there is a base register encoded in the SIB. The base being 5 denotes that there is only a pointer(which could be 0)
-            if (Fields.Base != 5) 
+            if (Fields.Base != 5)
             {
                 BaseHandle = new ControlUnit.RegisterHandle((XRegCode)Fields.Base, RegisterTable.GP, RegisterCapacity.QWORD);
                 BaseValue = BitConverter.ToUInt64(BaseHandle.FetchOnce(), 0);
@@ -109,7 +109,7 @@ namespace debugger.Emulator
             }
 
             // If the Mod bits of the preceeding ModRM byte do not equal 0 and the base bits equal 5, $EBP is used as the base
-            else if (Mod != ModRM.Mod.Pointer) 
+            else if (Mod != ModRM.Mod.Pointer)
             {
                 BaseHandle = new ControlUnit.RegisterHandle(XRegCode.BP, RegisterTable.GP, PointerSize);
                 BaseValue = BitConverter.ToUInt64(Bitwise.SignExtend(BaseHandle.FetchOnce(), 8), 0);
@@ -122,7 +122,7 @@ namespace debugger.Emulator
                 BaseHandle = null;
                 OffsetValue = BitConverter.ToUInt32(ControlUnit.FetchNext(4), 0);
             }
-            
+
             // The ModRM byte that called this constructor only cares about the destination(or effective address if you want) of the SIB, but the rest is stored beyond that purely for disassembly.
             Destination = BaseValue + IndexValue;
         }

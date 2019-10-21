@@ -5,11 +5,11 @@
 // anyone working with this class to make modifications directly to the class rather than mess with it outside as a common
 // convention with any windows form. It makes for much cleaner code and it is very nice to be able to have methods in a form
 // that you polish, then seal away for eternity.
-using System.Windows.Forms;
-using System.Drawing;
+using debugger.Emulator;
 using System;
 using System.Collections.Generic;
-using debugger.Emulator;
+using System.Drawing;
+using System.Windows.Forms;
 using static debugger.Forms.FormSettings;
 namespace debugger.Forms
 {
@@ -25,10 +25,10 @@ namespace debugger.Forms
             AutoSize = false;
             View = View.Details;
             HideSelection = false;
-            OwnerDraw = true;        
+            OwnerDraw = true;
             BorderStyle = BorderStyle.None;
-            HoverSelection = false;            
-           
+            HoverSelection = false;
+
             // The column text will be drawn manually, but the draw event will never be called if there is no column.
             Columns.Add(new ColumnHeader(""));
 
@@ -36,7 +36,7 @@ namespace debugger.Forms
             // set here. I believe this is some kind of autosizing mechanism for the scroll bar that cannot be overriden. The workaround
             // I came up with is to change $Size to $ForcedSize before drawing in OnDrawColumnHeader(), as this is the first drawing method 
             //to be called before drawing items etc. http://prntscr.com/oxdg0s
-            ForcedSize = size; 
+            ForcedSize = size;
 
             Size = size;
 
@@ -52,11 +52,11 @@ namespace debugger.Forms
         protected override void OnDrawColumnHeader(DrawListViewColumnHeaderEventArgs e)
         {
             // See constructor
-            if(Size != ForcedSize || Columns[0].Width != ForcedSize.Width)
+            if (Size != ForcedSize || Columns[0].Width != ForcedSize.Width)
             {
                 Size = ForcedSize;
                 Columns[0].Width = ForcedSize.Width;
-            } 
+            }
 
             Rectangle Bounds = e.Bounds;
 
@@ -66,7 +66,7 @@ namespace debugger.Forms
             // AA AA AA AA AA AA
             // Its hard to depict with text, but imagine the header characters(0,1,2) being in line with the center of A|A where the pipe is.
             // The large offset is added to put the characters above where the memory will go, not the addresses.
-            Bounds.X +=  ((int)BaseUI.BaseFont.SizeInPoints * 15) - 3;
+            Bounds.X += ((int)BaseUI.BaseFont.SizeInPoints * 15) - 3;
 
             // Minor demphasis on the header to keep the memory more distinct.
             Util.Drawing.DrawFormattedText(ColumnHeader, e.Graphics, Bounds);
@@ -75,7 +75,7 @@ namespace debugger.Forms
         {
             // Also necessary in addition to OnDrawColumnHeader(). Without this, it will be too small when the set of items is empty.
             // See constructor.
-            if(Size != ForcedSize)
+            if (Size != ForcedSize)
             {
                 Size = ForcedSize;
             }
@@ -96,7 +96,7 @@ namespace debugger.Forms
 
             // This will be used to avoid displaying repeating data
             ulong LastAddress = 0;
-            
+
             // Iterate through every address range in the memory.
             for (int table_index = 0; table_index < inputMemory.AddressTable.Count; table_index++)
             {
@@ -121,7 +121,7 @@ namespace debugger.Forms
                 // addresses(excluding 0x100) that are shown on the end, not only because it fills the line but it it can come in handy, especially when
                 // you consider that a new line would be added for the new address, and so would not only have repeated data but the viewer would become "jagged".
                 // In otherwords, do not show the same address line twice.
-                if(table_index == 0 || CurrentAddress > LastAddress)
+                if (table_index == 0 || CurrentAddress > LastAddress)
                 {
                     // If the address has gone out of the range. It's conventionally fine go a little bit out of range(no more than x % 10) 
                     // because it would look strange having incomplete rows, but an advantage stated earlier was that the minimum amount of data 
@@ -162,7 +162,7 @@ namespace debugger.Forms
                 // the extra bytes added on to the end to complete the row.
                 LastAddress = CurrentAddress;
             }
-            Invoke(new Action(() => 
+            Invoke(new Action(() =>
             {
                 // Here I am against using BeginUpdate() and EndUpdate() methods. I'm not certain of how they work exactly, but 
                 // they seem to worsen any flickering because the text initially displays as white for whatever reason.
@@ -178,9 +178,9 @@ namespace debugger.Forms
                 int i = 0;
 
                 for (; i < ItemsBuffer.Count; i++)
-                {              
+                {
                     // If the item is about to go out of range, new items need to be added on top.
-                    if(Items.Count == i)
+                    if (Items.Count == i)
                     {
                         Items.Add(ItemsBuffer[i]);
                     }
@@ -192,7 +192,7 @@ namespace debugger.Forms
                     else if (ItemsBuffer[i] != Items[i].Text)
                     {
                         Items[i].Text = ItemsBuffer[i];
-                    }                    
+                    }
                 }
 
                 // If there are any remaining items left in the forms item collection, remove them(for reasons explained earlier). If $itemsbuffer.Count

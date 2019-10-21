@@ -13,14 +13,14 @@
 // as for programs in general it gets very messy when logs are incomplete/misleading. To implementg a new LogCode, all that must be
 // done is: Register it as a new entry in the enum definition, Create a new key pair in $LogMessages of which the value is a
 // severity-string tuple, where the string is the error message.
-using System.IO;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using static debugger.Logging.LogCode;
 namespace debugger.Logging
-{    
+{
     public enum LogCode
-    {  
+    {
         NONE,
         INVALID_OPCODE,
         DIVIDE_BY_ZERO,
@@ -42,7 +42,7 @@ namespace debugger.Logging
     }
     public class LoggedException : Exception
     {
-        public LoggedException(LogCode logCode, string Interpolation="") : base(Logger.FetchMessage(logCode, new string[] { Interpolation }))
+        public LoggedException(LogCode logCode, string Interpolation = "") : base(Logger.FetchMessage(logCode, new string[] { Interpolation }))
         {
             Initialise(logCode, new string[] { Interpolation });
         }
@@ -54,8 +54,8 @@ namespace debugger.Logging
         private void Initialise(LogCode logCode, string[] interpolations)
         {
             // Log the exception.
-            Logger.Log(logCode, interpolations);            
-            
+            Logger.Log(logCode, interpolations);
+
             // Exit with error code 1. Anything that isn't zero should be fairly conventional here.
             Environment.Exit(1);
         }
@@ -74,7 +74,7 @@ namespace debugger.Logging
             { TESTCASE_RUNTIME, (Severity.ERROR, "Runtime error in testcase. Execution stopped before expected end.") },
             { TESTCASE_PARSEFAIL, (Severity.WARNING, "Data in '{0}' could not be parsed: '{1}'.") },
             { TESTCASE_IOERROR, (Severity.WARNING, "Error parsing testcase file {0}:'{1}'.") },
-            { TESTCASE_NOT_FOUND, (Severity.WARNING, "Could not run testcase '{0}', file not found.") },            
+            { TESTCASE_NOT_FOUND, (Severity.WARNING, "Could not run testcase '{0}', file not found.") },
             { TESTCASE_RESULT, (Severity.INFO, "Testcase '{0}' completed with result '{1}'.") },
             { TESTCASE_DUPLICATE, (Severity.WARNING, "Multiple testcases with the name '{0}' found. Only the first will be parsed.") },
             { TESTCASE_BADHEX, (Severity.WARNING, "Could not parse testcase '{0}', utf-8 characters in the hex tags could not be parsed as bytes") },
@@ -119,8 +119,8 @@ namespace debugger.Logging
             // Write the error message along with its severity and a timestamp to the log file. Remember that streamwriter does
             // not automatically write a new line.
             using (StreamWriter stream = LogPath.AppendText())
-            {            
-                
+            {
+
                 stream.Write($"[{SeverityPrefix[CodeInfo.Item1]}][{DateTime.UtcNow.ToString()}] " + ErrorMessage + "\n");
             }
 

@@ -2,18 +2,18 @@
 // it's just ControlUnit.FetchNext($x). However, in terms of generalising disassembly, different immediate settings, etc, having a class to handle it all goes a long way. 
 // In older versions of the code, immediates were handled in the Opcode base class, which became an absolute eye sore. In this sense, the IMyDecoded interface is probably
 // the best thing that happened to this program.
+using debugger.Util;
 using System;
 using System.Collections.Generic;
-using debugger.Util;
 namespace debugger.Emulator.DecodedTypes
 {
     [Flags]
     public enum ImmediateSettings
     {
-        NONE=0,
-        SXTBYTE=1,
-        ALLOWIMM64=2,
-        RELATIVE=4,
+        NONE = 0,
+        SXTBYTE = 1,
+        ALLOWIMM64 = 2,
+        RELATIVE = 4,
     }
     public class Immediate : IMyDecoded
     {
@@ -28,7 +28,7 @@ namespace debugger.Emulator.DecodedTypes
         {
             // The immediate is fetched only once per instance. I don't see it unrealistic for Initialise() to be called more than once.
             // Obviously if this check was not in place, the immediate buffer would change every time and most likely gobble the next instruction.
-            if(Buffer == null)
+            if (Buffer == null)
             {
                 Size = size;
 
@@ -46,9 +46,9 @@ namespace debugger.Emulator.DecodedTypes
                 {
                     MaxVal = 0b1000;
                 }
-                
+
                 // If $size is less than or equal to $MaxVal, just fetch $size bytes. That is how many the caller expects.
-                if((int)size <= MaxVal)
+                if ((int)size <= MaxVal)
                 {
                     Buffer = ControlUnit.FetchNext((int)size);
                 }
@@ -64,7 +64,7 @@ namespace debugger.Emulator.DecodedTypes
                 {
                     Bitwise.Add(Buffer, BitConverter.GetBytes(ControlUnit.InstructionPointer), 8, out Buffer);
                 }
-            }            
+            }
         }
         public List<byte[]> Fetch() => new List<byte[]>() { Buffer };
         public void Set(byte[] data) => throw new Exception("Attempt to set value of immediate");

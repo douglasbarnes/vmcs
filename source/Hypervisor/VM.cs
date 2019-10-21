@@ -2,12 +2,12 @@
 // Its capabilities include
 //  -Creating a context out of a MemorySpace instance.
 //  -
-using System;
-using System.Collections.Generic;
 using debugger.Emulator;
 using debugger.Util;
+using System;
+using System.Collections.Generic;
 namespace debugger.Hypervisor
-{    
+{
     public class VM : HypervisorBase
     {
         public bool Ready
@@ -17,7 +17,8 @@ namespace debugger.Hypervisor
             private set;
         } = false;
         public ListeningList<ulong> Breakpoints = new ListeningList<ulong>();
-        public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory) {
+        public VM(MemorySpace inputMemory) : base("VM", new Context(inputMemory)
+        {
             Registers = new RegisterGroup(new Dictionary<XRegCode, ulong>()
             {
                 { XRegCode.SP, inputMemory.SegmentMap[".stack"].Range.Start },
@@ -25,7 +26,7 @@ namespace debugger.Hypervisor
             }),
         })
         {
-            Handle.ShallowCopy().Breakpoints = Breakpoints;            
+            Handle.ShallowCopy().Breakpoints = Breakpoints;
             Ready = true;
         }
         public VM() : base("VM", new Context())
@@ -57,7 +58,7 @@ namespace debugger.Hypervisor
                 // of importance at this level, therefore zero extending is more appropiate than sign extending.
                 ParsedRegisters.Add(Registers[i].Mnemonic, BitConverter.ToUInt64(Bitwise.ZeroExtend(Registers[i].Value, 8), 0));
             }
-                     
+
             return ParsedRegisters;
         }
         public void Jump(ulong address)
@@ -80,5 +81,5 @@ namespace debugger.Hypervisor
         }
         public ulong GetRIP() => Handle.ShallowCopy().InstructionPointer;
 
-    }   
+    }
 }

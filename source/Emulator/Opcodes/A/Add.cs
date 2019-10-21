@@ -6,7 +6,7 @@ namespace debugger.Emulator.Opcodes
     { // imm // 05=EAX, 81=any  04=al, 80=8bit
         readonly byte[] Result;
         readonly FlagSet ResultFlags;
-        public Add(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE, bool UseCarry=false) : base((UseCarry) ? "ADC" : "ADD", input, settings)
+        public Add(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE, bool UseCarry = false) : base((UseCarry) ? "ADC" : "ADD", input, settings)
         {
             List<byte[]> DestSource = Fetch();
             ResultFlags = Bitwise.Add(DestSource[0], DestSource[1], (int)Capacity, out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseCarry));

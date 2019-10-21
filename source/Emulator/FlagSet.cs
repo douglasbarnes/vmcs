@@ -8,9 +8,8 @@
 //      ControlUnit.SetFlags(new FlagSet() { Carry = FlagState.ON });
 // Whilst having all the flags stored in one register(as it is on the processor certainly has its benefits,
 // having an intuitive programming interface is more aligned with the intentions of my program.
-using System.Linq;
-using debugger.Util;
 using debugger.Logging;
+using debugger.Util;
 namespace debugger.Emulator
 {
     public enum FlagState
@@ -21,27 +20,27 @@ namespace debugger.Emulator
         // allowed for simpler code within the class. However having the option to leave
         // a flag as UNDEFINED greatly simplifies the usage of the FlagSet outside of the class
 
-        UNDEFINED=0,
-        OFF=1,
-        ON=2,        
+        UNDEFINED = 0,
+        OFF = 1,
+        ON = 2,
     }
     public struct FlagSet
     {
         public FlagState Carry;
         public FlagState Auxiliary;
-        public FlagState Overflow;  
-        public FlagState Zero;     
-        public FlagState Sign;     
+        public FlagState Overflow;
+        public FlagState Zero;
+        public FlagState Sign;
         public FlagState Parity;
-        public FlagState Direction; 
-        public FlagState Interrupt; 
+        public FlagState Direction;
+        public FlagState Interrupt;
         public FlagSet(FlagState initialiseAs = FlagState.UNDEFINED)
         {
             // Construct a flag set with all flags equal to $intialiseAs
             Carry = initialiseAs;
             Auxiliary = initialiseAs;
-            Overflow = initialiseAs; 
-            Zero = initialiseAs; 
+            Overflow = initialiseAs;
+            Zero = initialiseAs;
             Sign = initialiseAs;
             Parity = initialiseAs;
             Direction = initialiseAs;
@@ -52,7 +51,7 @@ namespace debugger.Emulator
             // Change all the flags in the struct to $setTo
             this = new FlagSet(setTo);
         }
-        public FlagSet(byte[] input) 
+        public FlagSet(byte[] input)
         {
             // A constructor that can set ZF, SF, PF to what they are defined as in most cases            
             Carry = FlagState.UNDEFINED;

@@ -12,7 +12,7 @@ namespace debugger.IO
             BIN Output = new BIN()
             {
                 Instructions = new byte[reader.Length]
-            };       
+            };
             reader.Read(Output.Instructions, 0, (int)reader.Length);
             return Output;
         }

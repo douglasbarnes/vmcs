@@ -6,18 +6,18 @@
 //            However, regardless of this setting, if XRegCode specified in the constructor is R8,R9..,R15, that register will still be used. See the explanation of REX bytes in ControlUnit.cs if unsure.
 //  NO_INIT - Once constructed, the RegisterHandle will ignore all Initialise() calls. This is useful when the opcode always takes a specific register as an input, such as shift instructions which have 
 //            an implementation where the source is implicitly defined as $CL. If the NO_INIT setting did not exist, this would be overwritten to the same size register as the input.
-using System.Collections.Generic;
 using debugger.Util;
+using System.Collections.Generic;
 namespace debugger.Emulator
 {
     public enum RegisterHandleSettings
     {
-        NONE=0,
-        NO_REX =1,
-        NO_INIT=2,
+        NONE = 0,
+        NO_REX = 1,
+        NO_INIT = 2,
     }
     public static partial class ControlUnit
-    {        
+    {
         public class RegisterHandle : DecodedTypes.IMyDecoded
         {
             protected readonly static List<string> GPMnemonics = new List<string> { "A", "C", "D", "B", "SP", "BP", "SI", "DI", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15" };
@@ -29,10 +29,10 @@ namespace debugger.Emulator
             public void Initialise(RegisterCapacity size)
             {
                 // If the register has the NO_INIT bit set, it will never initialise after the constructor.
-                if((Settings | RegisterHandleSettings.NO_INIT) != Settings)
+                if ((Settings | RegisterHandleSettings.NO_INIT) != Settings)
                 {
                     Size = size;
-                }                
+                }
             }
             public RegisterHandle(string mnemonic)
             {
@@ -69,17 +69,17 @@ namespace debugger.Emulator
                         'W' => RegisterCapacity.WORD,
                         'B' => RegisterCapacity.BYTE,
                     };
-                    
+
                     // If the suffix does not satisfy the above, it must be a number(out of exhaustion of valid possiblilities), meaning that
                     // it also has to be of QWORD size.
-                    if(Suffix >= '0' && Suffix <= '9')
+                    if (Suffix >= '0' && Suffix <= '9')
                     {
                         Size = RegisterCapacity.QWORD;
-                        
+
                         // As it is of QWORD size, the mnemonic has no trailing characters and so will match exactly into the dictionary.
                         Code = (XRegCode)GPMnemonics.IndexOf(mnemonic);
-                    } 
-                    else 
+                    }
+                    else
                     {
                         // If it isn't of QWORD size, it must have a trailing character which should be ommitted before matching into the dictionary.
                         Code = (XRegCode)GPMnemonics.IndexOf(mnemonic.Substring(0, mnemonic.Length - 1));
@@ -95,7 +95,8 @@ namespace debugger.Emulator
                     // e.g "SP"L, "A"H
                     Code = (XRegCode)GPMnemonics.IndexOf(mnemonic.Substring(0, mnemonic.Length - 1));
                 }
-                else {
+                else
+                {
                     // If the previous two conditions were not met, a general approach can be taken.
                     // If the prefix is E, it must be a 32 bit GP register e.g EAX EBP
                     // If the prefix is R, it must be a 64 bit GP register e.g RCX RDX(Although 64 bit GP registers, the possibility of R8-R15 was eliminated earlier because their format is different.
@@ -103,7 +104,7 @@ namespace debugger.Emulator
                     // If the prefix is X, it must be the lower 128 bits of a YMM register i.e XMM0-XMM7
                     // If the prefix is Y, it must be a 256 bit SSE register i.e YMM0-7
                     // Otherwise is a GP WORD register, e.g AX, BX, SP. There is not really a pattern for such.
-                    
+
                     // The XRegCode of a MMX/SSE register can be determined by parsing the suffix as an integer.
                     // E.g XMM4 -> '4' -> (XRegCode)4
 
@@ -141,9 +142,9 @@ namespace debugger.Emulator
                             break;
                     }
                 }
-                
+
             }
-            public RegisterHandle(XRegCode registerCode, RegisterTable table, RegisterCapacity size=RegisterCapacity.NONE, RegisterHandleSettings settings=RegisterHandleSettings.NONE)
+            public RegisterHandle(XRegCode registerCode, RegisterTable table, RegisterCapacity size = RegisterCapacity.NONE, RegisterHandleSettings settings = RegisterHandleSettings.NONE)
             {
                 // A constructor for infering a register from a set of arguments.
                 // Strictly this isnt done here, rather in the Fetch() and Set() methods
@@ -153,11 +154,11 @@ namespace debugger.Emulator
 
                 // If the input register capacity is NONE(or there wasn't one passed in the arguments), do not initialise the size.
                 // This means that attempting to use the register handle before it is initialised will consistently throw the same exception.
-                if(size != RegisterCapacity.NONE)
+                if (size != RegisterCapacity.NONE)
                 {
                     Size = size;
                 }
-                
+
                 // If $size was NONE, and the register handle has NO_INIT set, there would never be a possibility of the register handle being used, so throw an exception now.
                 // This rounds down the problem a little more than a "variable not initialised" exception or alike, as it would be a typo or improper class usage.
                 else if ((Settings | RegisterHandleSettings.NO_INIT) == Settings)
@@ -236,13 +237,13 @@ namespace debugger.Emulator
                 // Dissassemble the register pointed to be this register handle and return the result as a string.
                 // Essentially the inverse of when a register handle is initialised from a mnemonic, so cross reference with the constructor if anything is unclear. 
                 // I will repeat my self and explain fully in both places.
-                
+
                 string Output;
-                
+
                 // If the register handle points to a GP register, disassembly is a little less straightforward.
                 if (Table == RegisterTable.GP)
                 {
-                    
+
                     // This is explained in FetchNext(). Essentially, if the register is an upper byte register such as AH, it will satisfy following conditions.
                     // If this is the case, the disassembly is simple.
                     if (Size == RegisterCapacity.BYTE && ControlUnit.RexByte == REX.NONE && Code > XRegCode.B && Code < XRegCode.R8)
@@ -252,7 +253,7 @@ namespace debugger.Emulator
                     else
                     {
                         Output = GPMnemonics[(int)Code];
-                        
+
                         // Some registers follow this rule, some do not. To be precise, one quarter do.
                         // Registers A,C,D,B all have an "X" appended when their capacity is greater than that of a BYTE.
                         // Registers SP,BP,SI,DI just stay as their mnemonic. This is likely because in IA-32, SPL BPL SIL and DIL
@@ -267,7 +268,7 @@ namespace debugger.Emulator
                         {
                             Output += "X";
                         }
-                        
+
 
                         // If the register capacity is that of a BYTE, the possibility of it being an upper register was already handled, so it must be a
                         // lower byte and therefore end in "L"(true for all cases)
@@ -306,7 +307,7 @@ namespace debugger.Emulator
                         {
                             Output = $"R{Output}";
                         }
-                    }                    
+                    }
                 }
                 else
                 {
@@ -331,28 +332,28 @@ namespace debugger.Emulator
             {
                 // Make sure $data is the size of the entire register.
                 System.Array.Resize(ref data, (int)Size);
-                
+
                 // Copy the already existing upper bytes into $data into the upper half(because only the lower bytes are changed by the input $data)
                 System.Array.Copy(FetchOnce(), 0, data, (int)Size / 2, (int)Size / 2);
 
                 // Set the data with the modified lower bytes
-                Set(data);                
+                Set(data);
             }
             public void SetUpper(byte[] data)
             {
                 byte[] Buffer = new byte[(int)Size];
-                
+
                 // Copy $data into the upper half of the buffer(because only the upper bytes are changed by the input $data)
                 // Copy either $data.Length bytes or (int)$Size/2 bytes, whichever is smaller(to prevent overflow)
-                System.Array.Copy(data, 0, Buffer, 0, (data.Length < (int)Size/2) ? data.Length : (int)Size/2);
+                System.Array.Copy(data, 0, Buffer, 0, (data.Length < (int)Size / 2) ? data.Length : (int)Size / 2);
 
                 // Copy the existing lower bytes into the buffer
-                System.Array.Copy(Fetch()[0], 0, Buffer, ((int)Size/2)-1,(int)Size / 2);
+                System.Array.Copy(Fetch()[0], 0, Buffer, ((int)Size / 2) - 1, (int)Size / 2);
 
                 Set(Buffer);
             }
             public byte[] FetchUpper() => Bitwise.Subarray(FetchOnce(), (int)Size / 2); // Cut all but the upper half of FetchOnce()
-            public byte[] FetchLower() => CurrentContext.Registers[Table, (RegisterCapacity)((int)Size/2), Code]; // Fetch the register half the size of the current (Will throw an exception if $Size == BYTE, if this is happening I definitely want to know)
-        } 
+            public byte[] FetchLower() => CurrentContext.Registers[Table, (RegisterCapacity)((int)Size / 2), Code]; // Fetch the register half the size of the current (Will throw an exception if $Size == BYTE, if this is happening I definitely want to know)
+        }
     }
 }

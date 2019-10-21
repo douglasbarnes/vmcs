@@ -36,7 +36,7 @@ namespace debugger.Forms
         Foreground = 1,
         Surface = 2,
         Imminent = 3
-    }    
+    }
     public struct UISettings
     {
         public readonly Font BaseFont;
@@ -48,13 +48,13 @@ namespace debugger.Forms
         {
             BaseFont = InputFont;
             BackgroundColour = InputBackgroundColour;
-            SurfaceColour = InputTextColour;   
-            
+            SurfaceColour = InputTextColour;
+
             // The suggested material dark colours have this offset, so applying it to any colour has a similar effect.
             PrimaryColour = Color.FromArgb(200, (byte)(InputBackgroundColour.R + 0xA9), (byte)(InputBackgroundColour.B + 0x74), (byte)(InputBackgroundColour.G + 0xEA));
             SecondaryColour = Color.FromArgb(240, (byte)(InputBackgroundColour.R + 0xF1), (byte)(InputBackgroundColour.B + 0xC8), (byte)(InputBackgroundColour.G + 0xB3));
         }
-    }    
+    }
     public class FormSettings
     {
         public static List<SolidBrush> ElevationBrushes = new List<SolidBrush>();
@@ -94,6 +94,6 @@ namespace debugger.Forms
             PrimaryBrush = new SolidBrush(BaseUI.PrimaryColour);
         }
     }
-    
+
 
 }

@@ -1,13 +1,13 @@
-﻿using System.Collections.Generic;
-using debugger.Util;
+﻿using debugger.Util;
+using System.Collections.Generic;
 namespace debugger.Emulator.Opcodes
 {
-    public class Scas : StringOperation 
+    public class Scas : StringOperation
     {
         FlagSet ResultFlags;
         public Scas(StringOpSettings settings = StringOpSettings.NONE)
             : base("SCAS", XRegCode.DI, XRegCode.A, settings | StringOpSettings.COMPARE)
-        {            
+        {
         }
         protected override void OnInitialise()
         {

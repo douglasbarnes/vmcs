@@ -2,8 +2,8 @@
 // It is not dependent on any other part of the source, such that flag names could be changed by the caller to whatever they want.
 // Generally I prefer controls to act like this wherever possible, however there are some cases where massive advantages would be
 // lost if they did not use lower level data structures.
-using System.Drawing;
 using System.Collections.Generic;
+using System.Drawing;
 namespace debugger.Forms
 {
     public class FlagPanel : BorderedPanel
@@ -35,7 +35,7 @@ namespace debugger.Forms
                 //  i * ..Height+5 : Spacing between labels, including size of label, but on Y axis
                 //  % (this.Size.Height : Make sure the rows don't render out of the control bounds
                 //  -..Height) + ..Height : Borrow the height of the current and make sure we leave room for it on the next column 
-                FlagLabels[i].Location = new Point(5 + ((FlagLabel.LabelSize.Width+5) * (i / 4)), ((i * (PaddedLabelHeight)) % (Size.Height - PaddedLabelHeight)) + PaddedLabelHeight);                               
+                FlagLabels[i].Location = new Point(5 + ((FlagLabel.LabelSize.Width + 5) * (i / 4)), ((i * (PaddedLabelHeight)) % (Size.Height - PaddedLabelHeight)) + PaddedLabelHeight);
             }
         }
 
