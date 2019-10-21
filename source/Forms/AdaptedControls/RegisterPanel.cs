@@ -91,12 +91,19 @@ namespace debugger.Forms
                 // A string that will hold the value to set the register's text to.
                 string FormattedValue;
 
-                
+                // If the register is an upper byte register it must be handled differently
                 if(RegSize == 1 && RegisterLabels[RegLabelIndex].ShowUpper)
                 {
-                    ulong TargetValue = inputRegs[new ControlUnit.RegisterHandle((XRegCode)RegLabelIndex - 5, RegisterTable.GP, (RegisterCapacity)RegSize).DisassembleOnce()];
-                    FormattedValue = Core.FormatNumber(TargetValue, FormatType.Hex);
-                    if (((ushort)TargetValue >> 8) > 0) { // get lower short, then rsh to remove lower byte
+                    // Fetch the value of the upper byte register it corresponds to by subtracting one(because of RIP). This value is fetched by disassembling the new register handle, 
+                    // disassembling it and finding its index in the input dictionary then taking that value.
+                    byte TargetValue = 
+                        (byte)(inputRegs[new ControlUnit.RegisterHandle((XRegCode)RegLabelIndex-1, RegisterTable.GP, RegisterCapacity.BYTE, RegisterHandleSettings.NO_REX).DisassembleOnce()]);
+
+                    // Add the 00 at the end to make it look like the upper bytes(even though $TargetValue only being a byte).
+                    FormattedValue = $"0x{TargetValue.ToString("X").PadLeft(14, '0')}00";
+
+                    // Less emphasis if the value is zero.
+                    if (TargetValue > 0) { 
                         FormattedValue = FormattedValue.Insert(16, "%").Insert(14, "%").Insert(0, "%"); 
                     }
                     else
@@ -107,7 +114,7 @@ namespace debugger.Forms
                 else
                 {
                     // Format the ulong value of the register into a hexadecimal string representation.
-                    FormattedValue = Core.FormatNumber(Register.Value, FormatType.Hex);
+                    FormattedValue = $"0x{Register.Value.ToString("X").PadLeft(16, '0')}";
 
                     // .Insert(2,"%").Insert(0,"%") is the process of greatly de-emphasising the "0x".
                     // .Insert(2,"$") will make every character after the 0x de-emphasised.

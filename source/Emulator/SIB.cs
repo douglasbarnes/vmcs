@@ -15,7 +15,7 @@ namespace debugger.Emulator
     public struct SIB
     {
         public RegisterCapacity PointerSize;
-        public readonly DisassembledPointer Disassemble;
+        public readonly DeconstructedPointer Disassemble;
         public ulong Destination;
         public long OffsetValue; 
         private readonly ModRM.Mod Mod;
@@ -60,7 +60,7 @@ namespace debugger.Emulator
         {
             DeconstructedSIB Fields = new DeconstructedSIB(inputSIB); 
             // To save complication, the SIB is disassembled as it is decoded. Otherwise, more variables would have to be stored.
-            Disassemble = new DisassembledPointer();
+            Disassemble = new DeconstructedPointer();
             OffsetValue = 0;
             ulong BaseValue = 0;
             ulong IndexValue = 0;

@@ -27,22 +27,22 @@ namespace debugger.Forms
             HideSelection = false;
             OwnerDraw = true;        
             BorderStyle = BorderStyle.None;
-
+            HoverSelection = false;            
+           
             // The column text will be drawn manually, but the draw event will never be called if there is no column.
             Columns.Add(new ColumnHeader(""));
 
             // ForcedSize is a required workaround for this control. For what ever reason, native classes pull rank over any size
             // set here. I believe this is some kind of autosizing mechanism for the scroll bar that cannot be overriden. The workaround
             // I came up with is to change $Size to $ForcedSize before drawing in OnDrawColumnHeader(), as this is the first drawing method 
-            //to be called before drawing items etc.
-            ForcedSize = size; // http://prntscr.com/oxdg0s
+            //to be called before drawing items etc. http://prntscr.com/oxdg0s
+            ForcedSize = size; 
 
             Size = size;
 
             // Fill the listview with a single column(this most likely causes the above).
             Columns[0].Width = size.Width;
         }
-
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
             // Draw only text; no other weird windows forms stuff like borders around items

@@ -256,7 +256,7 @@ namespace debugger.Emulator.DecodedTypes
             // A method for disassembling a ModRM class.
             // See Construct()
             // Create a new instance of the DissassembledPointer class to make disassembly easier.
-            Disassembly.DisassembledPointer DestPtr = new Disassembly.DisassembledPointer() { IndexReg = new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size).Disassemble()[0] };
+            Disassembly.DeconstructedPointer DestPtr = new Disassembly.DeconstructedPointer() { IndexReg = new ControlUnit.RegisterHandle((XRegCode)Fields.Mem, RegisterTable.GP, Size).Disassemble()[0] };
            
             // RIP relative offset
             if (Fields.Mem == 5 && Fields.Mod == 0)

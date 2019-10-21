@@ -118,7 +118,7 @@
     <Compile Include="Forms\AdaptedControls\FlagPanel.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Forms\AdaptedControls\TestcaseSearchTextBox.cs">
+    <Compile Include="Forms\AdaptedControls\SearchTextBox.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Forms\AdaptedControls\ThemedToolStripMenuItem.cs">

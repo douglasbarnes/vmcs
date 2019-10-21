@@ -1,4 +1,13 @@
-﻿using System;
+﻿// Handle allows an easy way to have consistent access to a stored context. In essence, it is the method of
+// registering a hypervisor class into the actual ControlUnit. The handle makes sure each hypervisor is allocated
+// the control unit such that it is not disturbed by other hypervisors. This could be seen as concurrency in its
+// purest form as it is a basic implementation of "Context switching". Minimal time is wasted on the control unit,
+// as once execution for one handle is finished(hypervisors with registered handles will be referred to as handles),
+// another that was waiting for execution(this is automatically done when handle-sensitive methods are called) can
+// then execute. In the current program, this window is very small as no handle executes for very long, but obviously
+// not every user will have a model computer, so may experience different latencies. By convention I recommend keeping
+// a handle for as long as possible.
+using System;
 using System.Collections.Generic;
 using System.Threading;
 namespace debugger.Emulator
@@ -19,7 +28,7 @@ namespace debugger.Emulator
         NOJMP=2,
 
         // The handle will ignore breakpoints set for the Context. Not very useful at the minute as the disassembler(which it is intended for) runs before any breakpoints are set,
-        // however in the future a custom IO file structure for loading contexts with breakpoints saved in them may find this useful. It will still return at the end of memory.
+        // however in the future a custom IO file format for loading contexts with breakpoints saved in them may find this useful. It will still return at the end of memory.
         NOBREAK=4,
     }
     public static partial class ControlUnit
@@ -27,7 +36,9 @@ namespace debugger.Emulator
         public static bool IsBusy
         {
             // A thread safe property for knowing whether the ControlUnit is in use by another handle.
-
+            // This is achieved through locking and therefore returning the thread constant value of $_busy.
+            // This prevents other hypervisors from accidently taking over the control unit whilst another
+            // hypervisor is using it.
             get 
             { 
                 lock (ControlUnitLock) 
@@ -107,6 +118,7 @@ namespace debugger.Emulator
             }
             public static Context GetContextByID(int id)
             {
+                // Iterate through contexts searching for a particular id. Return null if not found.               
                 foreach(var KeyPair in StoredContexts)
                 {
                     if(KeyPair.Key.HandleID == id)
@@ -119,6 +131,7 @@ namespace debugger.Emulator
             public void Invoke(Action toExecute)
             {
                 // A method to interact with a context or the ControlUnit safely. DONT INVOKE HANDLE.RUN() OR HANDLE.INVOKE() RECURSIVELY!!
+                // A very useful method for when creating new hypervisors, as usage of this function will likely be what differentiates one from another.
                 WaitNotBusy();
                 IsBusy = true;
                 toExecute.Invoke();
@@ -130,37 +143,17 @@ namespace debugger.Emulator
             {
                 // A method for telling the ControlUnit to execute the handle. Public access to ControlUnit.Execute() would not be advisable because the handle has to ensure that
                 // the ControlUnit isn't already in use and that $ControlUnit.CurrentHandle is equal to the desired handle.
-                Status Result = new Status();
+
                 WaitNotBusy();
                 IsBusy = true;
 
                 // Set this handle to be the current handle in the ControlUnit.
-                if (CurrentHandle != this)
-                {
-                    // If there is an existing handle set in the ControlUnit, store it.
-                    if (CurrentHandle != EmptyHandle)
-                    {
-                        StoredContexts[CurrentHandle] = CurrentContext;
-                    }
-
-                    CurrentHandle = this;
-                }
+                CurrentHandle = this;
 
                 // Return the $Result status struct that Execute() returned.
-                Result = Execute(step);
+                Status Result = Execute(step);
                 IsBusy = false;
                 return Result;
-            }
-            
-            public static bool operator !=(Handle input1, Handle input2)
-            {
-                // An equality operator for comparing handle IDs.
-                return input1.HandleID != input2.HandleID;
-            }
-            public static bool operator ==(Handle input1, Handle input2)
-            {
-                // An equality operator for comparing handle IDs.
-                return input1.HandleID == input2.HandleID;
             }
         }
     }

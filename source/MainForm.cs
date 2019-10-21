@@ -1,10 +1,12 @@
-﻿using System;
+﻿// MainForm is the centerpiece of the program that pulls all aspects together. Without this class you only have modules.
+// It mostly contains procedures/routines that ensure the order of certain methods. For example, FlashProcedure() will
+// take a byte array of instructions, but the byte array must be turned into a MemorySpace first, and afterwards breakpoints
+// must be reset. By using these routines it is certain that there will be no problems with the order of executed. There are
+// also necessary tasks that must be performed after the VM finishes execution. To allow this to work asynchrously, events and
+// callbacks are used to handle the completion of another thread.
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
@@ -18,44 +20,57 @@ namespace debugger
 {  
     public partial class MainForm : Form
     {
+        private VM VMInstance;
+        private MemorySpace ROM;
+        private Disassembler DisassemblerInstance;
 
-        public readonly string[] SpecialRegisterNames = { "SP", "BP", "SI", "DI" };
-        public readonly string[] GeneralRegisterNames = { "AX", "BX", "" };
-        public Dictionary<string, ulong> Registers = new Dictionary<string, ulong>();
         public MainForm()
-        {
-            Name = "MainForm";
+        {            
+            // Beware removing this line. Very odd things will happen to the layout.
             Font = FormSettings.BaseUI.BaseFont;
 
-            // KEEP BEFORE INITIALISE..()
+            // These initialisations must be kept before InitialiseCustom() as the nested methods called there make
+            // use of these two instances.
             VMInstance = new VM();
-            d = new Disassembler(VMInstance);
+            DisassemblerInstance = new Disassembler(VMInstance);
 
+            // Draw the form.
             SuspendLayout();
             InitializeComponent();
             InitialiseCustom();
+            ResumeLayout();
+
+            // Window title.
+            Text = "vmcs";
+
+            // A nice little debug feature when making forms. The coordinates of every click on the form will be
+            // written to the output somewhere(debugger dependent).
 #if DEBUG
             MouseDoubleClick += (s, e) => Trace.WriteLine($"X: {e.X} Y: {e.Y}");
 #endif
+
+            // I let windows forms draw the form rather than draw it myself. All that is really required here is a rectangle.
             ForeColor = FormSettings.BaseUI.SurfaceColour;
             BackColor = FormSettings.BaseUI.BackgroundColour;
         }
-        VM VMInstance;
-        MemorySpace ROM;
-        private async void Form1_Load(object sender, EventArgs e)
+        
+        private void Form1_Load(object sender, EventArgs e)
         {
-            VMInstance.RunComplete += (context) => RefreshCallback(context.EndRIP);
-            ResumeLayout();
-            Refresh();
-            Update();
+            // When the VM finishes running, refresh.
+            VMInstance.RunComplete += (context) => RefreshCallback();
         }
         private void ReflashVM()
         {
+            // Flash the new ROM.
             VMInstance.FlashMemory(ROM);
-            RefreshCallback(0);
+
+            // Refresh to show the new memory.
+            RefreshCallback();
         }
         private void FlashFromFile(string path)
         {
+            // Try to open the file pointed to by the path. This could fail for many reasons, most likely
+            // because of a typo in a path name.
             FileParser parser;
             try
             {
@@ -67,9 +82,16 @@ namespace debugger
                 return;
             }
                         
+            
             byte[] Instructions;
+
+            // Opening a file will by default use auto parse mode.
             if (parser.Parse(ParseMode.AUTO, out Instructions) != ParseResult.SUCCESS)
             {
+                // If the file could not be parsed automatically, show some options to the user about how they want to go about this.
+                //  1. Parse it as a BIN file
+                //  2. Parse it as a TXT file.
+                //  3. Cancel
                 switch(MessageBox.Show("Press yes to parse as a BIN file, no to parse as a TXT file, or cancel to go back to the program.", "File type cannot be inferred", MessageBoxButtons.YesNoCancel))
                 {
                     case DialogResult.Yes:
@@ -86,14 +108,20 @@ namespace debugger
                         return;
                 }
             }
+
+            // Flash the successfully obtained instructions. The method would have returned early if this was not possible.
             FlashProcedure(Instructions);
         }
         public void FlashProcedure(byte[] Instructions)
         {
+            // Create a new ROM with the instructions.            
             ROM = new MemorySpace(Instructions);
+
+            // Reflash the VM
             ReflashVM();
 
-            // Reset the breakpoints
+            // Reset the breakpoints because the old ones will be useless in a new program. They
+            // will likely even point to non existent addresses.
             VMInstance.Breakpoints.Clear();
 
         }
@@ -108,106 +136,83 @@ namespace debugger
         }
         private void VMContinue(bool Step)
         {
+            // Run the VM asynchrously. The callback set up in the constructor will handle the result
+            // once execution has finished.
             VMInstance.RunAsync(Step);
-        }
-
-        //refresh methods
-        private void RefreshRegisters()
-        {            
-            PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(VMInstance.GetRegisters((RegisterCapacity)PanelRegisters.RegSize))));
         }
         private void RefreshRegisters(int size)
         {
-            Registers = VMInstance.GetRegisters((RegisterCapacity)size); //qword regs
-            PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(Registers)));
-            //a little better than without specifying because less time is spent in the invoke, so we will have less stalls for the thread
+            // Use the VM instance to fetch the registers, then apply these to PanelRegisters.
+            PanelRegisters.Invoke(new Action(() => PanelRegisters.UpdateRegisters(VMInstance.GetRegisters((RegisterCapacity)size))));
         }
         private void RefreshFlags()
         {            
-            Dictionary<string, bool> FetchedFlags = VMInstance.GetFlags();
-            PanelFlags.Invoke(new Action(() => PanelFlags.UpdateFlags(FetchedFlags)));          
+            // Fetch flags from the VM and apply them to PanelFlags.
+            PanelFlags.Invoke(new Action(() => PanelFlags.UpdateFlags(VMInstance.GetFlags())));          
         } 
         private void RefreshMemory()
         {
-            memviewer.LoadMemory(VMInstance.GetMemory());
+            // Load the memory into the memory list view.
+            MemoryViewer.LoadMemory(VMInstance.GetMemory());
         }
-        Disassembler d;
-        private async void RefreshCallback(ulong instructionPointer)
+        
+        private void RefreshCallback()
         {
+            // All the necessary tasks that need to be done in order to update the user interface with updated information
+            // after the VM has finished running.  The order of these does not matter, as such they are run asynchrously.
+            // The disassembly list view will handle the disassembly on its own.
             List<Task> RefreshTasks = new List<Task>
             {
-                new Task(() => RefreshRegisters()),
+                new Task(() => RefreshRegisters(PanelRegisters.RegSize)),
                 new Task(() => RefreshMemory()),
                 new Task(() => RefreshFlags())
             };
+
+            // Start all the tasks concurrently.
             RefreshTasks.ForEach(x => x.Start());
-            await Task.WhenAll(RefreshTasks);               
-            Invoke(new Action(() => Refresh()));
         }  
-        private void SetMemviewPos(object sender, EventArgs e)
-        {
-            string GotoInput = "";//gotoMemSrc.Text; abandoned
-            if (GotoInput.Length >= 2 && GotoInput.Substring(0,2).ToLower() == "0x") { GotoInput = GotoInput.Substring(2); }
-            GotoInput = GotoInput.PadLeft(16, '0');
-            //if it is a name of reg
-            if (Registers.ContainsKey(GotoInput)) { GotoInput = Registers[GotoInput].ToString("X"); }
-            if (Registers.ContainsKey(GotoInput)) { GotoInput = Registers[GotoInput].ToString("X"); }
-
-            if (GotoInput.Where(x => !"1234567890ABCDEF".Contains(x) ).Count() != 0) {  } else
-            {
-                ulong inputAddr = Convert.ToUInt64(GotoInput, 16);
-
-                //find closest
-                ulong closestAddr = 0;
-                ulong closestDiff = ulong.MaxValue;
-                for (int iMemIndex = 0; iMemIndex < memviewer.Items.Count; iMemIndex++) // o(n) search
-                {
-                    if (memviewer.Items[iMemIndex].SubItems[0].Text[0] == '[') { continue; } //[+x] skip these
-                    memviewer.Items[iMemIndex].BackColor = SystemColors.Window; //reset if was selected by anything
-
-                    ulong currentAddr = Convert.ToUInt64(memviewer.Items[iMemIndex].SubItems[0].Text, 16);
-                    ulong currentDiff = (ulong)Math.Abs((long)(currentAddr - inputAddr));
-                    if (currentDiff < closestDiff)
-                    {
-                        closestAddr = currentAddr;
-                        closestDiff = currentDiff;
-                    }                   
-                }
-                int targetIndex = memviewer.Items.IndexOf(memviewer.FindItemWithText($"0x{closestAddr.ToString("X").PadLeft(16, '0')}"));
-                memviewer.EnsureVisible(targetIndex);
-                memviewer.SelectedItems.Clear();
-                memviewer.Items[targetIndex].BackColor = Color.SlateGray;
-            }         
-        }
         private const string ResultOutputPath = "Results\\";
         private void OnTestcaseSelected(string name)
         {
+            // Create the path if it does not exist
+            if (!Directory.Exists(ResultOutputPath))
+            {
+                Directory.CreateDirectory(ResultOutputPath);
+            }
+
             XElement Result;
+
+            // The All testcases feature needs to be handled a little differently.
             if (name == "all")
             {
-                string OutputPath = ResultOutputPath + "AllTestcases.xml";
-                if (new FileInfo(OutputPath) == null)
+                // Running testcases can be a processor intensive job, so it is best done concurrently such that the
+                // user can still interact with the ui.
+                Task.Run(async () =>
                 {
-                    throw new Exception("Invalid output path");
-                } else
-                {
-                    Task.Run(async () =>
-                    {
-                        Result = await TestHandler.ExecuteAll();
-                        Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
-                        Result.Save(OutputPath);
-                        
-                        MessageBox.Show("Results written to " + OutputPath, Result.Attribute("result").Value);
-                    });
-                }                
+                    // Run the testcases.
+                    Result = await TestHandler.ExecuteAll();
+
+                    // Add AllTestcases.xml on to the end of the path and use XElement to save the output xml file to the path.
+                    Result.Save(ResultOutputPath + "AllTestcases.xml");
+
+                    // Tell the user where the testcases were written to and set the message box title to whether the testcases passed or not
+                    // (The value of result will be Passed or Failed).
+                    MessageBox.Show("Results written to " + ResultOutputPath + "AllTestcases.xml", Result.Attribute("result").Value);
+                });
             } else
             {
+                // See above
                 Task.Run(async () =>
                 {                    
+                    // Execute the testcase by the given name.
                     Result = await TestHandler.ExecuteTestcase(name);
-                    string OutputPath = ResultOutputPath + $"{name}Testcase.xml";
-                    Result.Save(OutputPath);
-                    if (MessageBox.Show($"Click No to see full results", name + " " + Result.Attribute("result").Value.ToString().ToLower(), MessageBoxButtons.YesNo) == DialogResult.No)
+
+                    // Add the testcase name + Testcase.xml on to the end of the path and use XElement to save the output xml file to the path.
+                    Result.Save(ResultOutputPath + name + "Testcase.xml");
+
+                    // Set the message box title to the result of the testcase("Passed" or "Failed") and give them the option to see the exact result of the
+                    // testcase in a window rather than having to open up the file themselves.
+                    if (MessageBox.Show($"Click Yes to see full results", name + " " + Result.Attribute("result").Value.ToString().ToLower(), MessageBoxButtons.YesNo) == DialogResult.Yes)
                     {
                         MessageBox.Show(Result.ToString());
                     }

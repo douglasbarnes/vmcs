@@ -427,7 +427,17 @@ namespace debugger.Util
         }
         public static bool ListsEqual(List<string> input1, List<string> input2)
         {
-            if (input1.Count() != input2.Count()) { return false; }
+            // Simple method for comparing two lists. Using .Equals() on a list does not do this!! It checks if two variables
+            // are references to the same list.
+
+            // If the count is not the same they cannot be equal
+            if (input1.Count() != input2.Count())
+            {
+                return false;
+            }
+
+            // Iterate compating every element the lists with each other.
+            // If any of them are not equal, the list is not equal.
             for (int i = 0; i < input1.Count; i++)
             {
                 if (input1[i] != input2[i])
@@ -436,56 +446,85 @@ namespace debugger.Util
                 }
             }
             return true;
-        }
-        
+        }        
         public static string[] SeparateString(string inputString, string testFor, bool stopAtFirstDifferent = false) => SeparateString(inputString, new string[] { testFor }, stopAtFirstDifferent);
         public static string[] SeparateString(string inputString, string[] testFor, bool stopAtFirstDifferent = false) // output {inputstring with stuff removed, (strings of separated testFors)
         {
+            // SeparateString serves a somewhat deprecated purpose, as other methods have been developed in its place, however I still find
+            // it quite an interesting idea. It is easier explained through demonstration
+            // Say there are two strings(this will be expanded upon later), one that is being tested, say $toTest and
+            // one that is being tested against it, say $input. Let $toTest = "_HELLO_WORLD_HELLO_PROGRAM" and $input = $"HELLO"
+            // What will happen is that the output will be two strings, one I call $base and the other I will call $output.
+            // $base will be "_     _WORLD_     _PROGRAM", and $output will be "_HELLO       HELLO"(Note no spaces at end). As you can see,
+            // $input was extracted from $toTest and put in $output. The space taken up by matches of $toTest previously was replaced
+            // with spaces.
+            // Now, $input does not have to be a single string, it could be an array.  In this case, the same thing would happen and
+            // the priority of each input would be the order they are in the array. E.g $input2 would get what is left over in the base
+            // from $input1. 
+            // In terms of use cases, this was really useful in drawing and markdown as if you wanted to draw a certain string with a
+            // different emphasis, you could use this and draw each one differently. However, the newer and clearer method, 
+            // Drawing.InsertAtNonZero() has replaced all needs for this, but it may still be useful in the future.
+            // $stopAtFirstDifferent is used to exit early if the instances of $testFor strings are not consecutive.
+            // E.g,
+            //  $input = "0000000000000000123000"
+            //  $testFor = "0"
+            //  $stopAtFirst.. = false
+            // Outputs,
+            //  $base = "                123   "
+            //  $output = "0000000000000000   000"
+            // (With these two in the same array)
+            // and,
+            //  $input = "0000000000000000123000"
+            //  $testFor = "0"
+            //  $stopAtFirst.. = true
+            // Outputs,
+            //  $base = "                123000"
+            //  $output = "0000000000000000   "
+            // As you can see the search ends after the first non-match.
+
+            // There will be an extra string, thhe base to hold.
             string[] Output = new string[testFor.Length + 1];
-            Output[0] = inputString; //base
+
+            // Start with the base the same as $inputString.
+            Output[0] = inputString; 
+
+            // Iterate through the strings to be tested for.
             for (int i = 0; i < testFor.Length; i++)
             {
-                string Separated = "";
+                // The string to test for will be referred to as $substring
+
+                // Find the index of $testFor in the base.
                 int InsertIndex = Output[0].IndexOf(testFor[i]);
+
+                // Whilst $substring is present and not an empty string(this would mess things up badly)
                 while (InsertIndex != -1 && testFor[i] != "")
                 {
+                    // Replace the instance of $substring with spaces by using the index obtained earlier.
                     Output[0] = Output[0].Remove(InsertIndex, testFor[i].Length).Insert(InsertIndex, RepeatString(" ", testFor[i].Length));
-                    Separated = Separated.PadRight(InsertIndex - Separated.Length) + testFor[i]; //+= string.Join("", RepeatString(" ", )) + testFor[i];
+
+                    // Use PadRight() to make up for any spaces that should be added to have the replaced string have the same position in the output as it did the base,
+                    // then add $substring on the end of that.
+                    Output[i + 1] = Output[i + 1].PadRight(InsertIndex - Output[i + 1].Length) + testFor[i]; 
+
+                    // If $stopAtFirstDifferent and the next index of a string is not equal to the last index + the length of $substring, 
+                    // there must be a gap between the two and therefore are not consecutive and that search is over. The next $substring
+                    // in $testFor will still be tested.
                     int LastIndex = InsertIndex;
                     InsertIndex = Output[0].IndexOf(testFor[i]);
-                    if (stopAtFirstDifferent && InsertIndex != LastIndex + 1)
+                    if (stopAtFirstDifferent && InsertIndex != LastIndex + testFor[i].Length)
                     {
                         break;
                     }
                 }
-                Output[i + 1] = Separated;
-            }
-            return Output;
-
-        }
-        public static string FormatNumber(ulong Number, FormatType formatType, int Padding = 16)
-        {
-            string Output;
-            switch (formatType)
-            {
-                case FormatType.Hex:
-                    Output = $"0x{Number.ToString("X").PadLeft(Padding, '0')}";
-                    break;
-                case FormatType.String:
-                    byte[] Bytes = BitConverter.GetBytes(Number);
-                    Output = Encoding.ASCII.GetString(Bytes);
-                    break;
-                case FormatType.SignedDecimal:
-                    Output = Convert.ToInt64(Number).ToString();
-                    break;
-                default: //dec
-                    Output = Convert.ToUInt64(Number).ToString();
-                    break;
             }
             return Output;
         }
         public static string RepeatString(string inputString, int count)
-        {//faster than enumerable.repeat
+        {
+            // A method of repeating strings that is much more performant for small counts than Enumerable.Repeat().
+            // 10000 iterations, $count = 1 http://prntscr.com/plk1a2
+            // 1 iteration, $count = 10000 http://prntscr.com/plk0vj
+
             string Output = "";
             for (int i = 0; i < count; i++)
             {
@@ -495,25 +534,62 @@ namespace debugger.Util
         }
         public static string Itoa(byte[] toConvert, bool addSpaces=false)
         {            
+            // Convert a byte array into a string representation of bytes in big endian and hex format.
+            // Similar nature to posix Itoa() but obviously different inputs/outputs. Maybe there is 
+            // a similar function called Htoi() in C that does this.
+
             string Output = "";
+
+            // Significant denotes significant 0 bytes in the array.
+            // LSB             MSB
+            // [00] [10] [00] [00]
+            //             ^---^ Insignificant
+            // The value in the examples is from the [00] [10].
+            // This idea could be demonstrated in decimal numbers also,
+            //  000100
+            // The first three zeroes are unnecessary, could maybe even be seen as incorrect, as
+            // the value is always 100 regardless of how many zeros before it.
             bool Significant = false;
+
             for (int i = 0; i < toConvert.Length; i++)
-            {              
+            {
+                // The current byte in the array.
                 byte Cursor = toConvert[toConvert.Length - i - 1];
+
                 if(Significant || Cursor != 0)
                 {
+                    // Every byte after the first non zero must be significant.
                     Significant = true;
+
+                    // Convert the current byte into a string and pad it left with an insignificant zero if necessary.
+                    // E.g consider the bytes [01] [02] [03] [04] in little endian. 
+                    // The value they represent is 0x04030201, which is completely different to 0x4321, so that extra
+                    // padding needs to be added that ToString("X") does not provide.
+                    // I also prefer to have every byte complete like this, some programs would output the example
+                    // as 0x4030201 because of the first zero technically being insignificant, but I find it to be
+                    // annoying having to count up the digits to see thether the MSB is 04 or 40.
                     Output += Cursor.ToString("X").PadLeft(2, '0');
+
+                    // When $addSpaces, the output would look like
+                    //  04 03 02 01
+                    // rather than
+                    //  04030201
+                    // The other condition is to prevent a trailing space.
                     if (i + 1 != toConvert.Length && addSpaces)
                     {
                         Output += " ";
                     }
                 }                
             }
+
+            // Return 0 if every byte in the array was insignificant(all zeroes). Althought mathematically
+            // zero and no value could be seen as the same, it would be odd to have values missing from
+            // disassembly for example.
             if(Output.Length == 0)
             {
-                Output += "0";
+                Output = "0";
             }
+
             return Output;
         }
         public static bool Htoi(char hexChar, out byte output)

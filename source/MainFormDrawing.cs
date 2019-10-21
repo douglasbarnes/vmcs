@@ -16,9 +16,8 @@ namespace debugger
         internal ThemedMenuStrip TopMenuStrip;
         internal ThemedToolStripMenuItem SelectDebugMenu;
         internal ThemedToolStripMenuItem AllDebugMenu;
-        internal TestcaseSearchTextBox SearchDebugMenu;
-        internal ThemedToolStripMenuItem FormatViewMenu;
-        internal MemoryListView memviewer;
+        internal SearchTextBox SearchDebugMenu;
+        internal MemoryListView MemoryViewer;
         internal BorderedPanel PanelMemory;
         internal RegisterPanel PanelRegisters;     
         internal ControlButton ButtonStep;
@@ -58,7 +57,7 @@ namespace debugger
         private void CreateDisassemblyView()
         {
             // Create the new list view with a reference to the disassembled lines. This is super important, see DisassemblyListView.
-            ListViewDisassembly = new DisassemblyListView(d.ParsedLines, new Size(620, 382))
+            ListViewDisassembly = new DisassemblyListView(DisassemblerInstance.ParsedLines, new Size(620, 382))
             {
                 Location = new Point(0, 0),
                 BackColor = LayerBrush.Color,
@@ -161,14 +160,14 @@ namespace debugger
                 Size = new Size(0x1a0, 383), 
                 Tag = "Memory"
             };
-            memviewer = new MemoryListView(new Size(0x1d8, 383))
+            MemoryViewer = new MemoryListView(new Size(0x1d8, 383))
             {
                 // This position is relative to the panel. A small offset makes sure that the 
                 // text and border will not be clipped over.
                 Location = new Point(3, 16),
             };
 
-            PanelMemory.Controls.Add(memviewer);
+            PanelMemory.Controls.Add(MemoryViewer);
             Controls.Add(PanelMemory);
         }
         private void CreateMenuBar()
@@ -187,8 +186,11 @@ namespace debugger
             CreateMenuFile();
             CreateMenuDebug();
             CreateMenuExit();
+            TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { FileMenu, DebugMenu });
+            
+            // This being separated from the above is super imporant. See EndToolStripMenuItem            
+            TopMenuStrip.Items.Add(ExitMenu);
 
-            TopMenuStrip.Items.AddRange(new ThemedToolStripMenuHeader[] { FileMenu, DebugMenu, ExitMenu });
             Controls.Add(TopMenuStrip);
         }
         private void CreateMenuExit()
@@ -305,16 +307,15 @@ namespace debugger
             };
             AllDebugMenu.Click += (s, a) => OnTestcaseSelected("all");
 
-            // See TestcaseSearchTextBox for information on this constructor.
-            SearchDebugMenu = new TestcaseSearchTextBox(
+            // See SearchTextBox for information on this constructor.
+            SearchDebugMenu = new SearchTextBox(
                 () => Hypervisor.TestHandler.GetTestcases(),
-                (name) =>  OnTestcaseSelected(name),
                 Layer.Background, 
                 Emphasis.Medium)
             {
                 Size = ItemSize
             };
-
+            SearchDebugMenu.OnResultClicked += OnTestcaseSelected;
             // Create the header
             DebugMenu = new ThemedToolStripMenuHeader()
             {

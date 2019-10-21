@@ -40,10 +40,11 @@
 // string does not have to be iterated, only until the different. If they are the same, afterwards I would recommend using
 // JZ or JE to avoid having to use two lines,(TEST $ECX, $ECX; JZ) because this information is already provided by the result
 // of the last comparison. This is concept is generalised by setting the COMPARE bit of the StringOpSettings for an opcode.
-// 
-//
-//
-
+// Derived classes must have a different design to Opcode derived classes. There must be no non-constant information assigned
+// in the constructor. This must be done in the derived OnInitialise(), and execution in the OnExecute(). This is due to REP
+// prefixes, as information must be updated with each execution, such that each execution is treat as a new instruction, but
+// without having to re-instance the class. Execute() in the base class will make sure that rep prefies are compatible, calling
+// the derived OnInitialise(), then OnExecute() when ready.
 using System;
 using System.Collections.Generic;
 using debugger.Util;
@@ -238,12 +239,15 @@ namespace debugger.Emulator.Opcodes
                 // Initialise $Count to $ECX.               
                 uint Count = BitConverter.ToUInt32(CountHandle.FetchOnce(), 0);
                 for (; Count > 0; Count--)
-                {
-                    // If the operation is a comparison, extra checks have to be done against the zero flag.
-                    // This will be ignored when not a comparison.
-                    // If (REPZ && ZF != 1)
+                {                    
                     OnExecute();
                     OnInitialise();
+
+                    // If the operation is a comparison, extra checks have to be done against the zero flag.
+                    // This will be ignored when not a comparison.
+                    // The conditions can be summarised as
+                    // If (REPZ && ZF != 1) break;
+                    // If (REPNZ && ZF != 0) break;
                     if ((Settings | StringOpSettings.COMPARE) == Settings
                         && ((ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPZ) && ControlUnit.Flags.Zero != FlagState.ON) // repz and repnz act as normal rep if the opcode isnt cmps or scas=
                            || (ControlUnit.LPrefixBuffer.Contains(PrefixByte.REPNZ) && ControlUnit.Flags.Zero != FlagState.OFF))) 
@@ -251,12 +255,19 @@ namespace debugger.Emulator.Opcodes
                         break;
                     }           
                 }
+
+                // Set $ECX to the new count. Once the instruction is completely exected(all REPs handled), $ECX will either be
+                // zero, or $ECX_Before_Instruction - $Number_Of_OnExecute()s
                 CountHandle.Set(BitConverter.GetBytes(Count));
             }
+
+            // If no REP prefix, the instruction can be executed as normal.
             else
             {                
                 OnExecute();
             }
+
+            // If the destination or source were DI/SI, commit the value of their stored pointers to the value of the register.
             if (Destination.Code == XRegCode.DI)
             {
                 Destination.Set(BitConverter.GetBytes(PtrSize == RegisterCapacity.QWORD ? DestPtr : (uint)DestPtr));

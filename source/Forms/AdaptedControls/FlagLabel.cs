@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿// This class does little itself except ensure a constant size for labels.
+using System.Drawing;
 
 namespace debugger.Forms
 {

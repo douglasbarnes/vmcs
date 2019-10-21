@@ -24,7 +24,7 @@ namespace debugger.Emulator
             protected readonly static List<string> MMXMnemonics = new List<string>() { "MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7", "MM0", "MM1", "MM2", "MM3", "MM4", "MM5", "MM6", "MM7", };
             public XRegCode Code { get; private set; }
             public RegisterTable Table { get; private set; }
-            public RegisterCapacity Size { get; set; } 
+            public RegisterCapacity Size { get; set; }
             private readonly RegisterHandleSettings Settings;
             public void Initialise(RegisterCapacity size)
             {
@@ -173,7 +173,7 @@ namespace debugger.Emulator
                 byte[] Output;
 
                 // If it is an upper byte register, return the subarray at position 1 of the provided XRegCode - 4.
-                // This isn't natively implemented into RegisterGroup, but it can be easily worked around.
+                // This isn't implemented into RegisterGroup, but it can be easily worked around.
                 // The idea is:
                 //  1. Fetch a WORD from the desired register
                 //  2. Return only the upper byte from the fetched WORD
@@ -186,13 +186,15 @@ namespace debugger.Emulator
                 // AX CX DX BX SP BP SI DI
                 // So if CH(5) was inputted, 4 has to be subtracted from that
                 // to get CX.
-                // Strictly speaking, GP registers have 4 different tables for each size, but this is the only case where the table is
+                // Strictly speaking, GP registers have 4 different tables, one for each size, but this is the only case where the table is
                 // not identical for each, so a small workaround can go quite far.
                 // Finally, since the program operates in little endian, the 1st index of the returned WORD byte array will be the upper byte.
                 // Explanations for fetching from a RegisterGroup can be found in its class file.
+                // In short, if this predicate is true, it should be accessed as an upper byte register.
                 if (regCap == RegisterCapacity.BYTE
                 && Code > XRegCode.B
-                && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) == Settings))
+                && Table == RegisterTable.GP
+                && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) != Settings))
                 {
                     Output = new byte[] { CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4][1] };
                 }
@@ -211,11 +213,15 @@ namespace debugger.Emulator
                     System.Array.Resize(ref data, (int)Size);
                 }
 
+                // Setting an upper byte register
                 // See full explanations for the following in FetchOnce()
-                if (Table == RegisterTable.GP
-                    && data.Length == (int)RegisterCapacity.BYTE
-                    && (int)Code > 3 && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) != Settings)) // setting higher bit of gp word reg
-                { // e.g AH has the same integer value as SP(SP has no higher bit register) so when 0b101 is accessed with byte width we need to sub 4 to get the normal reg code for that reg then set higher bit ourselves 
+                if (data.Length == (int)RegisterCapacity.BYTE
+                    && Code > XRegCode.B
+                    && Table == RegisterTable.GP
+                    && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) == Settings))
+                {
+                    // e.g AH has the same integer value as SP(SP has no higher bit register reference) so when 0b101 is accessed with byte width you need to sub 4 to get the 
+                    // normal reg code for that reg then set higher bit ourselves .
                     CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4] = new byte[] { CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4][0], data[0] };
                 }
                 else
