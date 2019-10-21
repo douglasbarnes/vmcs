@@ -46,32 +46,42 @@ namespace debugger.Emulator.DecodedTypes
         public List<string> Disassemble()
         {
             List<string> Output = new List<string>();
+
+            // Add the output of Disassemble() of each operand onto $Output.
             for (int i = 0; i < InternalArray.Length; i++)
             {
                 Output.AddRange(InternalArray[i].Disassemble());
             }
+
             return Output;
         }
         public List<byte[]> Fetch() => _Fetch(true);
         private List<byte[]> _Fetch(bool discriminative)
         {
+            // A private method for fetching, such that Fetch() can comply with the interface.
+
             List<byte[]> Output = new List<byte[]>();
             for (int i = 0; i < InternalArray.Length; i++)
             {
+                // If discriminative, add every sub-operand of each IMyDecoded
                 if (discriminative)
                 {
                     Output.AddRange(InternalArray[i].Fetch());
                 }
+
+                // If indiscriminative, add only the first sub-operand of each IMyDecoded.
                 else
                 {
                     Output.Add(InternalArray[i].Fetch()[0]);
                 }
             }
+
             return Output;
         }
         public List<byte[]> FetchIndiscriminative() => _Fetch(false);
         public void Initialise(RegisterCapacity size)
         {
+            // Initialise every IMyDecoded
             for (int i = 0; i < InternalArray.Length; i++)
             {
                 InternalArray[i].Initialise(size);
@@ -80,17 +90,24 @@ namespace debugger.Emulator.DecodedTypes
         public void Set(byte[] data) => InternalArray[0].Set(data);
         public void Set(byte[] data, int index)
         {
+            // Itreate through every IMyDecoded
             for (int i = 0; i < InternalArray.Length; i++)
             {
                 if (InternalArray[i] is IMyMultiDecoded Cursor)
                 {
+                    // If the next $i is $index, it points to the source of this IMyMultiDecoded.
                     if (i + 1 == index)
                     {
                         Cursor.SetSource(data);
                         return;
                     }
+
+                    // Increment $i by two because two a source and destination operand were skipped over.
                     i++;
                 }
+
+                // If $i is now the index, it must be this IMyDecoded that is to be set. If it is an IMyMultiDecoded,
+                // the destination will be set. 
                 if (i == index)
                 {
                     InternalArray[index].Set(data);
@@ -100,10 +117,17 @@ namespace debugger.Emulator.DecodedTypes
         public void SetIndiscriminative(byte[] data, int index) => InternalArray[index].Set(data);
         public void SetSource(byte[] data)
         {
+            // Set the second operand, which is an undocumented yet implied convention that the
+            // second operand is always the source, as in every existing case, it is.
+            // As explained in the summary, this is a discriminative operation.
+            
+            // If the 0th operand is an IMyMultiDecoded, set the source of it.
             if (InternalArray[0] is IMyMultiDecoded Cursor)
             {
                 Cursor.SetSource(data);
             }
+
+            // Otherwise set the second operand
             else
             {
                 InternalArray[1].Set(data);

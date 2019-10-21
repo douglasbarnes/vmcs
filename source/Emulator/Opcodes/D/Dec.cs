@@ -1,19 +1,23 @@
-﻿using debugger.Util;
-
+﻿// Decrement a register/memory location. See Inc and Bitwise.Decrement() for more information. 
+// Like increment, decrement does not affect the carry flag.
+using debugger.Util;
 namespace debugger.Emulator.Opcodes
 {
     public class Dec : Opcode
     {
-        readonly byte[] Result;
-        readonly FlagSet Flags;
         public Dec(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("DEC", input, settings)
-        {
-            Flags = Bitwise.Decrement(Fetch()[0], (int)Capacity, out Result);
+        { 
+
         }
         public override void Execute()
         {
+            // Perform the decrement
+            byte[] Result;
+            FlagSet ResultFlags = Bitwise.Decrement(Fetch()[0], (int)Capacity, out Result);
+
+            // Store results
             Set(Result);
-            ControlUnit.SetFlags(Flags);
+            ControlUnit.SetFlags(ResultFlags);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿namespace debugger.Emulator.Opcodes
+﻿// Clx represents clc and cld; Clear carry and Clear direction. Simply each flag is set off repectively.
+namespace debugger.Emulator.Opcodes
 {
     public class Clc : Opcode
     {

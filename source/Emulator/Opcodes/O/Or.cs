@@ -1,20 +1,27 @@
-﻿using debugger.Util;
+﻿// Perform a bitwise OR on two bytes and store the results in the destination, the first operand. To do a bitwise OR, perform
+// a logical OR on each of the bits of each operand in parallel, then store the result.
+using debugger.Util;
 using System.Collections.Generic;
 
 namespace debugger.Emulator.Opcodes
 {
     public class Or : Opcode
     {
-        readonly byte[] Result;
-        readonly FlagSet ResultFlags;
         public Or(DecodedTypes.IMyDecoded input, OpcodeSettings settings = OpcodeSettings.NONE) : base("OR", input, settings)
         {
-            List<byte[]> DestSource = Fetch();
-            ResultFlags = Bitwise.Or(DestSource[0], DestSource[1], out Result); // fix bitwise stuff
+            
         }
 
         public override void Execute()
         {
+            // Fetch operands
+            List<byte[]> DestSource = Fetch();
+
+            // Perform the OR.
+            byte[] Result;            
+            FlagSet ResultFlags = Bitwise.Or(DestSource[0], DestSource[1], out Result);
+
+            // Store results
             Set(Result);
             ControlUnit.SetFlags(ResultFlags);
         }

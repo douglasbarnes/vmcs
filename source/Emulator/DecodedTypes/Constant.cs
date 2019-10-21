@@ -1,5 +1,5 @@
 ﻿// A constant represents an input to an opcode that is always a specific value.
-// Current usages of this exist in rotate and shift opcodes, where opcodes for single rotates/shifts exist.
+// Current usages of this exist in rotate and shift opcodes, where separate opcodes for single rotates/shifts exist.
 using System;
 using System.Collections.Generic;
 namespace debugger.Emulator.DecodedTypes
