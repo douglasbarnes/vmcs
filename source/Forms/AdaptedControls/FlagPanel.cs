@@ -8,9 +8,10 @@ namespace debugger.Forms
 {
     public class FlagPanel : BorderedPanel
     {
-        private const int FlagCount = 6;
+        private const int FlagCount = 7;
         private readonly FlagLabel[] FlagLabels = new FlagLabel[FlagCount]
         {
+            new FlagLabel(),
             new FlagLabel(),
             new FlagLabel(),
             new FlagLabel(),

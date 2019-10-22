@@ -2,7 +2,7 @@
 // Another use of the method is to zero a register, which is a shorter alternative to mov rax, 0 or equivalent.
 // E.g,
 //  XOR RAX, RAX
-// , is two bytes.
+// , is two bytes. Modern processors will recognise this and know to zero the register, so it is also as fast as mov.
 // To XOR a value, apply XOR logic to each bit of the two operands in paralell,
 // E.g,
 //  0x4E XOR 0x2F = 0x61

@@ -73,7 +73,7 @@ namespace debugger.Hypervisor
         }
         public bool Jump(ulong address)
         {
-            // If the address is in the valid arnge of memory. (Remember that it is a ulong so could not be less than 0)
+            // If the address is in the valid range of memory. (Remember that it is a ulong so could not be less than 0)
             if (Handle.ShallowCopy().Memory.End > address)
             {
                 Handle.Invoke(new Action(() => { ControlUnit.Jump(address); }));
