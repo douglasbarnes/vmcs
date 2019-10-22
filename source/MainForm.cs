@@ -111,7 +111,7 @@ namespace debugger
 
             // Flash the successfully obtained instructions. The method would have returned early if this was not possible.
             FlashProcedure(Instructions);
-        }
+        }       
         public void FlashProcedure(byte[] Instructions)
         {
             // Create a new ROM with the instructions.            

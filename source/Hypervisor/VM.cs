@@ -1,7 +1,11 @@
 ﻿// VM is the standard class for using the ControlUnit. 
-// Its capabilities include
-//  -Creating a context out of a MemorySpace instance.
-//  -
+// Its capabilities include many higher layered functions that improve the quality of life, allowing
+// lower layer modules such as the ControlUnit to perform the core functions systematically, whilst
+// giving the users specifically tuned control over the ControlUnit.  For example, breakpoints are
+// kept as a single list. Every time a context is flashed(See base class), the reference of the new
+// breakpoints list is updated to the existing one in this class. This means that the user programmer
+// can use this reference constantly, without having to worry about references being lost. For more on
+// references, see Util.Core.
 using debugger.Emulator;
 using debugger.Util;
 using System;
@@ -35,8 +39,14 @@ namespace debugger.Hypervisor
         }
         protected override void OnFlash(Context input)
         {
+            // Once flashed always ready.
             Ready = true;
+
+            // Keep the breakpoints list reference constant to the breakpoints list in this class.
             Handle.ShallowCopy().Breakpoints = Breakpoints;
+
+            // Important to call base class to make sure event gets raised.
+            base.OnFlash(input);
         }
         public Dictionary<string, ulong> GetRegisters(RegisterCapacity registerSize)
         {
@@ -61,12 +71,15 @@ namespace debugger.Hypervisor
 
             return ParsedRegisters;
         }
-        public void Jump(ulong address)
+        public bool Jump(ulong address)
         {
-            if (Handle.ShallowCopy().Memory[address] == 0x00)
+            // If the address is in the valid arnge of memory. (Remember that it is a ulong so could not be less than 0)
+            if (Handle.ShallowCopy().Memory.End > address)
             {
-
+                Handle.Invoke(new Action(() => { ControlUnit.Jump(address); }));
+                return true;
             }
+            return false;
         }
         public void ToggleBreakpoint(ulong address)
         {

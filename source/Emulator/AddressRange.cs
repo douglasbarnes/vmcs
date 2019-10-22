@@ -1,6 +1,6 @@
 ﻿// AddressRange along with AddressMap provides a very efficent way of storing metadata about a collection. The merits are best shown in collections that
 // have large gaps in addresses. For example, by keeping the address map coherent with a collection, instead of having to search the whole collection
-// for a value, an address range can narrow that down immensively if used correctly. A collection can be coherent by keeping its ranges synchronised
+// for a value, an address range can narrow that down immensely if used correctly. A collection can be coherent by keeping its ranges synchronised
 // with AddressRange using the AddRange() method. A simple example is with a dictionary. Assume a dictionary with AddressRange as the key type and ints
 // as the value. If I set the range 0x100<=x<0x200 to a series of 0xAAs, instead of having to store 0xFF bytes of 0xAAs, it could just be the range 0x100<x<0x200
 // and the value 0xAA. When using the binary search to access 0x120, the Index field of the output would say which index of the internal list to access to get 
