@@ -412,7 +412,7 @@ namespace debugger.Util
             // which has already been done.
             // -The most significant column difference dictates which value is greater. This can be used instead of subtraction to determine the result, which is more
             //  performant because no unecessary operations are carried out.
-            for (int i = leftSide.Length - 1; i > 0; i--)
+            for (int i = leftSide.Length - 1; i >= 0; i--)
             {
                 // If the two indexes are not the same value, the two inputs cannot be equal, the result can be determined here.
                 if (leftSide[i] != rightSide[i])

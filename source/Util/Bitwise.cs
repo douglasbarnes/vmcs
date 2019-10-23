@@ -129,9 +129,14 @@ namespace debugger.Util
         }
         public static FlagSet Negate(byte[] input1, out byte[] Result)
         {
-            // To negate is an equivalent operation as to XOR by -1,
+            // To negate is an equivalent operation as to XOR by -1 and add one.
+
             // Simply, each bit will be flipped, providing a twos compliment equivalent(be it positive or negative)
             FlagSet ResultFlags = Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
+
+            // Add one
+            Increment(Result, Result.Length, out Result);
+
             if (input1.IsZero())
             {
                 ResultFlags.Carry = FlagState.ON;
