@@ -98,9 +98,9 @@ namespace debugger.Forms
             ulong LastAddress = 0;
 
             // Iterate through every address range in the memory.
-            for (int table_index = 0; table_index < inputMemory.AddressTable.Count; table_index++)
+            for (int table_index = 0; table_index < inputMemory.RangeTable.Count; table_index++)
             {
-                AddressRange CurrentRange = inputMemory.AddressTable[table_index];
+                AddressRange CurrentRange = inputMemory.RangeTable[table_index];
 
                 // Essentially round down to the nearest 0x10. This makes the memory viewer 999999x better, as it allows,
                 // - To not have every single address on your screen. They are added as the program uses them. An unused address

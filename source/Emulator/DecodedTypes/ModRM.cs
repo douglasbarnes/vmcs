@@ -145,7 +145,7 @@ namespace debugger.Emulator.DecodedTypes
             // A ModRM is constructed like,
             // ------------------------------
             // |   7  6 | 5  4  3 | 2  1  0 |
-            // |   MOD  |  REG    |   MEM   |
+            // |   MOD  |   REG   |   MEM   |
             // ------------------------------
             // This mask will only return bit 7 and 6 [11000000]
             public readonly Mod Mod { get => (Mod)((Internal_ModRM & 0xC0) >> 6); }

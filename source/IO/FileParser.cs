@@ -26,6 +26,7 @@ namespace debugger.IO
         private delegate IMyExecutable MagicDelegate(FileStream inputReader);
         private static readonly Dictionary<int, MagicDelegate> SignatureTable = new Dictionary<int, MagicDelegate>()
         {
+            // New magic file signatures for new formats can be added here(The first 4 unique bytes of a file)
             { 0x7F454C46, ELF.Parse }
         };
         private readonly FileInfo TargetFile;

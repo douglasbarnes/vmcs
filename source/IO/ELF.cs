@@ -90,7 +90,7 @@ namespace debugger.IO
                     return null;
             };
 
-            // Make sure ELF uses x86-x
+            // Make sure ELF uses x86-x64 instruction set
             if (FileHeader[0xD] != 0x03 && FileHeader[0xD] != 0x3E)
             {
                 Logger.Log(LogCode.IO_INVALIDFILE, "Input elf does not use the x86 instruction set");

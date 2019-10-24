@@ -292,7 +292,7 @@ namespace debugger.Util
                 // Now its up to the developer to handle the rest, e.g use SBB on the upper bytes.
                 Carry = borrow ? FlagState.ON : FlagState.OFF,
 
-                //Similar to in Add(), but the opposite. If I subtract a positive and a negative and end up with a negative, something went wrong, for more explanation see Add().
+                // Similar to in Add(), but the opposite. If I subtract a positive and a negative and end up with a negative, something went wrong, for more explanation see Add().
                 Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,
 
                 // A little harder to deduce than add, but if bit 4 was on in either input1 or input2, in a BCD operation, I need to know
@@ -351,6 +351,7 @@ namespace debugger.Util
             {
                 Negate(divisor, out divisor);
             }
+
             //Going forward, think of every number as unsigned. The need for signed division specific operation has been abstracted from the upcoming while loop.
 
             // When I reach the end of the loop iteration, I dont know whether I can subtract again, I need to do the subtraction first then
@@ -532,8 +533,9 @@ namespace debugger.Util
             // but it would be unreliable and very anti-portable to base your code on it.
             return new FlagSet()
             {
-                // If the upper was used, tell the developer              
+                // If the upper bytes of result were used, tell the developer              
                 Overflow = UpperUsed ? FlagState.ON : FlagState.OFF,
+
                 // Carry is set to the same as the overflow flag
                 Carry = UpperUsed ? FlagState.ON : FlagState.OFF,
 
@@ -673,7 +675,7 @@ namespace debugger.Util
             // Wasting cycles. This is really clever and it will make absolute sense in 10 seconds. If I bitshift a QWORD
             // by any number greater than 64, I get (Hold the thought of where the carry flag is used), 0. There is no room
             // for those bits to go after 63. To shift by 63 is to make the LSB the MSB. If you are trying to zero a register,
-            // I believe the best way is mov eax, 0(this will clear the upper 32 aswell). 
+            // I believe the best way is xor rax, rax. 
             // Now for when the size isn't a QWORD, it is only "optimised" for DWORDs. If I could guess as to why, I would
             // say it's because you would hardly ever shift a WORD or BYTE, there isn't much space to move. Shifts are
             // often used to multiply by a big power of two quickly. So, WORDs and BYTEs may waste cycles, but DWORDs
@@ -993,6 +995,8 @@ namespace debugger.Util
                 }
                 Pull = false;
             }
+
+            // "The SF, ZF, AF, and PF flags are always unaffected." - Intel manual May 2019 edition
             FlagSet ResultFlags = new FlagSet();
             if (useCarry)
             {

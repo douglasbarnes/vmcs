@@ -6,9 +6,9 @@
 //  1. It is a struct an cannot inherit
 //  2. It requires a ModRM before it, there would be no purpose for it otherwise. 
 //  3. SIBs only store information for one operand, be that the destination or the source.
+using System;
 using debugger.Emulator.DecodedTypes;
 using debugger.Util;
-using System;
 using static debugger.Util.Disassembly;
 namespace debugger.Emulator
 {
@@ -59,6 +59,7 @@ namespace debugger.Emulator
         public SIB(byte inputSIB, ModRM.Mod mod)
         {
             DeconstructedSIB Fields = new DeconstructedSIB(inputSIB);
+
             // To save complication, the SIB is disassembled as it is decoded. Otherwise, more variables would have to be stored.
             Disassemble = new DeconstructedPointer();
             OffsetValue = 0;

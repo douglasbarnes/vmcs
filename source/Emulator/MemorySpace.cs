@@ -14,7 +14,7 @@ namespace debugger.Emulator
 {
     public class MemorySpace
     {
-        public readonly AddressMap AddressTable = new AddressMap();
+        public readonly AddressMap RangeTable = new AddressMap();
         private Dictionary<ulong, byte> AddressDict = new Dictionary<ulong, byte>();
         public Dictionary<string, Segment> SegmentMap = new Dictionary<string, Segment>();
         public ulong EntryPoint;
@@ -35,7 +35,7 @@ namespace debugger.Emulator
             SegmentMap.Add(name, segment);
 
             // It is important that the segment also has its addresses added to the address table to keep the table coherent. See AddressMap().
-            AddressTable.AddRange(segment.Range);
+            RangeTable.AddRange(segment.Range);
         }
         public MemorySpace(byte[] memory)
         {
@@ -84,7 +84,7 @@ namespace debugger.Emulator
             EntryPoint = toClone.EntryPoint;
             End = toClone.End;
 
-            AddressTable = toClone.AddressTable.DeepCopy();
+            RangeTable = toClone.RangeTable.DeepCopy();
         }
         public MemorySpace DeepCopy() => new MemorySpace(this);
         public byte this[ulong address]
@@ -95,7 +95,7 @@ namespace debugger.Emulator
             set
             {
                 // Register the new value in the address map
-                AddressTable.TryMerge(address);
+                RangeTable.TryMerge(address);
                 Set(address, value);
             }
         }
@@ -103,7 +103,7 @@ namespace debugger.Emulator
         public void SetRange(ulong address, byte[] data)
         {
             // To avoid doing a binary search on each $data, adding at one position means that only one has to take place.
-            AddressTable.AddRange(new AddressRange(address, address + (ulong)data.Length));
+            RangeTable.AddRange(new AddressRange(address, address + (ulong)data.Length));
 
             for (ulong i = 0; i < (ulong)data.Length; i++)
             {

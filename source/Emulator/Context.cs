@@ -29,6 +29,7 @@ namespace debugger.Emulator
             // If this wasn't used, changing addresses in $this.Memory would change the same addresses in $toClone.Memory
             // as with $Breakpoints and $Registers. However this isn't necessary for $Flags and $InstructionPointer because
             // they are value types--a deep copy is taken regardless.
+
             Flags = toClone.Flags;
             InstructionPointer = toClone.InstructionPointer;
             Memory = toClone.Memory.DeepCopy();
