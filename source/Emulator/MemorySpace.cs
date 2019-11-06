@@ -32,10 +32,16 @@ namespace debugger.Emulator
         public static implicit operator Dictionary<ulong, byte>(MemorySpace m) => m.AddressDict;
         public void AddSegment(string name, Segment segment)
         {
+            // Add the segment to the map so it can be accessed by its name later.
             SegmentMap.Add(name, segment);
 
-            // It is important that the segment also has its addresses added to the address table to keep the table coherent. See AddressMap().
-            RangeTable.AddRange(segment.Range);
+            // If the segment has data associated, write it into memory. It will be null if no data
+            // was set.
+            if(segment.Data != null)
+            {
+                SetRange(segment.Range.Start, segment.Data);
+            }
+            
         }
         public MemorySpace(byte[] memory)
         {
@@ -51,40 +57,19 @@ namespace debugger.Emulator
 
             // ".stack" holds the start address of the stack. There is no defined $End of said stack. A manually crafted stack could be added
             // by setting $Segment.Data 
-            AddSegment(".stack", new Segment() { Range = new AddressRange(0x800000, 0x800001) });
+            AddSegment(".stack", new Segment() { Range = new AddressRange(0x800000, 0x800001) }); }
 
-            // Load all segments into the internal address table.
-            foreach (Segment seg in SegmentMap.Values)
-            {
-                if (seg.Data != null)
-                {
-                    // If the segment has data, add all that data until,
-                    //  1. There is no more data to add
-                    //  2. The defined end of the segment is reached
-                    for (ulong i = 0; i < (ulong)seg.Data.LongLength && i < seg.Range.End - seg.Range.Start; i++)
-                    {
-                        // Save some memory by not storing 0s.
-                        if (seg.Data[i] != 0x00)
-                        {
-                            AddressDict.Add(i + seg.Range.Start, seg.Data[i]);
-                        }
-                    }
-                }
-            }
-
-        }
         private MemorySpace(MemorySpace toClone)
         {
             // A deep cloning constructor, so that editing addresses in $this does not change the addresses in $toClone.
             // Classes are object orientated, so C# will try to use a reference where ever possible, but this can get in the way.
             AddressDict = toClone.AddressDict.DeepCopy();
             SegmentMap = toClone.SegmentMap.DeepCopy();
+            RangeTable = toClone.RangeTable.DeepCopy();
 
             // Value types do not need to be deep copied, by default they are not passed by reference.
             EntryPoint = toClone.EntryPoint;
             End = toClone.End;
-
-            RangeTable = toClone.RangeTable.DeepCopy();
         }
         public MemorySpace DeepCopy() => new MemorySpace(this);
         public byte this[ulong address]

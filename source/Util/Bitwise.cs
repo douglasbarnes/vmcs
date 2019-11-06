@@ -411,8 +411,8 @@ namespace debugger.Util
             // to the form it was before. Firstly, I will cover the condition, as not every time will require a change back. If it was unsigned to begin with
             // , leave it be, It was never changed before the division. Secondly, XOR signs of both the dividend and divisor. This is where you need to
             // take a mathematical approach to the problem. Think about how signs affect a fraction.
-            // Here I will make 3 statements that should be very obvious for you, but I will explain regardless for the KISS principle.
-            // If you don't understand any, see the link following.
+            // Here I will make 3 statements that should be very obvious for you, but I will explain regardless for the KISS principle, and also to demonstrate
+            // why this will work for any base number. The proof is trivial but in the links following.
             // (Assume an ideal scenario: no zeros, natural numbers)
             //  1. -x/y == -(x/y) http://prntscr.com/p8cymm
             //  2. -x/y == x/-y http://prntscr.com/p8ctdk
@@ -1132,9 +1132,6 @@ namespace debugger.Util
             }
             return ResultFlags;
         }
-
-
-
         public static (byte, byte) GetBitMask(int bit)
         {
             // Calculate the position of a bit in a byte array, return it in the format (index, mask)

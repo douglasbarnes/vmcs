@@ -59,10 +59,13 @@ namespace debugger.Emulator
             Overflow = FlagState.UNDEFINED;
             Direction = FlagState.UNDEFINED;
             Interrupt = FlagState.UNDEFINED;
+
             // ZF is set if $input is equal to zero.
             Zero = input.IsZero() ? FlagState.ON : FlagState.OFF;
+
             // SF is set if $input has a negative sign in twos compliment form.
             Sign = input.IsNegative() ? FlagState.ON : FlagState.OFF;
+
             // PF is set if the number of bits on in the first byte of $input is even.
             // e,g 
             // input[0] == 0b0000 ; PF

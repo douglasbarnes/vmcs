@@ -33,6 +33,7 @@ namespace debugger.Emulator
     {
         public struct BinarySearchResult
         {
+            // See Search()
             public enum ResultInfo
             {
                 NONE = 0,
@@ -78,7 +79,6 @@ namespace debugger.Emulator
             {
                 // $range.Start may be in the middle of AddressRanges[index], so the union can only be calculated by the following.
                 AddressRanges[Result.Index] = new AddressRange(AddressRanges[Result.Index].Start, range.End);
-                //AddressRanges.Add(new AddressRange(AddressRanges[Result.Index].Start, range.End));
             }
 
             // If the index is not present and above range overlaps, ensure that the new range does not overlap with the one currently at $index. This will not work if the
@@ -140,14 +140,27 @@ namespace debugger.Emulator
         public BinarySearchResult Search(ulong address)
         {
             // Binary search adapted to work with ranges. As would be expected, this is in logarithmic time.
-            // The domain of the method would be any ulong, as values out of boundary are handled.
-            // The range of the result index is x = -2, x = -1 or 0 >= x < $AddressRanges.Count.
-            // The former two have different meanings:
-            //  -2: The input was above all other ranges.
-            //  -1: The input was below all other ranges.
-            // $Present would indicate that $address is in no existing range, however if not in the above
-            // category, would give the index where $address lies between, [lowerRange].End < $address < [upperRange].Start
-            // If $Present is false, the index represents index that $address lies between.
+            // The returned is a BinarySearchResult contains important information about the search. The Index
+            // field of this is the output you would expect from a binary search, the index in the array of which
+            // the target is found. In this case, the index provides much more insight as opposed to the value which
+            // is at the index. This is because the range may then be inserted there. See AddRange() for more specifics
+            // on this. The ResultInfo is what distinguishes this algorithm from an ordinary binary search. It includes
+            // useful information that is very specific to the case of searching ranges.
+            //  NONE - An address that is not present and has no distinguishable attributes.
+            //  PRESENT - $address lies in an existing range thus need not be added as a new range
+            //  OUT_OF_BOUNDS - $address lies at the extreme of the existing ranges, either at the top index or index 0.
+            //  ADJ_ABOVE - The end address is the start address - 1 of the next range up
+            //  ADJ_BENEATH - The start address is the end address of the range beneath(the end address is not inclusive)
+            // For implementation of ADJ_*, see DetermineAdjacency().
+            // It is important to remember that multiple of these attributes can be present at once; they are simply ORed
+            // onto the Info value. For future maintenance, this will mean that ORs logic should be used to check for the
+            // presence of an attribute.
+            // E.g
+            // This,
+            //  (Result.Info | BinarySearchResult.ResultInfo.PRESENT) == Result.Info
+            // Not,
+            //  Result.Info != BinarySearchResult.ResultInfo.PRESENT
+            // Because Info could be PRESENT and so could ADJ_BENEATH, in this case only the first would recognise the result as present.
 
             // Exit early if possible.
             if (AddressRanges.Count == 0)
@@ -159,7 +172,8 @@ namespace debugger.Emulator
             int index = (AddressRanges.Count - 1) / 2;
 
             // It is certain that this will not loop ad infinitum. This is because the condition element of this while was just moved inside the loop
-            // Normally I would hate this kind of design, but it actually makes it really clear what its doing(see ahead).
+            // Normally I would oppose this kind of design, but it actually makes it really clear what its happening as there are multiple conditions
+            // to consider (see ahead).
             while (true)
             {
                 // Store the current index to be tested later

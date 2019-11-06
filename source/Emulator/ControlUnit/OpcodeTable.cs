@@ -47,8 +47,8 @@ namespace debugger.Emulator
                 {
                   { 0x00, () => new Add(new ModRM(), BYTEMODE,useCarry:false)},
                   { 0x01, () => new Add(new ModRM(), useCarry:false) },
-                  { 0x02, () => new Add(new ModRM(, ModRMSettings.SWAP), BYTEMODE, useCarry:false)},
-                  { 0x03, () => new Add(new ModRM(, ModRMSettings.SWAP), useCarry:false)},
+                  { 0x02, () => new Add(new ModRM(ModRMSettings.SWAP), BYTEMODE, useCarry:false)},
+                  { 0x03, () => new Add(new ModRM(ModRMSettings.SWAP), useCarry:false)},
                   { 0x04, () => new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), BYTEMODE, useCarry:false) },
                   { 0x05, () => new Add(new DecodedCompound(new RegisterHandle(XRegCode.A, RegisterTable.GP), new Immediate()), useCarry:false)},
 
