@@ -74,6 +74,13 @@ namespace debugger.Util
             }
             return true;
         }
+        public static byte[] ReverseEndian(byte[] input)
+        {
+            // Flip the byte order around
+            Array.Reverse(input);
+
+            return input;
+        }
         public static byte[] Cut(byte[] input, int count)
         {
             // Time difference between this and linq.take is huge, http://prntscr.com/od20o4 
@@ -129,7 +136,7 @@ namespace debugger.Util
             Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
 
             // Add one to finish the twos complement negation.
-            FlagSet ResultFlags = Increment(Result, Result.Length, out Result);
+            FlagSet ResultFlags = Increment(Result, out Result);
 
             if (input1.IsZero())
             {
@@ -185,16 +192,14 @@ namespace debugger.Util
                 Overflow = FlagState.OFF,
             };
         }
-        public static FlagSet Add(byte[] input1, byte[] input2, int size, out byte[] Result, bool carry = false)
+        public static FlagSet Add(byte[] input1, byte[] input2, out byte[] Result, bool carry = false)
         {
-            // First ensure both operands are both the intended size so they can iterated in parallel later
-            input1 = SignExtend(input1, (byte)size);
-            input2 = SignExtend(input2, (byte)size);
-            Result = new byte[size];
+            // The two inputs must be the same length.
+            Result = new byte[input1.Length];
 
             // Instead of using built-in methods, I use my own algorithms compatible with byte arrays increased performance 
             // on critical operations that are frequently used. http://prntscr.com/ojwfs2
-            for (int i = 0; i < size; i++)
+            for (int i = 0; i < Result.Length; i++)
             {
                 // Declare a sum integer, which must be an integer because I anticipate values > 0xFF, which are handled using carries shortly.
                 // If there was a carry on the previous byte in the array(or operation even, if the CF was set), add that to the sum.
@@ -244,13 +249,11 @@ namespace debugger.Util
                 Auxiliary = ((input1[0] & 0b111) + (input2[0] & 0b111)) > 0b111 ? FlagState.ON : FlagState.OFF
             };
         }
-        public static FlagSet Subtract(byte[] input1, byte[] input2, int size, out byte[] Result, bool borrow = false)
+        public static FlagSet Subtract(byte[] input1, byte[] input2, out byte[] Result, bool borrow = false)
         {
-            // First ensure both operands are both the intended size so they can be iterated in parallel later
-            input1 = SignExtend(input1, (byte)size);
-            input2 = SignExtend(input2, (byte)size);
-            Result = new byte[size];
-            for (int i = 0; i < size; i++)
+            // The two inputs must be the same length
+            Result = new byte[input1.Length];
+            for (int i = 0; i < Result.Length; i++)
             {
                 // Subtract the two, if we borrowed already, take off another. (Remember this borrowed value would represent 0xFF in the lower adjacent column)
                 // or more mathematically, 0x1(1 bit was borrowed) << 8(move this borrowed bit to the MSB of the byte beneath it)
@@ -295,7 +298,7 @@ namespace debugger.Util
                 Auxiliary = ((input1[0] & 0b1000) | (input2[0] & 0b1000)) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
-        public static void Divide(byte[] dividend, byte[] divisor, bool signed, int size, out byte[] Quotient, out byte[] Modulo)
+        public static void Divide(byte[] dividend, byte[] divisor, int size, bool signed, out byte[] Quotient, out byte[] Modulo)
         {
             // Unfortunately my divide implementation is almost completely impractical. On a latest-gen £2000 computer, it took around
             // 40 minutes to evaluate the division of a 128bit dividend by a 64bit divisor. This is absolutely not ideal for the end user
@@ -309,8 +312,8 @@ namespace debugger.Util
             // is but I want to keep my source as my own creation, anything else becomes a jungle to maintain. This is open source software, if you want it added,
             // add it.
 
-            Quotient = new byte[size / 2];
-            Modulo = new byte[size / 2];
+            Quotient = new byte[size];
+            Modulo = new byte[size];
 
             // Dividing by zero would be bad, so throw a divide error.
             if (divisor.IsZero())
@@ -355,7 +358,7 @@ namespace debugger.Util
                 // Create a temporary buffer where I store the result of the subtraction.
                 byte[] Buffer;
                 // Subtract the divisor from the dividend and store it in the buffer.
-                Subtract(dividend, divisor, size, out Buffer);
+                Subtract(dividend, divisor, out Buffer);
                 // Is the buffer negative? 
                 bool NewSign = Buffer.IsNegative();
                 // If these had two different signs, i.e dividend - divisor < 0, there is a good chance we are finished dividing.
@@ -368,7 +371,7 @@ namespace debugger.Util
                     dividend = Buffer;
 
                     // A single step of the divison is complete, so this needs to be reflected in the quotient.
-                    Increment(Quotient, size, out Quotient);
+                    Increment(Quotient, out Quotient);
 
                     // Now,  I said treat the numbers as unsigned, so that means the sign should just be completely ignored, so why am I using it in unsigned arithmetic? 
                     // There is a good reason. I can still take advantage of overflows to tell me about the state of an unsigned number. If I subtract 0x1 from 0x0, I get 0xFF right? 
@@ -423,7 +426,7 @@ namespace debugger.Util
                 Negate(Quotient, out dividend);
             }
 
-            //Size variable is the size of twice the result.      
+            // Size variable is the size of twice the result.      
             Array.Copy(dividend, Modulo, size / 2);
         }
         public static FlagSet Multiply(byte[] input1, byte[] input2, bool signed, int size, out byte[] Result)
@@ -482,7 +485,7 @@ namespace debugger.Util
 
                         // Finally add the MSB here,(a carry). For example, A12B % 0x100 = 2B, A12B / 0x100 = A1(where / is integer division)
                         // 2B goes in the current byte position, A1 goes into the next.                                                     
-                        Add(Result, carry, size * 4, out Result);
+                        Add(Result, carry, out Result);
                     }
                 }
             }
@@ -539,9 +542,9 @@ namespace debugger.Util
                 //Sign = signed ? (Result[size - 1] > 0x7F ? FlagState.ON : FlagState.OFF) : FlagState.UNDEFINED 
             };
         }
-        public static FlagSet Increment(byte[] input, int size, out byte[] Result)
+        public static FlagSet Increment(byte[] input, out byte[] Result)
         {
-            Result = new byte[size];
+            Result = new byte[input.Length];
 
             // Create a buffer and copy the result into. Why? This is a problem .NET implementation. Instead of
             // creating lists as object orientated counterparts to arrays, arrays are also instance based, and a
@@ -617,10 +620,10 @@ namespace debugger.Util
                 Auxiliary = input[0] == 0b111 ? FlagState.ON : FlagState.OFF
             };
         }
-        public static FlagSet Decrement(byte[] input, int size, out byte[] Result)
+        public static FlagSet Decrement(byte[] input, out byte[] Result)
         {
             // See Increment()
-            Result = new byte[size];
+            Result = new byte[input.Length];
             Array.Copy(input, Result, input.Length);
 
             // An almost identical to approach to Increment(). Instead, 0xFF is the buzz value. Think about
@@ -662,11 +665,11 @@ namespace debugger.Util
                 Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
-        public static FlagSet ShiftLeft(byte[] input, byte count, int size, out byte[] Result)
+        public static FlagSet ShiftLeft(byte[] input, byte count, out byte[] Result)
         {
             // A massive performance boost can made here by doing *something* to $count. 
             // Think about how many bits are in an 8 byte value, on x86-64, 64. If I shift 64 times, what am I doing? 
-            // Wasting cycles. This is really clever and it will make absolute sense in 10 seconds. If I bitshift a QWORD
+            // Wasting cycles. This is really clever trick to improve performance at a hardware level. If I bitshift a QWORD
             // by any number greater than 64, I get (Hold the thought of where the carry flag is used), 0. There is no room
             // for those bits to go after 63. To shift by 63 is to make the LSB the MSB. If you are trying to zero a register,
             // I believe the best way is xor rax, rax. 
@@ -674,14 +677,12 @@ namespace debugger.Util
             // say it's because you would hardly ever shift a WORD or BYTE, there isn't much space to move. Shifts are
             // often used to multiply by a big power of two quickly. So, WORDs and BYTEs may waste cycles, but DWORDs
             // follow the exact same logic as described for QWORDs.
-            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111);
+            count &= (byte)((input.Length == 8) ? 0b00111111 : 0b00011111);
 
             // This gets a little fiddley, flags later are checked based on this, so I ought to save a copy.   
             int StartCount = count;
 
-            // This is another way of the Array.Copy() method to get a new copy of an existing instance(a deep copy) as shown in other methods.
-            Result = input;
-            Array.Resize(ref Result, size);
+            Result = input.DeepCopy();
 
             // Don't bother shifting by 0, just return now without changing the flags(as said by Intel)
             if (count == 0)
@@ -778,12 +779,12 @@ namespace debugger.Util
             OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
             return OutputFlags;
         }
-        public static FlagSet ShiftRight(byte[] input, byte count, int size, out byte[] Result, bool arithmetic)
+        public static FlagSet ShiftRight(byte[] input, byte count, out byte[] Result, bool arithmetic)
         {
             // See ShiftfLeft()
-            count &= (byte)((size == 8) ? 0b00111111 : 0b00011111);
+            count &= (byte)((input.Length == 8) ? 0b00111111 : 0b00011111);
             int StartCount = count;
-            Result = new byte[size];
+            Result = new byte[input.Length];
             Array.Copy(input, Result, input.Length);
             if (StartCount == 0)
             {
@@ -868,7 +869,7 @@ namespace debugger.Util
             }
             return OutputFlags;
         }
-        public static FlagSet RotateLeft(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
+        public static FlagSet RotateLeft(byte[] input, byte bitRotates, bool useCarry, bool carryPresent, out byte[] Result)
         {
             // Firstly, we need to make sure we know what a bitwise rotation does. If you don't know what a shift is, read ShiftLeft() first.
             // When we shift, there is a good chance our bits are going to be pushed out the result. What if we could shift a value, then
@@ -916,7 +917,7 @@ namespace debugger.Util
                 // Well, I know 1024 is some multiple of 8, so I think, how many OVER that
                 // did I go, that's 3 right? 7-4 = 3. So if I modulo the count by 8, I can
                 // save a tonne of time right? 
-                StartCount = size switch
+                StartCount = (RegisterCapacity)input.Length switch
                 {
                     RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
                     RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
@@ -940,11 +941,18 @@ namespace debugger.Util
             {
                 // Unlike before, we only optimise by masking not using modulo. There is a possibility that on a hardware level, to modulo
                 // by 8 is simply not worth the performance tradeoff.
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
+                StartCount = (byte)(bitRotates & (((RegisterCapacity)input.Length == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
             }
-            Result = new byte[(int)size];
-            if (StartCount == 0) { return new FlagSet(); }
-            Array.Copy(input, Result, input.Length);
+            
+            // Exit early if no shifts
+            if (StartCount == 0)
+            {
+                Result = input;
+                return new FlagSet();
+            }
+
+            // Shift a deep copy of the input to prevent the input from being changed because of its reference.
+            Result = input.DeepCopy();
 
             // Set this if there is a carry flag already. If the instruction is ROL, this is set but never used.
             bool Carry = carryPresent;
@@ -958,12 +966,11 @@ namespace debugger.Util
             for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
             {
                 // Iterate over each byte--bits can be handle at a bigger scale.
-                for (int i = 0; i < (int)size; i++)
+                for (int i = 0; i < input.Length; i++)
                 {
                     byte Mask = (byte)(Pull ? 0b1 : 0);
                     Pull = MSB(Result[i]) == 1;
                     Result[i] = (byte)((Result[i] << 1) | Mask);
-
                 }
 
                 // Since I'm rotating a byte, I care about every bit in said byte, so I need to handle the pull before the damage is done.
@@ -1052,13 +1059,13 @@ namespace debugger.Util
             }
             return ResultFlags;
         }
-        public static FlagSet RotateRight(byte[] input, byte bitRotates, RegisterCapacity size, bool useCarry, bool carryPresent, out byte[] Result)
+        public static FlagSet RotateRight(byte[] input, byte bitRotates, bool useCarry, bool carryPresent, out byte[] Result)
         {
             // See RotateLeft() before reading
             byte StartCount;
             if (useCarry)
             {
-                StartCount = size switch
+                StartCount = (RegisterCapacity)input.Length switch
                 {
                     RegisterCapacity.BYTE => (byte)((bitRotates & 0x1F) % 9),
                     RegisterCapacity.WORD => (byte)((bitRotates & 0x1F) % 17),
@@ -1069,11 +1076,16 @@ namespace debugger.Util
             }
             else
             {
-                StartCount = (byte)(bitRotates & ((size == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
+                StartCount = (byte)(bitRotates & (((RegisterCapacity)input.Length == RegisterCapacity.QWORD) ? 0x3F : 0x1F));
             }
-            Result = new byte[(int)size];
-            if (StartCount == 0) { return new FlagSet(); }
-            Array.Copy(input, Result, input.Length);
+            
+            // Exit early if no rotates
+            if (StartCount == 0)
+            {
+                Result = input;
+                return new FlagSet();
+            }
+            Result = input.DeepCopy();
             bool Carry = carryPresent;
 
             // If theres a carry, its going to become the MSB of the result.
@@ -1082,7 +1094,7 @@ namespace debugger.Util
             // Like ShiftRight(), work backwards.
             for (byte RotateCount = 0; RotateCount < StartCount; RotateCount++)
             {
-                for (int i = (int)size - 1; i >= 0; i--)
+                for (int i = input.Length - 1; i >= 0; i--)
                 {
                     // Instead of setting the LSB, I want to set the MSB of the byte in the array,
                     // due to the direction of bit movement. To think of it simply, every bit in

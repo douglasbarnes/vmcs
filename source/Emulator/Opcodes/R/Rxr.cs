@@ -18,7 +18,7 @@ namespace debugger.Emulator.Opcodes
 
             // Perform the rotate and store the results. The callee will ignore "ControlUnit.Flags.Carry == FlagState.ON" if $UseCarry == false.
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.RotateRight(Operands[0], Operands[1][0], Capacity, UseCarry, ControlUnit.Flags.Carry == FlagState.ON, out Result);
+            FlagSet ResultFlags = Bitwise.RotateRight(Operands[0], Operands[1][0], UseCarry, ControlUnit.Flags.Carry == FlagState.ON, out Result);
 
             // Set the results.
             Set(Result);

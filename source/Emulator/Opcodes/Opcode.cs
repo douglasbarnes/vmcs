@@ -240,7 +240,7 @@ namespace debugger.Emulator.Opcodes
             // Subtract the size of the data from the stack pointer. It is most efficient to create a byte array like this.
             // It is the responsiblity of the caller to make sure that the length of data complies with assembly standards,
             // i.e not to push DWORDs onto the stack.
-            Bitwise.Subtract(StackPointer.FetchOnce(), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            Bitwise.Subtract(StackPointer.FetchOnce(), new byte[] { (byte)data.Length, 0, 0, 0, 0, 0, 0, 0 }, out NewSP);
 
             // Set the new stack pointer
             StackPointer.Set(NewSP);
@@ -257,7 +257,7 @@ namespace debugger.Emulator.Opcodes
             byte[] NewSP;
 
             // Add the number of bytes that were popped of the stack onto the stack pointer.
-            Bitwise.Add(StackPointer.FetchOnce(), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, 8, out NewSP);
+            Bitwise.Add(StackPointer.FetchOnce(), new byte[] { (byte)size, 0, 0, 0, 0, 0, 0, 0 }, out NewSP);
 
             // Set the new stack pointer.
             StackPointer.Set(NewSP);

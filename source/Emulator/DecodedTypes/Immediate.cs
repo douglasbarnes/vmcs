@@ -62,7 +62,7 @@ namespace debugger.Emulator.DecodedTypes
                 // If the immediate settings have the RELATIVE bit set, add the instruction pointer to the buffer. This is used in jumps and calls for example.
                 if ((Settings | ImmediateSettings.RELATIVE) == Settings)
                 {
-                    Bitwise.Add(Buffer, BitConverter.GetBytes(ControlUnit.InstructionPointer), 8, out Buffer);
+                    Bitwise.Add(Bitwise.SignExtend(Buffer, 8), BitConverter.GetBytes(ControlUnit.InstructionPointer), out Buffer);
                 }
             }
         }

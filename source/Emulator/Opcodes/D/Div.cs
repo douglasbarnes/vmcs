@@ -31,7 +31,7 @@ namespace debugger.Emulator.Opcodes
             byte[] Modulo;
 
             // Perform the division
-            Bitwise.Divide(DestSource[0], DestSource[1], (Settings | OpcodeSettings.SIGNED) == Settings, (int)Capacity * 2, out Quotient, out Modulo);
+            Bitwise.Divide(DestSource[0], DestSource[1], (int)Capacity * 2, (Settings | OpcodeSettings.SIGNED) == Settings, out Quotient, out Modulo);
 
             // Copy the results into the result array.
             Array.Copy(Quotient, Result, HalfLength);

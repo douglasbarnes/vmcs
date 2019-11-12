@@ -26,7 +26,7 @@ namespace debugger.Emulator.Opcodes
             byte[] Result;
 
             // Perform addition. If (ControlUnit.Flags.Carry == FlagState.ON && UseCarry), the addition will start with a carry. See Bitwise.Add().
-            FlagSet ResultFlags = Bitwise.Add(DestSource[0], DestSource[1], (int)Capacity, out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseCarry));
+            FlagSet ResultFlags = Bitwise.Add(DestSource[0], DestSource[1], out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseCarry));
 
             // Set results
             ControlUnit.SetFlags(ResultFlags);

@@ -19,7 +19,7 @@ namespace debugger.Emulator.Opcodes
 
             // Shift $operands[0] left $operands[1] times.
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.ShiftLeft(Operands[0], Operands[1][0], (int)Capacity, out Result);
+            FlagSet ResultFlags = Bitwise.ShiftLeft(Operands[0], Operands[1][0], out Result);
 
             // Store the result in the first operand and set flag appropriately.
             Set(Result);

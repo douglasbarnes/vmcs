@@ -15,7 +15,7 @@ namespace debugger.Emulator.Opcodes
             List<byte[]> DestSource = Fetch();
 
             // Carry out the subtraction and discard the results(That is how comparison works in assembly, it has the same flags as subtraction).
-            Result = Bitwise.Subtract(DestSource[0], DestSource[1], (int)Capacity, out _);
+            Result = Bitwise.Subtract(DestSource[0], DestSource[1], out _);
         }
         protected override void OnExecute()
         {

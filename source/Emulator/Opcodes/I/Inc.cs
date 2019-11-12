@@ -14,7 +14,7 @@ namespace debugger.Emulator.Opcodes
         {
             // Calculate the result of incrementation
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.Increment(Fetch()[0], (int)Capacity, out Result);
+            FlagSet ResultFlags = Bitwise.Increment(Fetch()[0], out Result);
 
             // Set the result. Bitwise.Increment() does not set the carry flag.
             Set(Result);

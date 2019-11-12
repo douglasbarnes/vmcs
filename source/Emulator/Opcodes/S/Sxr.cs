@@ -25,7 +25,7 @@ namespace debugger.Emulator.Opcodes
 
             // Shift operands[0], operands[1][0] times(the LSB of operands[1])
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.ShiftRight(Operands[0], Operands[1][0], (int)Capacity, out Result, Arithmetic);
+            FlagSet ResultFlags = Bitwise.ShiftRight(Operands[0], Operands[1][0], out Result, Arithmetic);
 
             // Set the results.
             Set(Result);

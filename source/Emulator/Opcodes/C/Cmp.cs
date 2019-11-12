@@ -18,7 +18,7 @@ namespace debugger.Emulator.Opcodes
 
             // Subtract operand 1 from operand 0 and discard the result, keeping only the flags. This is
             // the essence of a compare in assembly.
-            FlagSet Result = Bitwise.Subtract(DestSource[0], DestSource[1], (int)Capacity, out _);         
+            FlagSet Result = Bitwise.Subtract(DestSource[0], DestSource[1], out _);         
             ControlUnit.SetFlags(Result);
         }
     }

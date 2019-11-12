@@ -29,7 +29,7 @@ namespace debugger.Emulator.Opcodes
 
                 // Add the zero extended immediate. Important that it is not sign extended, or it could decrement the stack pointer.
                 byte[] NewSP;
-                Bitwise.Add(StackPointer.FetchOnce(), Bitwise.ZeroExtend(Operands[0], 8), 8, out NewSP);
+                Bitwise.Add(StackPointer.FetchOnce(), Bitwise.ZeroExtend(Operands[0], 8), out NewSP);
 
                 // Set the new SP.
                 StackPointer.Set(NewSP);

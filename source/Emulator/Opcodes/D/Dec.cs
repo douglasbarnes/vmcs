@@ -13,7 +13,7 @@ namespace debugger.Emulator.Opcodes
         {
             // Perform the decrement
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.Decrement(Fetch()[0], (int)Capacity, out Result);
+            FlagSet ResultFlags = Bitwise.Decrement(Fetch()[0], out Result);
 
             // Store results
             Set(Result);

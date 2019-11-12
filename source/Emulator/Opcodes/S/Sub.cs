@@ -19,7 +19,7 @@ namespace debugger.Emulator.Opcodes
 
             // Subtract operands[1] from operands[0]. If the carry flag is set, and would be used as a borrow, tell Bitwise.Subtract to start with a borrow.
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.Subtract(DestSource[0], DestSource[1], (int)Capacity, out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseBorrow));
+            FlagSet ResultFlags = Bitwise.Subtract(DestSource[0], DestSource[1], out Result, (ControlUnit.Flags.Carry == FlagState.ON && UseBorrow));
 
             // Set the results
             Set(Result);

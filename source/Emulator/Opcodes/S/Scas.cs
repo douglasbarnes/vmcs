@@ -18,7 +18,7 @@ namespace debugger.Emulator.Opcodes
             List<byte[]> Operands = Fetch();
 
             // Subtract and store the result flags. Like cmp, only the flags are stored.
-            ResultFlags = Bitwise.Subtract(Operands[1], Operands[0], (int)Capacity, out _);
+            ResultFlags = Bitwise.Subtract(Operands[1], Operands[0], out _);
         }
         protected override void OnExecute()
         {

@@ -18,7 +18,7 @@ namespace debugger.Emulator.Opcodes
 
             // Perform rotation. See Bitwise.RotateLeft().
             byte[] Result;
-            FlagSet ResultFlags = Bitwise.RotateLeft(Operands[0], Operands[1][0], Capacity, UseCarry, ControlUnit.Flags.Carry == FlagState.ON, out Result);
+            FlagSet ResultFlags = Bitwise.RotateLeft(Operands[0], Operands[1][0], UseCarry, ControlUnit.Flags.Carry == FlagState.ON, out Result);
 
             // Set results.
             Set(Result);
