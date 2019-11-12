@@ -74,13 +74,6 @@ namespace debugger.Util
             }
             return true;
         }
-        public static byte[] ReverseEndian(byte[] input)
-        {
-            // Flip the byte order around
-            Array.Reverse(input);
-
-            return input;
-        }
         public static byte[] Cut(byte[] input, int count)
         {
             // Time difference between this and linq.take is huge, http://prntscr.com/od20o4 
@@ -129,12 +122,13 @@ namespace debugger.Util
         }
         public static FlagSet Negate(byte[] input1, out byte[] Result)
         {
+            
             // To negate is an equivalent operation as to XOR by -1 and add one.
 
-            // Simply, each bit will be flipped, providing a twos compliment equivalent(be it positive or negative)
+            // Simply, each bit will be flipped
             Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
 
-            // Add one
+            // Add one to finish the twos complement negation.
             FlagSet ResultFlags = Increment(Result, Result.Length, out Result);
 
             if (input1.IsZero())

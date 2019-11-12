@@ -168,7 +168,7 @@ namespace debugger.Emulator
             }
             public List<byte[]> Fetch() => new List<byte[]> { FetchOnce() };
             public byte[] FetchOnce() => FetchAs(Size);
-            public byte[] FetchAs(RegisterCapacity regCap)
+            public byte[] FetchAs(RegisterCapacity regCap, bool forceUpper=false)
             {
                 // A method for fetching the value of the register as a single byte[] rather than a list<byte[]> as the interface requires.
                 byte[] Output;
@@ -192,12 +192,12 @@ namespace debugger.Emulator
                 // Finally, since the program operates in little endian, the 1st index of the returned WORD byte array will be the upper byte.
                 // Explanations for fetching from a RegisterGroup can be found in its class file.
                 // In short, if this predicate is true, it should be accessed as an upper byte register.
-                if (regCap == RegisterCapacity.BYTE
+                if (forceUpper || (regCap == RegisterCapacity.BYTE
                 && Code > XRegCode.B
                 && Table == RegisterTable.GP
-                && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) != Settings))
+                && (RexByte == REX.NONE || (Settings | RegisterHandleSettings.NO_REX) != Settings)))
                 {
-                    Output = new byte[] { CurrentContext.Registers[Table, RegisterCapacity.WORD, Code - 4][1] };
+                    Output = new byte[] { CurrentContext.Registers.GetUpperByte(Code - 4) };
                 }
                 else
                 {

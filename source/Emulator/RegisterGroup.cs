@@ -166,5 +166,7 @@ namespace debugger.Emulator
                 }
             }
         }
+
+        public byte GetUpperByte(XRegCode reg) => Registers[(int)reg][1];
     }
 }
