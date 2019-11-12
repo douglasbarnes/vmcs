@@ -19,9 +19,9 @@
 //  - Otherwise, methods would be needed for every size of integer. There would be little way to overcome this without the former. A work around this
 //    could be to use dynamic types. This was my first thought, until I discovered that dynamic data types were about 3000x slower.
 // Here is an overview of performance comparisons between options. http://prntscr.com/pbvrar
-//  dynamics : 00:00:00.0046894
-//  ulong    : 00:00:00.0000001
-//  bytes    : 00:00:00.0000016
+//  dynamic : 00:00:00.0046894
+//  ulong   : 00:00:00.0000001
+//  byte    : 00:00:00.0000016
 //  This is not truly representative of the ulong speed, I would imagine it to be at least 10x faster, but the stopwatch reached its resolution.
 // However a lot of this time is made back up for in other parts of the program. For example, no conversion is required after bytes are stored in
 // a MemorySpace. MemorySpace is probably the most efficient way of doing its job, unsafe code could maybe have something going for it if the data
@@ -132,10 +132,10 @@ namespace debugger.Util
             // To negate is an equivalent operation as to XOR by -1 and add one.
 
             // Simply, each bit will be flipped, providing a twos compliment equivalent(be it positive or negative)
-            FlagSet ResultFlags = Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
+            Xor(input1, SignExtend(new byte[] { 0xFF }, (byte)input1.Length), out Result);
 
             // Add one
-            Increment(Result, Result.Length, out Result);
+            FlagSet ResultFlags = Increment(Result, Result.Length, out Result);
 
             if (input1.IsZero())
             {
@@ -1155,7 +1155,6 @@ namespace debugger.Util
             // the array is, but in a qword I would refer to the MSB as the 64th bit and the LSB as the 1st)
             return ((byte)(bit / 8), (byte)(1 << ((bit - 1) % 8)));
         }
-
         public static byte GetBit(byte[] input, int bit)
         {
             // An example implementation of GetBitMask()
@@ -1200,20 +1199,6 @@ namespace debugger.Util
                 }
             }
             return Even;
-        }
-        public static byte[] GetBytes(string bitString)
-        {
-            // Convert a string representation of a byte array back into bytes. This is only going to work properly 
-            // on byte arrays that I parsed. I cannot attest to any other methods.
-
-            // Divide a multiple of 8 by 8 to get the number of bytes. This is where using different sources of code together can go sour. Ensure that yours pads bytes properly.
-            byte[] Output = new byte[bitString.Length / 8];
-            for (int i = 0; i < Output.Length; i++)
-            {
-                // Select the bytes I want by multiplying the iterator by the number of bits in a x86-64 byte, 8. This selects the next group of 8 each time.
-                Output[i] = Convert.ToByte(bitString.Substring(8 * i, 8), 2);
-            }
-            return Output;
         }
         public static byte[] SignExtend(byte[] input, byte newLength)
         {
@@ -1267,22 +1252,6 @@ namespace debugger.Util
                 }
             }
             return input;
-        }
-        public static string SignExtend(string bits, int newLength)
-        {
-            // Sign extension can also be applied to string representations of byte arrays.
-            string Output = "";
-
-            // Determine whether the sign bit is a 1 or 0(thats all sign extension is really, 0xFF=0b1111111)
-            char SignBit = (bits[0] == '1') ? '1' : '0';
-
-            // $newLength will be the length of the string not the length of bytes.
-            for (int i = bits.Length; i < newLength; i++)
-            {
-                // Append the sign bit ($newLength-$bits.Length) times
-                Output += SignBit;
-            }
-            return Output;
         }
         public static byte[] ZeroExtend(byte[] input, byte length)
         {

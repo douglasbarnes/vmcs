@@ -4,15 +4,16 @@
 using System.Collections.Generic;
 namespace debugger.Emulator.DecodedTypes
 {
-
     public interface IMyDecoded
     {
+        // The size of the operands. This is very operand specific, some classes may ignore this, such as the NoOperands class.
+        // Its purpose will be demonstrated in the derived classes that make use of it on a case-by-case basis.
         public RegisterCapacity Size { get; }
 
         // An input must have a method of disassembling. This will follow standard convention of showing everything that the user
         // would expect to see except commas between operands. This is because the class itself does not know whether if it is
         // part of a DecodedCompound nor its position within one. In my implementation, the comma is added in the Disassembler
-        // class, however it would also make sense in Opcode.cs.
+        // class, however it would be just as reasonable in Opcode.cs.
         public List<string> Disassemble();
 
         // Fetches data to be passed to the opcode. This could be one or more arrays, such as in a ModRM byte, both the source
