@@ -428,6 +428,7 @@ namespace debugger.Util
             if (signed && (NegativeDividend ^ NegativeDivisor))
             {
                 Negate(Quotient, out Quotient);
+                Negate(dividend, out dividend);
             }
 
             // Size variable is the size of twice the result.      
