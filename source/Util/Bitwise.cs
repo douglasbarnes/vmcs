@@ -289,7 +289,7 @@ namespace debugger.Util
                 // Now its up to the developer to handle the rest, e.g use SBB on the upper bytes.
                 Carry = borrow ? FlagState.ON : FlagState.OFF,
 
-                // Similar to in Add(), but the opposite. If I subtract a positive and a negative and end up with a negative, something went wrong, for more explanation see Add().
+                // Similar to in Add(), but the opposite. If I subtract a negative from a positive and end up with a negative, something went wrong, for more explanation see Add().
                 Overflow = input1.IsNegative() != input2.IsNegative() && Result.IsNegative() != input1.IsNegative() ? FlagState.ON : FlagState.OFF,
 
                 // A little harder to deduce than add, but if bit 4 was on in either input1 or input2, in a BCD operation, I need to know
@@ -300,7 +300,7 @@ namespace debugger.Util
         }
         public static void Divide(byte[] dividend, byte[] divisor, int size, bool signed, out byte[] Quotient, out byte[] Modulo)
         {
-            // Unfortunately my divide implementation is almost completely impractical. On a latest-gen £2000 computer, it took around
+            // Unfortunately my divide implementation is almost completely impractical. On my computer, it took around
             // 40 minutes to evaluate the division of a 128bit dividend by a 64bit divisor. This is absolutely not ideal for the end user
             // nor do I intend to target the program at such expensive hardware. For compatibility and the patient, I have left the
             // algorithm and opcodes available. Dword/word and lower worked almost instantaneously (Would also work the same for operands
@@ -340,7 +340,6 @@ namespace debugger.Util
                 Negate(dividend, out dividend);
 
                 // This is a little extra hack that I will explain later, but an unsigned number does have cause to be percieved as a negative signed,
-                // I will explain this later.
                 LastSign = false;
             }
             bool NegativeDivisor = divisor.IsNegative();
@@ -348,6 +347,8 @@ namespace debugger.Util
             {
                 Negate(divisor, out divisor);
             }
+            dividend = ZeroExtend(dividend, (byte)size);
+            divisor = ZeroExtend(divisor, (byte)size);
 
             //Going forward, think of every number as unsigned. The need for signed division specific operation has been abstracted from the upcoming while loop.
 
@@ -357,10 +358,13 @@ namespace debugger.Util
             {
                 // Create a temporary buffer where I store the result of the subtraction.
                 byte[] Buffer;
+
                 // Subtract the divisor from the dividend and store it in the buffer.
                 Subtract(dividend, divisor, out Buffer);
+
                 // Is the buffer negative? 
                 bool NewSign = Buffer.IsNegative();
+
                 // If these had two different signs, i.e dividend - divisor < 0, there is a good chance we are finished dividing.
                 if (LastSign == NewSign || LastSign)
                 {
@@ -423,7 +427,7 @@ namespace debugger.Util
             // the result has to be negated, or if there are two negates, as statement three shows, do nothing.
             if (signed && (NegativeDividend ^ NegativeDivisor))
             {
-                Negate(Quotient, out dividend);
+                Negate(Quotient, out Quotient);
             }
 
             // Size variable is the size of twice the result.      
