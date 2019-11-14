@@ -301,7 +301,7 @@ namespace debugger.Util
         public static void Divide(byte[] dividend, byte[] divisor, int size, bool signed, out byte[] Quotient, out byte[] Modulo)
         {
             // Unfortunately my divide implementation is almost completely impractical. On my computer, it took around
-            // 40 minutes to evaluate the division of a 128bit dividend by a 64bit divisor. This is absolutely not ideal for the end user
+            // 4 minutes to evaluate the division of a 128bit dividend by a 64bit divisor. This is absolutely not ideal for the end user
             // nor do I intend to target the program at such expensive hardware. For compatibility and the patient, I have left the
             // algorithm and opcodes available. Dword/word and lower worked almost instantaneously (Would also work the same for operands
             // with larger capacities holding smaller values). Now ask, why not resort to using native methods such as BitConverter.ToUInt64?
@@ -323,9 +323,11 @@ namespace debugger.Util
             }
 
             // Get the sign of the dividend. This will be useful shortly.(Negative == true)   
+            // True if dividend is a signed negative
             bool LastSign = dividend.IsNegative();
 
             // Is this a signed division operation? If so, am I dividing a negative, or just a really big unsigned number?
+            // True if and only if dividend is a signed negative
             bool NegativeDividend = signed && LastSign;
 
             // If this is signed division, I don't want to deal with negatives. More importantly, at least with this algorithm, it can't.
@@ -460,7 +462,6 @@ namespace debugger.Util
                 {
                     // Times the bottom row digit at "ColumnPos" by the top row digit at "BytePos". 
                     int mul = (input1[ColumnPos] * input2[BytePos]) + Result[BytePos + ColumnPos];
-
                     // What is the meaning of Result[BytePos+ColumnPos]?
                     // Well, this serves a few purposes, remember how when I multiplied 123 and 45, when I moved on to the digit 4, 
                     // I added an extra zero in the CursorPos=1 column (http://prntscr.com/p8epnj) where I would write ther result of (1*4) + (2*4) + (3*4)
@@ -622,7 +623,7 @@ namespace debugger.Util
                 // Now it should be clear that the only value in the lower nibble that cannot take an extra '1' before carrying into the
                 // 4th bit is 0b111. If I add 1 to 0b111, where would the 1 go? I can't write 0b112, that's not binary, so by carrying over
                 // I get 0b1000, boom, our binary coded decimal was just ruined.
-                Auxiliary = input[0] == 0b111 ? FlagState.ON : FlagState.OFF
+                Auxiliary = (input[0] & 0b111) == 0b111 ? FlagState.ON : FlagState.OFF
             };
         }
         public static FlagSet Decrement(byte[] input, out byte[] Result)
@@ -645,16 +646,12 @@ namespace debugger.Util
             }
             return new FlagSet(Result)
             {
-                // A flip scenario of in Increment(). Here, I'm looking for the input to be zero.
-                // I could just write that, I have a method for that called IsZero(), but I really
-                // want to make it clear what's happening. If I decremented an unsigned number
-                // (In Increment() and Decrement() functions, the overflow is used for unsigned
-                // numbers, but in Add() and Subtract() for signed numbers. Crazy. I know.)
-                // and got not only a positive number, but the highest positive number possible,
-                // there would be real cause for concern. Fortunately, the overflow flag can
-                // bring a developer to their senses. However just like in Increment() there are
-                // absolutely scenarios where I can take advantage(Very similar ones too). Say
-                // I wanted a loop, instead of using two registers to represent the current
+                // A flip scenario of in Increment(). Here, I'm looking for the input MSB to be 0x80 and the rest zero.
+                // In twos complement, 0x80 00 00 .. 00 is the lowest number possible, therefore to take one from this
+                // would result in the greatest number possible, 0x7F FF .. FF, which would be an invalid result. A negative 
+                // minus one should always be negative, therefore to tell the developer, the OF is set.
+                // However just like in Increment() there are absolutely scenarios where I can take advantage(Very similar ones too). 
+                // Say I wanted a loop, instead of using two registers to represent the current
                 // iterator value and the maximum iterator value, I could run code like..
                 //  0x00 mov al, 0x31
                 //  0x02 [Do stuff]
@@ -663,10 +660,11 @@ namespace debugger.Util
                 //  0x22 jo 0x00
                 // (jo = jump if overflow) Look, I can loop round 0x32 times(because the flag is
                 // set when the result is 0xFF not 0x00) without having to use a comparison operator
-                // and since it's already calculated I would be wasting time and spaceif I didn't 
+                // and since it's already calculated I would be wasting time and space if I didn't 
                 // make use of it!
                 Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,
-                // Identical method to Subtract() here, unfortunately I cant think of any nice shortcut.                                                                 
+
+                // Identical method to Subtract() here.                                                               
                 Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
