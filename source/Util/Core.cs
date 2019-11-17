@@ -712,7 +712,6 @@ namespace debugger.Util
                 return false;
             }
         }
-
         public static string ReverseEndian(string input)
         {
             // A method to flip the endianness of a given string that represents bytes.

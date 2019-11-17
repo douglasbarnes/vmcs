@@ -120,8 +120,7 @@ namespace debugger.Logging
             // not automatically write a new line.
             using (StreamWriter stream = LogPath.AppendText())
             {
-
-                stream.Write($"[{SeverityPrefix[CodeInfo.Item1]}][{DateTime.UtcNow.ToString()}] " + ErrorMessage + "\n");
+                stream.Write($"[{SeverityPrefix[CodeInfo.Item1]}][{DateTime.UtcNow.ToString()}]{((int)inputCode).ToString()}" + ErrorMessage + "\n");
             }
 
         }

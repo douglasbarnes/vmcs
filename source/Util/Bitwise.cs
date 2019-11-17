@@ -633,7 +633,7 @@ namespace debugger.Util
             Array.Copy(input, Result, input.Length);
 
             // An almost identical to approach to Increment(). Instead, 0xFF is the buzz value. Think about
-            // which number satisfies x - 1 = infinity. Nothing right? So instantly I know something went
+            // which number satisfies x - 1 = the greatest value possible. Nothing right? So instantly I know something went
             // 'wrong'. 0x00 must have been the input value decremented. Mathematically speaking, that value 
             // needs to be borrowed from the next column so it can be decremented.
             for (int i = 0; i < Result.Length; i++)
@@ -662,9 +662,9 @@ namespace debugger.Util
                 // set when the result is 0xFF not 0x00) without having to use a comparison operator
                 // and since it's already calculated I would be wasting time and space if I didn't 
                 // make use of it!
-                Overflow = (Result.IsNegative() && !input.IsNegative()) ? FlagState.ON : FlagState.OFF,
+                Overflow = (!Result.IsNegative() && input.IsNegative()) ? FlagState.ON : FlagState.OFF,
 
-                // Identical method to Subtract() here.                                                               
+                // Identical method to Subtract() here, except it is known that the subtractor is one.                                                       
                 Auxiliary = (input[0] & 0b1000) == (Result[0] & 0b1000) ? FlagState.OFF : FlagState.ON
             };
         }
@@ -765,7 +765,7 @@ namespace debugger.Util
             }
 
             // Create some flags, use the constructor for a generic arithmetic flag set, e.g set SF, ZF, and PF as per usual.
-            FlagSet OutputFlags = new FlagSet(Result);
+            FlagSet ResultFlags = new FlagSet(Result);
             if (StartCount == 1)
             {
                 // The overflow flag is actually defined to be set as the MSB ^ CF but since the carry flag is
@@ -777,10 +777,10 @@ namespace debugger.Util
                 // Then the CF just shows the value of the last bit to be pushed out of the result.
                 // This could still have some use on shifts greater than 1, but I imagine the most
                 // common use is to check for a sign bit that got pushed out.
-                OutputFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF;
+                ResultFlags.Overflow = (MSB(Result) == 1) ^ Pull ? FlagState.ON : FlagState.OFF;
             }
-            OutputFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
-            return OutputFlags;
+            ResultFlags.Carry = Pull ? FlagState.ON : FlagState.OFF;
+            return ResultFlags;
         }
         public static FlagSet ShiftRight(byte[] input, byte count, out byte[] Result, bool arithmetic)
         {
@@ -825,8 +825,7 @@ namespace debugger.Util
                     Result[i] = (byte)((Result[i] >> 1) | PushMask);
                 }
 
-            }
-            // This(if not earlier) is where things go tragic if you lied in the size argument.                                                           
+            }                                                      
             int InputMSB = MSB(input);
 
             // If I was shifting a value for part of an arithmetic operation, but I had a signed negative, what would happen? I would
@@ -853,12 +852,12 @@ namespace debugger.Util
             {
                 Result[Result.Length - 1] |= (byte)(InputMSB << 8);
             }
-            FlagSet OutputFlags = new FlagSet(Result);
+            FlagSet ResultFlags = new FlagSet(Result);
             if (StartCount == 1)
             {
                 if (arithmetic)
                 {
-                    OutputFlags.Overflow = FlagState.OFF;
+                    ResultFlags.Overflow = FlagState.OFF;
                 }
                 else
                 {
@@ -867,10 +866,10 @@ namespace debugger.Util
                     // don't set it for them. It's done by setting the overflow flag to what
                     // we would have set the MSB to in SAR, it's just in a SAR instruction, 
                     // we save the developer the time of masking the result themself.
-                    OutputFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF;
+                    ResultFlags.Overflow = InputMSB == 1 ? FlagState.ON : FlagState.OFF;
                 }
             }
-            return OutputFlags;
+            return ResultFlags;
         }
         public static FlagSet RotateLeft(byte[] input, byte bitRotates, bool useCarry, bool carryPresent, out byte[] Result)
         {
@@ -1049,8 +1048,8 @@ namespace debugger.Util
             else
             {
                 // If the carry flag wasn't used in rotation because ROL was used, set it to the LSB of the result. As to why, I don't know. I can't
-                // think of a scenario where I would use this, but Intel writes it as "For ROL and ROR instrucrtions, the original value of the CF
-                // is not part of the result, but the CF flag recieves a copy of the bit that was shifted from one end to the other".
+                // think of a scenario where I would use this, but Intel writes it as "For ROL and ROR instructions, the original value of the CF
+                // is not part of the result, but the CF flag receives a copy of the bit that was shifted from one end to the other".
                 ResultFlags.Carry = LSB(Result) > 0 ? FlagState.ON : FlagState.OFF;
             }
 
