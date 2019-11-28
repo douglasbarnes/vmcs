@@ -106,7 +106,6 @@ namespace debugger.IO
             // Read the entire SH table into $SHTable.
             reader.Read(SHTable, 0, ParsedElf.SHLength * ParsedElf.SHCount);
 
-
             // Use cut and subarray to cut out the shstrtab(section header string table; section that points to text names) from the SH table.
             // Subarray cuts out the preceeding tables. The length of which is the number of tables before shstrtab(which happens to be the index of shstrtab) multiplied by
             // the length of each table.
@@ -125,7 +124,6 @@ namespace debugger.IO
                 StrtabSize = BitConverter.ToInt32(SHstrtab, 0x20);
                 reader.Seek(BitConverter.ToUInt32(SHstrtab, 0x18), SeekOrigin.Begin);
             }
-
 
             byte[] strtab = new byte[StrtabSize];
 

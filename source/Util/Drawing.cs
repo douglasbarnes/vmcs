@@ -1,4 +1,5 @@
-﻿// Drawing is a useful library for drawing forms. There are many times where this code would be repeated, or has need to be generalised.
+﻿// Drawing is a useful library for drawing forms. There are many times in control classes where this code would 
+// be repeated, or has need to be generalised.
 using debugger.Forms;
 using System.Collections.Generic;
 using System.Drawing;

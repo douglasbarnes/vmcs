@@ -226,7 +226,7 @@ namespace debugger.Util
                     carry = false;
                 }
             }
-            return new FlagSet(Result)
+             return new FlagSet(Result)
             {
                 // If the last iteration carried, the addition is incomplete. Setting the flag allows the developer to handle this.
                 Carry = carry ? FlagState.ON : FlagState.OFF,
@@ -426,10 +426,17 @@ namespace debugger.Util
             // Statement three, two negatives divided make a positive.
             // An XOR of the signs could be concluded from statement one, but statement 2 and 3 really make that clear.
             // So, to match statement 1(which statement two proves would be the same for x/-y) if there is exactly one negative input,
-            // the result has to be negated, or if there are two negates, as statement three shows, do nothing.
+            // the quotient has to be negated, or if there are two negates, as statement three shows, do nothing.
             if (signed && (NegativeDividend ^ NegativeDivisor))
             {
                 Negate(Quotient, out Quotient);
+                
+            }
+
+            // Modulo will always round towards zero if the sign of either/both of the inputs was negative
+            // This is the only difference between -x/-y and x/y in the x86-64 architecture; not mathematically.
+            if(signed && (NegativeDividend || NegativeDivisor))
+            {
                 Negate(dividend, out dividend);
             }
 

@@ -93,6 +93,13 @@ namespace debugger.Emulator.DecodedTypes
             // Itreate through every IMyDecoded
             for (int i = 0; i < InternalArray.Length; i++)
             {
+                // If $i is now the index, it must be this IMyDecoded that is to be set. If it is an IMyMultiDecoded,
+                // the destination will be set. 
+                if (i == index)
+                {
+                    InternalArray[index].Set(data);
+                }
+
                 if (InternalArray[i] is IMyMultiDecoded Cursor)
                 {
                     // If the next $i is $index, it points to the source of this IMyMultiDecoded.
@@ -104,14 +111,7 @@ namespace debugger.Emulator.DecodedTypes
 
                     // Increment $i by two because two a source and destination operand were skipped over.
                     i++;
-                }
-
-                // If $i is now the index, it must be this IMyDecoded that is to be set. If it is an IMyMultiDecoded,
-                // the destination will be set. 
-                if (i == index)
-                {
-                    InternalArray[index].Set(data);
-                }
+                }                
             }
         }
         public void SetIndiscriminative(byte[] data, int index) => InternalArray[index].Set(data);
